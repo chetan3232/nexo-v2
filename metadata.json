@@ -1,0 +1,7 @@
+{
+  "name": "Copy of NEXO AI + Notes 1",
+  "description": "A futuristic AI assistant and smart note-taking application powered by Gemini and ElevenLabs.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
