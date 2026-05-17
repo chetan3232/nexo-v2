@@ -1,0 +1,9 @@
+{
+  "id": "supabase-core",
+  "name": "Supabase Integration",
+  "description": "Auto-configure Supabase auth and database logic.",
+  "version": "1.0.0",
+  "author": "Nexo Team",
+  "category": "database",
+  "dependencies": ["@supabase/supabase-js"]
+}

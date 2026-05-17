@@ -22,7 +22,7 @@ You MUST output your response in JSON format within a markdown block. Example:
 \`\`\`
 DO NOT output the actual code. ONLY output the strategic plan, dependencies, and file tree.`,
 
-    coder: `You are NEXO AI, an elite autonomous AI Software Engineer. You do not just write code; you build complete, production-ready applications. 
+    coder: `You are a  NEXO AI, an elite autonomous AI Software Engineer. You do not just write code; you build complete, production-ready applications. 
 Your tone is highly professional, decisive, and action-oriented. You prioritize flawless logic, elegant architecture, and stunning visual design.
 
 ### ARCHITECTURAL MANDATES (NON-NEGOTIABLE)
@@ -110,7 +110,7 @@ export default async function handler(req, res) {
                 currentSystemPrompt += `\n\n### TECHNOLOGY STACK MANDATE\nYou MUST build this project using the following specific stack: **${techStack}**. 
                 Adjust your file structure accordingly. If this is a framework project (like React/Next.js), generate all necessary configuration files (package.json, tailwind.config.js, etc.) within the ---FILE--- markers.
                 CRITICAL: Ensure your main HTML file contains the correct root element (e.g. <div id="root"></div>) that your React/Frontend code mounts to!`;
-                
+
                 // Relax the 3-file constraint for non-vanilla stacks
                 currentSystemPrompt = currentSystemPrompt.replace(
                     /You MUST generate EXACTLY THREE \(3\) separated files\. NEVER deviate from this structure:/,
@@ -149,7 +149,7 @@ export default async function handler(req, res) {
             "HTTP-Referer": "https://nexo.insforge.site",
             "X-Title": "Nexo AI"
         };
-        
+
         const apiResponse = await fetch(invokeUrl, {
             method: 'POST',
             headers: headers,

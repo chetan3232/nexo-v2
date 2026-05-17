@@ -1,88 +1,107 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="https://picsum.photos/32/32" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#ffffff" />
-    <title>NEXO AI</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="manifest" href="/manifest.json" />
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
-      
-      body {
-        background-color: #ffffff;
-        color: #1f1f1f;
-        font-family: 'Inter', sans-serif;
-        overflow-x: hidden;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nexo v2 - Build Your Own Companion</title>
+  <link rel="icon" type="image/png" href="/src/assets/NEXO-V2.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <!-- Polyfill for Buffer needed by E2B -->
+  <script src="https://bundle.run/buffer@6.0.3"></script>
+  <script>
+    // Safe polyfills that don't overwrite existing injected variables
+    window.global = window;
+    if (window.buffer) {
+      window.Buffer = window.buffer.Buffer;
+    }
+
+    // Ensure process.env exists without wiping existing keys (like API_KEY)
+    window.process = window.process || {};
+    window.process.env = window.process.env || {};
+
+    // Set the API key if not already present (User provided key)
+    if (!window.process.env.API_KEY) {
+      window.process.env.API_KEY = 'AIzaSyBdwndziQV1EcJkzxjMkzq3HrL2u-YCQ7c';
+    }
+
+    if (!window.process.env.NODE_ENV) {
+      window.process.env.NODE_ENV = 'development';
+    }
+  </script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            lovable: {
+              bg: '#fbf9f6',
+              surface: '#ffffff',
+              primary: '#ff5e3a',
+              text: '#1c1917',
+              subtle: '#a8a29e',
+              border: '#e7e5e4'
+            }
+          },
+          animation: {
+            'float': 'float 6s ease-in-out infinite',
+            'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-10px)' },
+            },
+            slideInBuild: {
+              '0%': { opacity: '0', transform: 'translateX(-12px) scale(0.95)' },
+              '100%': { opacity: '1', transform: 'translateX(0) scale(1)' },
+            }
+          }
+        },
+      },
+    }
+  </script>
+  <style>
+    body {
+      background-color: #fbf9f6;
+      color: #1c1917;
+    }
+
+    /* Custom scrollbar for chat */
+    .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+    }
+
+    .scrollbar-hide {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    @keyframes slideInBuild {
+      0% {
+        opacity: 0;
+        transform: translateX(-12px) scale(0.95);
       }
 
-      /* Gemini Gradient Text */
-      .gemini-gradient-text {
-        background: linear-gradient(74deg, #4285f4 0%, #9b72cb 19%, #d96570 40%, #121212 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        color: transparent;
+      100% {
+        opacity: 1;
+        transform: translateX(0) scale(1);
       }
-
-      /* Animations */
-      @keyframes slideUp {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      .animate-slide-up {
-        animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-      }
-      
-      /* Custom Scrollbar - Minimal */
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #dadce0;
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #bdc1c6;
-      }
-      
-      /* Selection Color */
-      ::selection {
-        background: #c2e7ff;
-        color: #001d35;
-      }
-    </style>
-  <script type="importmap">
-{
-  "imports": {
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
-    "fuse.js": "https://esm.sh/fuse.js@7.0.0"
-  }
-}
-</script>
+    }
+  </style>
+  <link rel="stylesheet" href="/src/index.css">
 </head>
-  <body>
-    <div id="root"></div>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/service-worker.js')
-            .then(reg => console.log('SW registered', reg))
-            .catch(err => console.log('SW failed', err));
-        });
-      }
-    </script>
-  </body>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/index.tsx"></script>
+</body>
+
 </html>

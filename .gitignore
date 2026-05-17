@@ -24,3 +24,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local and Temporary Folders
+project-brain/
+temp_deploy/
+temp_deploy_static/
+claude-code-system-prompts-main/
+change.txt
+metadata.json

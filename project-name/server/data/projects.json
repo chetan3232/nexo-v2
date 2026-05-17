@@ -1,0 +1,16 @@
+{
+    "files": [
+        {
+            "id": "1",
+            "name": "index.html",
+            "type": "file",
+            "content": "<html>\n  <body>\n    <h1>Hello World</h1>\n  </body>\n</html>"
+        },
+        {
+            "id": "2",
+            "name": "styles.css",
+            "type": "file",
+            "content": "body { background: #f0f0f0; }"
+        }
+    ]
+}
