@@ -11,5 +11,6 @@ E2B_API_KEY=your_e2b_api_key_here  # Get from https://e2b.dev
 # =================================================================================
 
 # Optional Morph Fast Apply
-# Get yours at https://morphllm.com/
+# Get yours at https://morphllm.com/ 
+
 MORPH_API_KEY=your_morph_api_key_here
