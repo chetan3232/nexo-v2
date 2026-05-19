@@ -1,6 +1,10 @@
 import React from "react";
 
-export const GithubIcon: React.FC<React.SVGProps<SVGSVGElement>> = ({
+interface GithubIconProps extends React.SVGProps<SVGSVGElement> {
+  size?: number | string;
+}
+
+export const GithubIcon: React.FC<GithubIconProps> = ({
   className,
   size = 24,
   ...props
