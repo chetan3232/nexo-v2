@@ -4,7 +4,6 @@ import { ExportService } from "../../services/exportService";
 import { Orchestrator } from "../../agents/Orchestrator";
 import {
   Download,
-  Github,
   Rocket,
   Smartphone,
   Monitor,
@@ -12,6 +11,7 @@ import {
   Zap,
   Globe,
 } from "lucide-react";
+import { GithubIcon as Github } from "../ui/GithubIcon";
 import { motion } from "framer-motion";
 
 export const ExportPanel: React.FC = () => {

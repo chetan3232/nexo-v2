@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Heart,
-  Github,
   Cpu,
   MessageCircle,
   Menu,
@@ -11,6 +10,7 @@ import {
   LogOut,
   User,
 } from "lucide-react";
+import { GithubIcon as Github } from "./ui/GithubIcon";
 import logoV2 from "../assets/NEXO-V2.png";
 import { auth, signInWithGoogle, logout } from "../services/firebase";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";

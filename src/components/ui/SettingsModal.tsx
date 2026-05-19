@@ -2,12 +2,12 @@ import React, { useState } from "react";
 import {
   X,
   ChevronRight,
-  Github,
   Settings,
   Download,
   MessageCircle,
   Rocket,
 } from "lucide-react";
+import { GithubIcon as Github } from "./GithubIcon";
 import { useAgentStore } from "../../stores/agentStore";
 import { useProjectStore } from "../../stores/projectStore";
 import toast from "react-hot-toast";

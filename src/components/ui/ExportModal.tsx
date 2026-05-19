@@ -1,7 +1,6 @@
 import React from "react";
 import {
   X,
-  Github,
   Cloud,
   Package,
   Smartphone,
@@ -9,6 +8,7 @@ import {
   Download,
   ExternalLink,
 } from "lucide-react";
+import { GithubIcon as Github } from "./GithubIcon";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { GitHubService } from "../../services/githubService";
