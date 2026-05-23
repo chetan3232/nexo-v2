@@ -23,7 +23,7 @@ interface AgentStore {
 
 export const useAgentStore = create<AgentStore>((set) => ({
   selectedModel:
-    localStorage.getItem("nexo_model") || "google/gemini-2.5-flash",
+    localStorage.getItem("nexo_model") || "gemini-2.5-flash",
   setSelectedModel: (selectedModel) => {
     localStorage.setItem("nexo_model", selectedModel);
     set({ selectedModel });

@@ -196,8 +196,7 @@ const Build: React.FC = () => {
                   <Zap className="w-4 h-4" /> Step 3: Configure Environment
                 </div>
                 <p className="text-stone-400 text-sm">
-                  Create a .env file and add your OpenRouter or Nexo AI API
-                  keys.
+                  Create a .env file and add your Gemini API key.
                 </p>
                 <div className="bg-black/50 p-4 rounded-xl border border-white/10 font-mono text-sm text-stone-300">
                   nano .env
