@@ -70,16 +70,16 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { messages, model = 'inclusionai/ling-2.6-1t:free', temperature = 1.0, top_p = 1.0, projectMode = 'frontend', techStack = 'Vanilla', agentRole = 'coder', stream = true } = req.body;
+        const { messages, model = 'gemini-2.5-flash', temperature = 1.0, top_p = 1.0, projectMode = 'frontend', techStack = 'Vanilla', agentRole = 'coder', stream = true } = req.body;
 
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
             return res.status(400).json({ error: 'Messages array is required' });
         }
 
-        const apiKey = process.env.NVIDIA_API_KEY;
+        const apiKey = process.env.GEMINI_API_KEY;
 
         if (!apiKey) {
-            return res.status(401).json({ error: 'API Key (NVIDIA_API_KEY) is missing.' });
+            return res.status(401).json({ error: 'API Key (GEMINI_API_KEY) is missing.' });
         }
 
         const reqTemperature = 1.0;
@@ -131,23 +131,19 @@ export default async function handler(req, res) {
             }))
         ];
 
-        const invokeUrl = "https://openrouter.ai/api/v1/chat/completions";
+        const invokeUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
         const payload = {
-            model: model,
+            model: model.startsWith('google/') ? model.replace('google/', '') : model,
             messages: messagesPayload,
             max_tokens: maxTokens,
             temperature: reqTemperature,
             top_p: reqTopP,
-            stream: stream,
-            chat_template_kwargs: chatTemplateKwargs
+            stream: stream
         };
 
         const headers = {
             "Content-Type": "application/json",
-            "Accept": "text/event-stream",
-            "Authorization": `Bearer ${apiKey}`,
-            "HTTP-Referer": "https://nexo.insforge.site",
-            "X-Title": "Nexo AI"
+            "Authorization": `Bearer ${apiKey}`
         };
 
         const apiResponse = await fetch(invokeUrl, {

@@ -1,7 +1,7 @@
 import { Message } from "../types";
 
 /**
- * Low-level AI invocation using OpenRouter.
+ * Low-level AI invocation via the Nexo backend (Google Gemini).
  */
 export const invokeAI = async (
   messages: any[],

@@ -27,7 +27,7 @@ export abstract class BaseAgent {
 
     if (!response.ok) {
       const errText = await response.text().catch(() => "");
-      throw new Error(`OpenRouter returned ${response.status}: ${errText}`);
+      throw new Error(`Nexo API returned ${response.status}: ${errText}`);
     }
 
     const reader = response.body?.getReader();
@@ -54,7 +54,6 @@ export abstract class BaseAgent {
           const json = JSON.parse(trimmed.slice(6));
           const delta = json.choices?.[0]?.delta;
           const content = delta?.content || "";
-          // Note: OpenRouter doesn't always provide reasoning_content in the same way
 
           if (content) {
             fullText += content;
