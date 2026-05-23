@@ -19,13 +19,6 @@ export const UPI_ID = "chetanpatel323@fam";
 
 // Models
 export const AI_MODELS = {
-  NEXO_V2: {
-    id: 'tngtech/deepseek-r1t2-chimera:free', // Updated to DeepSeek R1 Chimera model
-    name: 'NEXO v2 (DeepSeek)',
-    provider: 'openai', 
-    description: 'Versatile reasoning via OpenRouter (Premium).',
-    isPremium: true
-  },
   NEXO_FLEX: {
     id: 'gemini-2.5-flash',
     name: 'NEXO Flex (Gemini)',
