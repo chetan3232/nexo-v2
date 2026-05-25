@@ -59,14 +59,13 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
   const [driveStatus, setDriveStatus] = useState<
     Record<string, "idle" | "uploading" | "done">
   >({});
-  const menuRef = useRef<HTMLDivElement>(null);
-
   const [chatHistory, setChatHistory] = useState<any[]>([]);
 
   // Close menu on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".action-menu-container")) {
         setOpenMenuId(null);
       }
     };
@@ -100,10 +99,20 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
     const { setMessages, setCurrentChatId, setHasStarted } =
       useChatStore.getState();
     const { setCurrentContent } = useProjectStore.getState();
+    const { setSelectedModel, setProjectMode, setTechStack } = useAgentStore.getState();
 
     setMessages(chat.messages || []);
     setCurrentContent(chat.content || null);
     setCurrentChatId(chat.id);
+    if (chat.model) {
+      setSelectedModel(chat.model);
+    }
+    if (chat.projectMode) {
+      setProjectMode(chat.projectMode);
+    }
+    if (chat.techStack) {
+      setTechStack(chat.techStack);
+    }
     if (chat.messages?.length > 0) {
       setHasStarted(true);
     }
@@ -128,7 +137,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
         // No files — just put a readme
         zip.file(
           "README.md",
-          `# ${chat.title || "Nexo Project"}\n\nNo files were found in this project.`,
+          `# ${chat.name || chat.title || "Nexo Project"}\n\nNo files were found in this project.`,
         );
       } else {
         Object.entries(files).forEach(([filePath, content]) => {
@@ -142,7 +151,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${(chat.title || "nexo-project").replace(/\s+/g, "-").toLowerCase()}.zip`;
+      a.download = `${(chat.name || chat.title || "nexo-project").replace(/\s+/g, "-").toLowerCase()}.zip`;
       a.click();
       URL.revokeObjectURL(url);
       setZipStatus((prev) => ({ ...prev, [chat.id]: "done" }));
@@ -179,14 +188,14 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
       const zip = new JSZip();
       const files = chat.content?.files || {};
       if (Object.keys(files).length === 0) {
-        zip.file("README.md", `# ${chat.title || "Nexo Project"}`);
+        zip.file("README.md", `# ${chat.name || chat.title || "Nexo Project"}`);
       } else {
         Object.entries(files).forEach(([fp, content]) => {
           zip.file(fp.startsWith("/") ? fp.slice(1) : fp, content as string);
         });
       }
       const blob = await zip.generateAsync({ type: "blob" });
-      const fileName = `${(chat.title || "nexo-project").replace(/\s+/g, "-").toLowerCase()}.zip`;
+      const fileName = `${(chat.name || chat.title || "nexo-project").replace(/\s+/g, "-").toLowerCase()}.zip`;
 
       // Upload to Drive
       const metadata = {
@@ -236,28 +245,40 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
 
   const models = [
     {
-      id: "google/gemini-2.5-flash",
+      id: "gemini-2.5-flash",
       name: "Gemini 2.5 Flash",
       provider: "Google",
-      desc: "Superior Reasoning & Fast",
+      desc: "Fast reasoning, high free-tier quota (Recommended)",
     },
     {
-      id: "nvidia/minimax-m2.7",
-      name: "MiniMax M2.7",
-      provider: "NVIDIA",
-      desc: "NVIDIA NIM · 8K ctx",
+      id: "gemini-2.0-flash",
+      name: "Gemini 2.0 Flash",
+      provider: "Google",
+      desc: "Balanced speed & quality, generous limits",
     },
     {
-      id: "qwen/qwen-2.5-72b-instruct:free",
-      name: "Qwen 2.5 72B",
-      provider: "OpenRouter",
-      desc: "Fast & Free",
+      id: "gemini-2.0-flash-lite",
+      name: "Gemini 2.0 Flash-Lite",
+      provider: "Google",
+      desc: "Fastest, highest free quota",
     },
     {
-      id: "groq/llama-3.3-70b-versatile",
-      name: "Llama 3.3 70B",
-      provider: "Groq",
-      desc: "Direct Ultra-Fast",
+      id: "gemini-1.5-flash",
+      name: "Gemini 1.5 Flash",
+      provider: "Google",
+      desc: "Stable & reliable fallback",
+    },
+    {
+      id: "gemini-1.5-pro",
+      name: "Gemini 1.5 Pro",
+      provider: "Google",
+      desc: "Deep reasoning, stable pro model",
+    },
+    {
+      id: "gemini-2.5-pro",
+      name: "Gemini 2.5 Pro",
+      provider: "Google",
+      desc: "Best quality (low free-tier quota)",
     },
   ];
 
@@ -313,14 +334,13 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
                 <div className="flex items-center gap-3 overflow-hidden pr-2">
                   <MessageSquare className="w-4 h-4 text-stone-400 shrink-0" />
                   <div className="truncate text-[13px] font-medium text-stone-700">
-                    {chat.title}
+                    {chat.name || chat.title || "Untitled Project"}
                   </div>
                 </div>
 
                 {/* 3-Dot Action Menu */}
                 <div
-                  ref={menuRef}
-                  className="relative"
+                  className="relative action-menu-container"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
@@ -411,7 +431,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             <span className="text-[9px] font-black text-stone-900 uppercase tracking-widest">
-              NVIDIA H100 Cluster Active
+              Google Gemini Active
             </span>
           </div>
         </div>
@@ -482,7 +502,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
                 className="flex items-center gap-2 px-5 py-2.5 bg-white border border-stone-200 rounded-full text-xs font-bold text-stone-600 hover:border-indigo-500 transition-all shadow-sm"
               >
                 <Cpu className="w-3.5 h-3.5" />
-                <span>{models.find((m) => m.id === selectedModel)?.name}</span>
+                <span>{models.find((m) => m.id === selectedModel)?.name || "Gemini 2.5 Flash"}</span>
                 <ChevronDown className="w-3 h-3" />
               </button>
               <AnimatePresence>
@@ -597,3 +617,4 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
     </div>
   );
 };
+

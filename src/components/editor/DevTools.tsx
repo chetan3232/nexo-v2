@@ -22,8 +22,16 @@ type TabType =
   | "logs"
   | "ai";
 
-export const DevTools: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabType>("terminal");
+interface DevToolsProps {
+  defaultTab?: TabType;
+}
+
+export const DevTools: React.FC<DevToolsProps> = ({ defaultTab = "terminal" }) => {
+  const [activeTab, setActiveTab] = useState<TabType>(defaultTab);
+
+  useEffect(() => {
+    setActiveTab(defaultTab);
+  }, [defaultTab]);
   const { terminalLogs, consoleLogs, networkLogs, aiReasoning } =
     useRuntimeStore();
   const { currentContent } = useProjectStore();
