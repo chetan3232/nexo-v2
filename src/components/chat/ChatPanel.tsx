@@ -138,22 +138,26 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
       </div>
 
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-stone-100">
-        <div className="relative border border-stone-200 rounded-2xl bg-white shadow-sm focus-within:border-stone-300 focus-within:shadow-md transition-all overflow-hidden flex flex-col">
+        <div className={`relative border rounded-2xl bg-white transition-all duration-300 overflow-hidden flex flex-col ${buildPhase === "building" ? "border-indigo-500 ring-2 ring-indigo-100 shadow-lg shadow-indigo-50/50" : "border-stone-200 shadow-sm focus-within:border-stone-300 focus-within:shadow-md"}`}>
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            disabled={buildPhase === "building"}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 handleSend();
               }
             }}
-            placeholder="Make changes, add new features, ask for anything"
-            className="w-full bg-transparent py-3 px-4 text-sm resize-none h-20 placeholder:text-stone-400 outline-none"
+            placeholder={buildPhase === "building" ? "AI is generating code... Please wait" : "Make changes, add new features, ask for anything"}
+            className="w-full bg-transparent py-3 px-4 text-sm resize-none h-20 placeholder:text-stone-400 outline-none disabled:opacity-55"
           />
           <div className="flex items-center justify-between px-2 pb-2">
             <div className="flex items-center gap-1">
-              <button className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-full transition-colors">
+              <button 
+                disabled={buildPhase === "building"}
+                className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-full transition-colors disabled:opacity-30"
+              >
                 <svg
                   className="w-4 h-4"
                   fill="none"
@@ -168,7 +172,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                   />
                 </svg>
               </button>
-              <button className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-full transition-colors">
+              <button 
+                disabled={buildPhase === "building"}
+                className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-full transition-colors disabled:opacity-30"
+              >
                 <svg
                   className="w-4 h-4"
                   fill="none"
@@ -186,7 +193,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
             </div>
             <button
               onClick={handleSend}
-              disabled={!input.trim()}
+              disabled={buildPhase === "building" || !input.trim()}
               className="p-1.5 bg-stone-900 text-white rounded-full hover:bg-black disabled:opacity-50 transition-all flex items-center justify-center"
             >
               <svg

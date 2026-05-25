@@ -266,7 +266,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
 
         // Remove external script tags (we'll inline the JS)
-        finalHTML = finalHTML.replace(/<script\s+src=["'][^"']+["']\s*><\/script>/gi, '');
+        finalHTML = finalHTML.replace(/<script\s+src=["'](?:\.\/)?script\.js["']\s*><\/script>/gi, '');
 
         // Inline all JS content
         const jsContent = jsFiles.map(f => f.content).join('\n');

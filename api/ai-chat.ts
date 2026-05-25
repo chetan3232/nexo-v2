@@ -49,7 +49,10 @@ export default async function(request: Request): Promise<Response> {
     });
 
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    console.error("Error in ai-chat handler:", err);
+    const message = err instanceof Error && err.message.includes("NVIDIA_API_KEY") 
+      ? err.message 
+      : "An unexpected error occurred.";
     return new Response(JSON.stringify({ error: message }), { status: 500, headers: corsHeaders });
   }
 };

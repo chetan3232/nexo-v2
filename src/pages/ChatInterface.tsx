@@ -46,6 +46,7 @@ import {
   Globe,
   Terminal,
   Layout,
+  Loader2,
 } from "lucide-react";
 
 const ChatInterface: React.FC = () => {
@@ -150,7 +151,14 @@ const ChatInterface: React.FC = () => {
         </div>
 
         <div className="flex-1 flex justify-center font-medium text-stone-900 text-sm w-1/3">
-          Untitled
+          {projectStore.buildPhase === "building" ? (
+            <div className="flex items-center gap-2 text-indigo-600 bg-indigo-50/50 px-3 py-1 rounded-full border border-indigo-100/50 animate-pulse font-medium text-xs">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />
+              <span>AI Active: {projectStore.subStatus || "Thinking..."}</span>
+            </div>
+          ) : (
+            "Nexo Editor"
+          )}
         </div>
 
         <div className="flex items-center justify-end gap-3 w-1/3">

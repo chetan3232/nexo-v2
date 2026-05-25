@@ -32,7 +32,39 @@ const SYSTEM_PROMPT = `You are NEXO v0, the world's most advanced AI Frontend Ar
 
 Build with the soul of an architect and the precision of a compiler.`;
 
-const logUsage = (tokens = 0) => {
+// In-memory stats accumulator for 1-minute summaries
+let minuteStats = {
+    totalCalls: 0,
+    modelCalls: {},
+    modelTokens: {},
+    totalTokens: 0
+};
+
+// Start the 1-minute recap timer
+setInterval(() => {
+    const timestamp = new Date().toLocaleTimeString();
+    console.log(`\n\x1b[36m================== 📊 NEXO AI 1-MINUTE RECAP (Time: ${timestamp}) ==================\x1b[0m`);
+    if (minuteStats.totalCalls === 0) {
+        console.log(`\x1b[90mNo API calls were made in the last minute.\x1b[0m`);
+    } else {
+        console.log(`Total API Calls: \x1b[33m${minuteStats.totalCalls}\x1b[0m`);
+        console.log(`Total Tokens Used: \x1b[33m${minuteStats.totalTokens.toLocaleString()}\x1b[0m`);
+        console.log(`Breakdown by Model:`);
+        Object.keys(minuteStats.modelCalls).forEach(model => {
+            const tokens = minuteStats.modelTokens[model];
+            console.log(`  - \x1b[35m${model}\x1b[0m | \x1b[32m${tokens.toLocaleString()}\x1b[0m tokens`);
+        });
+    }
+    console.log(`\x1b[36m==========================================================================\x1b[0m\n`);
+    
+    // Reset stats for the next 1 minute interval
+    minuteStats.totalCalls = 0;
+    minuteStats.modelCalls = {};
+    minuteStats.modelTokens = {};
+    minuteStats.totalTokens = 0;
+}, 60 * 1000);
+
+const logUsage = (model, tokens = 0) => {
     try {
         const logPath = path.join(__dirname, '../data/usage.json');
         let usage = { calls: [], totalTokens: 0 };
@@ -43,6 +75,7 @@ const logUsage = (tokens = 0) => {
         
         usage.calls.push({
             timestamp: new Date().toISOString(),
+            model: model,
             tokens: tokens
         });
         usage.totalTokens += tokens;
@@ -52,13 +85,21 @@ const logUsage = (tokens = 0) => {
         
         fs.writeFileSync(logPath, JSON.stringify(usage, null, 2));
 
+        // Update 1-minute stats
+        minuteStats.totalCalls++;
+        minuteStats.modelCalls[model] = (minuteStats.modelCalls[model] || 0) + 1;
+        minuteStats.modelTokens[model] = (minuteStats.modelTokens[model] || 0) + tokens;
+        minuteStats.totalTokens += tokens;
+
+        console.log(`\n\x1b[32m[AI Success]\x1b[0m Model: "${model}" | Tokens: ${tokens.toLocaleString()} | Time: ${new Date().toLocaleTimeString()}\n`);
+
         // Markdown Logging
         const mdPath = path.join(__dirname, '../data/USAGE.md');
         const timestamp = new Date().toLocaleString();
-        const mdEntry = `| ${timestamp} | ${tokens.toLocaleString()} | ${usage.totalTokens.toLocaleString()} |\n`;
+        const mdEntry = `| ${timestamp} | ${model} | ${tokens.toLocaleString()} | ${usage.totalTokens.toLocaleString()} |\n`;
         
         if (!fs.existsSync(mdPath)) {
-            const header = "# 📊 NEXO AI Usage Log\n\n| Timestamp | Tokens Used | Cumulative Tokens |\n| :--- | :--- | :--- |\n";
+            const header = "# 📊 NEXO AI Usage Log\n\n| Timestamp | Model | Tokens Used | Cumulative Tokens |\n| :--- | :--- | :--- | :--- |\n";
             fs.writeFileSync(mdPath, header + mdEntry);
         } else {
             fs.appendFileSync(mdPath, mdEntry);
@@ -84,6 +125,8 @@ router.post('/chat', async (req, res) => {
             return res.status(401).json({ error: 'API Key (OPENROUTER_API_KEY or NVIDIA_API_KEY) is missing.' });
         }
 
+        console.log(`\n\x1b[33m[AI Request]\x1b[0m Model: "${model}" | Mode: ${projectMode} | Stack: ${techStack} | Stream: ${stream} | Time: ${new Date().toLocaleTimeString()}`);
+
         const reqTemperature = 1.0;
         const reqTopP = 1.0;
         const maxTokens = 16384;
@@ -93,33 +136,24 @@ router.post('/chat', async (req, res) => {
 
         // Dynamic Prompt Injection based on Mode & Tech Stack
         if (projectMode === 'fullstack') {
-            currentSystemPrompt = currentSystemPrompt.replace(
-                /FORBIDDEN TECHNOLOGIES:[\s\S]*?- To simulate backend workflows/,
-                `ALLOWED TECHNOLOGIES:\n- Modern Server-side languages (Node.js, Python, Go, etc.)\n- Databases (SQL, NoSQL)\n- Full Stack Frameworks (Next.js, Remix, etc.)`
-            );
-            currentSystemPrompt = currentSystemPrompt.replace(
-                /You MUST generate EXACTLY THREE \(3\) separated files\. NEVER deviate from this structure:[\s\S]*?3\. script\.js/,
-                `You are a Full-Stack Architect. You MUST generate the COMPLETE architecture (Frontend + Backend). No file limit applies, but use the Nexo Protocol markers.`
-            );
-            currentSystemPrompt = currentSystemPrompt.replace(
-                /You are strictly limited to FRONTEND TECHNOLOGIES:/,
-                `You are empowered with FULL STACK CAPABILITIES:`
-            );
+            currentSystemPrompt += `\n\n### FULL STACK ARCHITECTURE MANDATE
+You are a Full-Stack Architect. You are empowered with FULL STACK CAPABILITIES. You MUST generate the COMPLETE architecture (Frontend + Backend). No file limit applies, but use the Nexo Protocol markers.
+ALLOWED TECHNOLOGIES:
+- Modern Server-side languages (Node.js, Python, Go, etc.)
+- Databases (SQL, NoSQL)
+- Full Stack Frameworks (Next.js, Remix, etc.)`;
         }
 
         if (techStack !== 'Vanilla') {
-            currentSystemPrompt += `\n\n### TECHNOLOGY STACK MANDATE\nYou MUST build this project using the following specific stack: **${techStack}**. 
-            Adjust your file structure accordingly. If this is a framework project (like React/Next.js), generate all necessary configuration files (package.json, tailwind.config.js, etc.) within the ---FILE--- markers.`;
-            
-            // Relax the 3-file constraint for non-vanilla stacks
-            currentSystemPrompt = currentSystemPrompt.replace(
-                /You MUST generate EXACTLY THREE \(3\) separated files\. NEVER deviate from this structure:[\s\S]*?3\. script\.js/,
-                `You should generate all files required for a professional **${techStack}** project. Use the Nexo Protocol markers for every file.`
-            );
+            currentSystemPrompt += `\n\n### TECHNOLOGY STACK MANDATE
+You MUST build this project using the following specific stack: **${techStack}**. 
+Adjust your file structure accordingly. If this is a framework project (like React/Next.js), generate all necessary configuration files (package.json, tailwind.config.js, etc.) within the ---FILE--- markers.
+You should generate all files required for a professional **${techStack}** project. Use the Nexo Protocol markers for every file.`;
         } else {
-            currentSystemPrompt += `\n\n### TECHNOLOGY STACK MANDATE\nYou are building a Vanilla (HTML/CSS/JS) project. 
-            You MUST generate EXACTLY THREE (3) separated files: index.html, style.css, and script.js.
-            CRITICAL: Ensure your index.html contains a root element like <div id="app"></div> and your Javascript accurately targets it!`;
+            currentSystemPrompt += `\n\n### TECHNOLOGY STACK MANDATE
+You are building a Vanilla (HTML/CSS/JS) project. 
+You MUST generate EXACTLY THREE (3) separated files: index.html, style.css, and script.js.
+CRITICAL: Ensure your index.html contains a root element like <div id="app"></div> and your Javascript accurately targets it!`;
         }
 
         const messagesPayload = [
@@ -134,7 +168,7 @@ router.post('/chat', async (req, res) => {
         let finalMessages = [...messagesPayload];
         
         // Route: NVIDIA NIM API (for MiniMax-M2.7 and other NVIDIA-hosted models)
-        const isNvidiaModel = model.startsWith('nvidia/') || model === 'minimaxai/minimax-m2.7';
+        const isNvidiaModel = model.startsWith('nvidia/') || model === 'minimaxai/minimax-m2.7' || model.startsWith('stepfun-ai/');
 
         // Route: Groq API
         const isGroqModel = !isNvidiaModel && (model.startsWith('groq/') || model.includes('llama') || model.includes('mixtral'));
@@ -144,11 +178,8 @@ router.post('/chat', async (req, res) => {
         
         if (isNvidiaModel) {
             invokeUrl = 'https://integrate.api.nvidia.com/v1/chat/completions';
-            console.log(`[AI Route] Routing to NVIDIA NIM API with model: ${model}`);
         } else if (isGroqModel && process.env.GROQ_API_KEY) {
             invokeUrl = "https://api.groq.com/openai/v1/chat/completions";
-            const actualModel = model.startsWith('groq/') ? model.replace('groq/', '') : model;
-            
             // Compress context to fit within Groq's extremely low 12,000 TPM limit on free tier
             if (finalMessages.length > 2) {
                 const systemMessage = finalMessages[0];
@@ -158,16 +189,25 @@ router.post('/chat', async (req, res) => {
             }
         } else if (isGeminiModel) {
             invokeUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-            console.log(`[AI Route] Routing to Gemini OpenAI compatibility API with model: ${model}`);
         }
 
+        const targetModel = isNvidiaModel
+            ? (model === 'nvidia/minimax-m2.7' || model === 'minimaxai/minimax-m2.7' 
+                ? 'minimaxai/minimax-m2.7' 
+                : (model.startsWith('nvidia/') ? model.replace('nvidia/', '') : model))
+            : isGroqModel 
+                ? (model.startsWith('groq/') ? model.replace('groq/', '') : model) 
+                : isGeminiModel 
+                    ? (model.startsWith('google/') ? model.replace('google/', '') : model) 
+                    : model;
+
         const payload = {
-            model: isGroqModel ? (model.startsWith('groq/') ? model.replace('groq/', '') : model) : isNvidiaModel ? 'minimaxai/minimax-m2.7' : isGeminiModel ? (model.startsWith('google/') ? model.replace('google/', '') : model) : model,
+            model: targetModel,
             messages: finalMessages,
             max_tokens: isNvidiaModel ? 8192 : maxTokens,
             temperature: isNvidiaModel ? 1 : reqTemperature,
             top_p: isNvidiaModel ? 0.95 : reqTopP,
-            stream: isNvidiaModel ? false : stream,  // NVIDIA doesn't support streaming for this model
+            stream: (isNvidiaModel && targetModel === 'minimaxai/minimax-m2.7') ? false : stream,
             ...(!isGroqModel && !isNvidiaModel && !isGeminiModel ? { chat_template_kwargs: chatTemplateKwargs } : {}),
             ...(stream && !isGroqModel && !isNvidiaModel && !isGeminiModel ? { stream_options: { include_usage: true } } : {})
         };
@@ -185,20 +225,19 @@ router.post('/chat', async (req, res) => {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${process.env.NVIDIA_API_KEY}`
             };
-            console.log(`[AI Route] Calling NVIDIA NIM API with model: ${payload.model}`);
         } else if (isGroqModel && process.env.GROQ_API_KEY) {
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
             };
-            console.log(`[AI Direct Route] Calling official Groq API directly with model: ${payload.model}`);
         } else if (isGeminiModel && process.env.GEMINI_API_KEY) {
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${process.env.GEMINI_API_KEY}`
             };
-            console.log(`[AI Route] Calling official Google Gemini API with model: ${payload.model}`);
         }
+
+        console.log(`[AI Route] Target endpoint: ${invokeUrl} | Payload model: ${payload.model}`);
         
         const apiResponse = await fetch(invokeUrl, {
             method: 'POST',
@@ -211,11 +250,11 @@ router.post('/chat', async (req, res) => {
             throw new Error(`API Error: ${apiResponse.status} - ${errorText}`);
         }
 
-        if (stream) {
-            // ReadableStream consumption in Node (fetch API)
+        if (payload.stream) {
             const reader = apiResponse.body.getReader();
             const decoder = new TextDecoder();
             let fullStreamText = '';
+            let apiUsageTokens = null;
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -224,7 +263,7 @@ router.post('/chat', async (req, res) => {
                 const chunk = decoder.decode(value, { stream: true });
                 res.write(value);
 
-                // Try to extract usage from stream chunks
+                // Try to extract usage and text content from stream chunks
                 const lines = chunk.split('\n');
                 for (const line of lines) {
                     if (line.startsWith('data: ')) {
@@ -233,20 +272,40 @@ router.post('/chat', async (req, res) => {
                         try {
                             const json = JSON.parse(dataStr);
                             if (json.usage) {
-                                logUsage(json.usage.total_tokens);
+                                apiUsageTokens = json.usage.total_tokens;
+                            }
+                            if (json.choices?.[0]?.delta?.content) {
+                                fullStreamText += json.choices[0].delta.content;
                             }
                         } catch (e) {}
                     }
                 }
             }
+
+            // Estimate tokens if not returned by API
+            let tokens = 0;
+            if (apiUsageTokens !== null) {
+                tokens = apiUsageTokens;
+            } else {
+                const promptEst = Math.ceil(JSON.stringify(payload.messages).length / 4);
+                const respEst = Math.ceil(fullStreamText.length / 4);
+                tokens = promptEst + respEst;
+            }
+
+            logUsage(model, tokens);
             res.end();
         } else {
             const data = await apiResponse.json();
+            let tokens = 0;
             if (data.usage) {
-                logUsage(data.usage.total_tokens);
+                tokens = data.usage.total_tokens;
             } else {
-                logUsage(0); // Log the call even if tokens unknown
+                const promptEst = Math.ceil(JSON.stringify(payload.messages).length / 4);
+                const respText = data.choices?.[0]?.message?.content || '';
+                const respEst = Math.ceil(respText.length / 4);
+                tokens = promptEst + respEst;
             }
+            logUsage(model, tokens);
             res.status(200).json(data);
         }
 

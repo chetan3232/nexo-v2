@@ -249,6 +249,12 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
       desc: "NVIDIA NIM · 8K ctx",
     },
     {
+      id: "stepfun-ai/step-3.5-flash",
+      name: "Step 3.5 Flash",
+      provider: "NVIDIA NIM",
+      desc: "StepFun Reasoning Model",
+    },
+    {
       id: "qwen/qwen-2.5-72b-instruct:free",
       name: "Qwen 2.5 72B",
       provider: "OpenRouter",
