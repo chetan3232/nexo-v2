@@ -35,26 +35,28 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
   ];
 
   return (
-    <div className="h-full flex flex-col bg-studio-bg relative overflow-hidden">
+    <div className="h-full flex flex-col bg-transparent relative overflow-hidden">
       {/* Subtle background glow orb */}
       <div className="absolute top-[20%] left-[-10%] w-[45%] h-[45%] rounded-full bg-studio-accent/5 blur-[100px] pointer-events-none animate-glow z-0" />
 
       {/* Message Timeline */}
       <div className="flex-grow overflow-y-auto p-6 space-y-6 pb-44 no-scrollbar relative z-10">
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-5">
-            <div className="relative">
-              <div className="w-16 h-16 rounded-2xl bg-studio-panel border border-studio-border flex items-center justify-center shadow-lg shadow-black/40">
-                <Sparkles className="w-8 h-8 text-studio-accent animate-pulse" />
-              </div>
-              <div className="absolute -inset-1 border border-studio-accent/15 border-t-studio-accent rounded-2xl animate-spin duration-1000" />
-            </div>
-            <div className="space-y-2 max-w-sm">
-              <h3 className="text-studio-text text-sm font-bold tracking-tight">Nexo Workspace OS</h3>
-              <p className="text-xs text-studio-muted leading-relaxed">
-                Describe the web page or logic you'd like to build. Nexo will orchestrate frontend, design, and architecture agents to code it live.
-              </p>
-            </div>
+          <div className="h-full flex flex-col items-center justify-center max-w-md mx-auto p-4 space-y-4 select-none">
+            {[
+              "Create a modern landing page with a neon glass hero section and subtle mesh gradients",
+              "Build a sleek real-time task manager with drag-and-drop cards and a dark dashboard",
+              "Design an interactive settings panel with expanding settings categories and glow borders"
+            ].map((promptText, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setInput(promptText)}
+                className="w-full text-left px-5 py-4 bg-[#0F172A]/50 border border-white/5 hover:border-studio-accent/40 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-0.5 active:scale-99 transition-all duration-300 text-xs font-semibold text-studio-text/90 hover:text-white leading-relaxed backdrop-blur-md"
+              >
+                {promptText}
+              </button>
+            ))}
           </div>
         ) : (
           <div className="flex flex-col gap-6">
@@ -69,10 +71,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                   <div
                     className={`px-5 py-4 rounded-[22px] text-xs leading-relaxed max-w-[85%] shadow-lg border ${
                       msg.role === "user"
-                        ? "glass-card bg-studio-panel/85 border-studio-border/95 text-studio-text rounded-tr-none"
+                        ? "bg-studio-accent/15 border border-studio-accent/30 text-white rounded-tr-none shadow-lg shadow-studio-accent/5"
                         : msg.isError
                         ? "bg-red-950/15 border-red-900/40 text-red-200 rounded-tl-none flex gap-3 shadow-md"
-                        : "glass-card bg-studio-panel/40 border-studio-border/60 text-studio-text/90 rounded-tl-none shadow-md"
+                        : "bg-[#0F172A]/65 border border-white/5 text-slate-100 rounded-tl-none shadow-md"
                     }`}
                   >
                     {msg.role !== "user" && !msg.isError && (
@@ -159,8 +161,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
       </div>
 
       {/* Floating Prompt Input Panel */}
-      <div className="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-studio-bg via-studio-bg/95 to-transparent z-20">
-        <div className="relative border border-studio-border/70 bg-studio-panel/75 backdrop-blur-xl rounded-[24px] shadow-2xl focus-within:border-studio-accent/40 focus-within:shadow-[0_0_20px_rgba(124,58,237,0.06)] transition-all flex flex-col p-3.5 gap-2">
+      <div className="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-[#070B14] via-[#070B14]/95 to-transparent z-20">
+        <div className="relative border border-white/10 bg-[#0F172A]/85 backdrop-blur-xl rounded-[24px] shadow-2xl focus-within:border-studio-accent/45 focus-within:shadow-[0_0_30px_rgba(124,58,237,0.12)] transition-all flex flex-col p-3.5 gap-2">
           {/* Text Area */}
           <textarea
             value={input}
@@ -172,25 +174,25 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
               }
             }}
             placeholder="Type a message or describe layout enhancements..."
-            className="w-full bg-transparent py-1 px-2.5 text-xs text-studio-text placeholder:text-studio-muted/30 resize-none h-16 outline-none font-medium"
+            className="w-full bg-transparent py-1 px-2.5 text-xs text-studio-text placeholder:text-studio-muted/50 resize-none h-16 outline-none font-medium"
           />
 
           {/* Action Toolbar */}
-          <div className="flex items-center justify-between px-2 pt-2 border-t border-studio-border/50">
+          <div className="flex items-center justify-between px-2 pt-2 border-t border-white/5">
             <div className="flex items-center gap-3">
               {/* Model Dropdown Selection */}
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-studio-bg/85 border border-studio-border/70 hover:border-studio-accent/40 rounded-xl text-[10px] font-bold text-studio-muted hover:text-studio-text transition-all select-none"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#070B14]/50 border border-white/5 hover:bg-[#070B14]/85 rounded-xl text-[10px] font-bold text-studio-text hover:text-white transition-all select-none"
                 >
                   <Cpu className="w-3.5 h-3.5 text-studio-accent animate-pulse" />
                   <span>{models.find((m) => m.id === selectedModel)?.name || "Gemini 2.5 Flash"}</span>
                   <ChevronDown className="w-3 h-3 text-studio-muted" />
                 </button>
                 {isModelMenuOpen && (
-                  <div className="absolute bottom-full left-0 mb-2 bg-studio-card border border-studio-border rounded-xl shadow-2xl p-1 w-44 z-50">
+                  <div className="absolute bottom-full left-0 mb-2 bg-[#0F172A] border border-white/10 rounded-xl shadow-2xl p-1 w-44 z-50">
                     {models.map((m) => (
                       <button
                         key={m.id}
@@ -202,7 +204,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                         className={`w-full text-left px-3 py-2 rounded-lg text-[10px] font-bold transition-all ${
                           selectedModel === m.id
                             ? "bg-studio-accent text-white"
-                            : "hover:bg-studio-panel/50 text-studio-muted hover:text-studio-text"
+                            : "hover:bg-[#070B14]/40 text-studio-muted hover:text-white"
                         }`}
                       >
                         {m.name}
@@ -215,7 +217,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
               {/* Attach action */}
               <button
                 type="button"
-                className="p-1.5 hover:bg-studio-panel/60 rounded-xl text-studio-muted hover:text-studio-text transition-colors"
+                className="p-1.5 hover:bg-white/5 rounded-xl text-studio-muted hover:text-white transition-colors"
                 title="Attach code context"
               >
                 <Paperclip className="w-4 h-4" />
@@ -224,7 +226,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
               {/* Mic action */}
               <button
                 type="button"
-                className="p-1.5 hover:bg-studio-panel/60 rounded-xl text-studio-muted hover:text-studio-text transition-colors"
+                className="p-1.5 hover:bg-white/5 rounded-xl text-studio-muted hover:text-white transition-colors"
                 title="Voice prompt"
               >
                 <Mic className="w-4 h-4" />
@@ -235,7 +237,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
             <button
               onClick={handleSend}
               disabled={!input.trim()}
-              className="p-2.5 bg-gradient-to-tr from-studio-accent to-purple-650 hover:from-studio-accent hover:to-purple-550 text-studio-text rounded-xl disabled:opacity-30 transition-all flex items-center justify-center shadow-lg active:scale-95 disabled:scale-100"
+              className="p-2.5 bg-gradient-to-tr from-studio-accent to-purple-600 hover:from-purple-600 hover:to-studio-accent text-white rounded-full disabled:opacity-30 transition-all flex items-center justify-center shadow-lg active:scale-95 disabled:scale-100"
             >
               <Send className="w-4 h-4" />
             </button>

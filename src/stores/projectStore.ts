@@ -46,6 +46,8 @@ interface ProjectStore {
   setProductionChecks: (checks: any[]) => void;
   setHealthData: (score: number, metrics: any[]) => void;
   updateTask: (id: string, updates: Partial<BuildTask>) => void;
+  activeCenterTab: "chat" | "code" | "console" | "logs";
+  setActiveCenterTab: (tab: "chat" | "code" | "console" | "logs") => void;
   resetProject: () => void;
 }
 
@@ -106,6 +108,8 @@ export const useProjectStore = create<ProjectStore>((set) => ({
     set((state) => ({
       tasks: state.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
     })),
+  activeCenterTab: "chat",
+  setActiveCenterTab: (activeCenterTab) => set({ activeCenterTab }),
   resetProject: () =>
     set({
       currentContent: null,
@@ -122,5 +126,6 @@ export const useProjectStore = create<ProjectStore>((set) => ({
       snapshots: [],
       reasoningSteps: [],
       productionChecks: [],
+      activeCenterTab: "chat",
     }),
 }));

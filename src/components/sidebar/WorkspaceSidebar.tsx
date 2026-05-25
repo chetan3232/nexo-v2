@@ -44,7 +44,7 @@ export const WorkspaceSidebar: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(true);
 
   // States from stores
-  const { currentContent, selectedFileName, setSelectedFileName, deployStatus, deployUrl, setDeployStatus, setDeployUrl } = useProjectStore();
+  const { currentContent, selectedFileName, setSelectedFileName, deployStatus, deployUrl, setDeployStatus, setDeployUrl, setActiveCenterTab } = useProjectStore();
   const { messages, setMessages, currentChatId, setCurrentChatId, setHasStarted } = useChatStore();
   const {
     selectedModel,
@@ -224,9 +224,9 @@ export const WorkspaceSidebar: React.FC = () => {
   ];
 
   return (
-    <div className="flex h-full bg-studio-bg text-studio-text select-none shrink-0 z-20 border-r border-studio-border/60">
+    <div className="flex h-full bg-transparent text-studio-text select-none shrink-0 z-20">
       {/* Icon Sidebar (Vertical Action Strip) */}
-      <div className="w-16 bg-studio-bg/95 flex flex-col items-center py-4 justify-between relative">
+      <div className="w-16 bg-[#070B14]/95 border-r border-white/5 flex flex-col items-center py-4 justify-between relative z-30">
         <div className="flex flex-col items-center gap-4 w-full">
           {/* AI Pulse Logo */}
           <div className="relative group cursor-pointer">
@@ -258,7 +258,7 @@ export const WorkspaceSidebar: React.FC = () => {
                 setSelectedFileName(name);
               }
             }}
-            className="w-10 h-10 rounded-xl bg-studio-panel border border-studio-border hover:border-studio-accent text-studio-muted hover:text-studio-text flex items-center justify-center transition-all duration-300 shadow-md group hover:bg-studio-panel/80 hover:shadow-studio-accent/5"
+            className="w-10 h-10 rounded-xl bg-studio-panel/50 border border-white/5 hover:border-studio-accent text-studio-muted hover:text-white flex items-center justify-center transition-all duration-300 shadow-sm group hover:bg-studio-panel/85 hover:shadow-md"
             title="Create New File"
           >
             <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
@@ -353,23 +353,24 @@ export const WorkspaceSidebar: React.FC = () => {
             animate={{ width: 280, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ type: "spring", stiffness: 260, damping: 26 }}
-            className="w-72 bg-studio-panel/30 border-r border-studio-border/60 flex flex-col overflow-hidden backdrop-blur-xl"
+            className="w-72 flex flex-col overflow-hidden"
           >
-            {/* Expanded Header */}
-            <div className="h-14 border-b border-studio-border/60 px-6 flex items-center justify-between shrink-0 bg-studio-panel/10">
-              <span className="text-[10px] font-black text-studio-accent uppercase tracking-[0.2em]">
-                {activeTab}
-              </span>
-              <button
-                onClick={() => setIsExpanded(false)}
-                className="text-studio-muted hover:text-studio-text text-[10px] font-bold tracking-wider px-2 py-1 rounded-md border border-studio-border/60 hover:bg-studio-panel/50 transition-all"
-              >
-                Collapse
-              </button>
-            </div>
+            <div className="flex-1 m-3 mr-1.5 flex flex-col bg-[#0F172A]/85 backdrop-blur-md border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden">
+              {/* Expanded Header */}
+              <div className="h-12 border-b border-white/5 px-4.5 flex items-center justify-between shrink-0 bg-[#0F172A]/30">
+                <span className="text-[10px] font-black text-studio-accent uppercase tracking-[0.2em] animate-pulse">
+                  {activeTab}
+                </span>
+                <button
+                  onClick={() => setIsExpanded(false)}
+                  className="text-studio-muted hover:text-white text-[10px] font-bold tracking-wider px-2.5 py-1 rounded-lg border border-white/5 hover:bg-studio-panel/50 transition-all"
+                >
+                  Collapse
+                </button>
+              </div>
 
-            {/* Panel Body */}
-            <div className="flex-grow overflow-y-auto p-5 space-y-5 custom-scrollbar bg-studio-panel/5">
+              {/* Panel Body */}
+              <div className="flex-grow overflow-y-auto p-4.5 space-y-4 custom-scrollbar bg-transparent">
               {/* PROJECTS / EXPLORER VIEW */}
               {activeTab === "projects" && (
                 <div className="space-y-4">
@@ -381,11 +382,14 @@ export const WorkspaceSidebar: React.FC = () => {
                       Object.keys(currentContent.files).map((filename) => (
                         <button
                           key={filename}
-                          onClick={() => setSelectedFileName(filename)}
+                          onClick={() => {
+                            setSelectedFileName(filename);
+                            setActiveCenterTab("code");
+                          }}
                           className={`w-full px-3 py-2.5 flex items-center gap-2.5 rounded-xl text-xs font-semibold tracking-wide text-left transition-all border ${
                             selectedFileName === filename
                               ? "bg-studio-accent/10 text-studio-text border-studio-accent/25 shadow-md shadow-studio-accent/5"
-                              : "bg-transparent border-transparent text-studio-muted hover:text-studio-text hover:bg-studio-panel/40"
+                              : "bg-transparent border-transparent text-studio-muted hover:text-studio-text hover:bg-[#070B14]/40"
                           }`}
                         >
                           <FileCode className="w-4 h-4 shrink-0 text-studio-accent/80 animate-pulse" />
@@ -393,7 +397,7 @@ export const WorkspaceSidebar: React.FC = () => {
                         </button>
                       ))
                     ) : (
-                      <div className="text-studio-muted text-xs italic text-center py-10 bg-studio-card/20 rounded-2xl border border-studio-border border-dashed">
+                      <div className="text-studio-muted text-xs italic text-center py-10 bg-studio-card/20 rounded-2xl border border-white/5 border-dashed">
                         No files generated yet
                       </div>
                     )}
@@ -405,7 +409,7 @@ export const WorkspaceSidebar: React.FC = () => {
               {activeTab === "chats" && (
                 <div className="space-y-4">
                   {!user ? (
-                    <div className="text-center py-10 space-y-4 bg-studio-card/30 rounded-2xl border border-studio-border p-4">
+                    <div className="text-center py-10 space-y-4 bg-studio-card/30 rounded-2xl border border-white/5 p-4">
                       <p className="text-xs text-studio-muted leading-relaxed">Sign in to save progress and collaborate on projects.</p>
                       <button
                         onClick={signInWithGoogle}
@@ -415,7 +419,7 @@ export const WorkspaceSidebar: React.FC = () => {
                       </button>
                     </div>
                   ) : chatHistory.length === 0 ? (
-                    <div className="text-studio-muted text-xs italic text-center py-10 bg-studio-card/20 rounded-2xl border border-studio-border border-dashed">
+                    <div className="text-studio-muted text-xs italic text-center py-10 bg-studio-card/20 rounded-2xl border border-white/5 border-dashed">
                       No saved projects yet.
                     </div>
                   ) : (
@@ -426,8 +430,8 @@ export const WorkspaceSidebar: React.FC = () => {
                           onClick={() => handleLoadChat(chat)}
                           className={`group p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col gap-2 relative overflow-hidden ${
                             currentChatId === chat.id
-                              ? "bg-studio-accent/10 border-studio-accent/30 shadow-lg"
-                              : "bg-studio-card/50 border-studio-border/60 hover:border-studio-border hover:bg-studio-card"
+                              ? "bg-studio-accent/15 border-studio-accent/30 shadow-lg shadow-studio-accent/5"
+                              : "bg-studio-card/20 border-white/5 hover:border-white/10 hover:bg-studio-card/45"
                           }`}
                         >
                           <div className="flex items-start justify-between gap-2 z-10">
@@ -450,7 +454,7 @@ export const WorkspaceSidebar: React.FC = () => {
                                   e.stopPropagation();
                                   handleDeleteChat(chat.id);
                                 }}
-                                className="p-1 hover:bg-red-950/40 rounded-md text-studio-muted hover:text-red-400"
+                                className="p-1 hover:bg-red-955/40 rounded-md text-studio-muted hover:text-red-405"
                                 title="Delete"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -459,7 +463,7 @@ export const WorkspaceSidebar: React.FC = () => {
                           </div>
                           <div className="flex justify-between items-center text-[9px] text-studio-muted font-mono z-10">
                             <span>{chat.date}</span>
-                            <span className="bg-studio-panel px-2 py-0.5 rounded-full border border-studio-border/80">{chat.fileCount || 0} files</span>
+                            <span className="bg-[#070B14]/45 px-2 py-0.5 rounded-full border border-white/5">{chat.fileCount || 0} files</span>
                           </div>
                         </div>
                       ))}
@@ -477,7 +481,7 @@ export const WorkspaceSidebar: React.FC = () => {
                       <div
                         key={temp.id}
                         onClick={() => handleApplyTemplate(temp)}
-                        className="p-4 bg-studio-card/45 border border-studio-border/60 rounded-2xl hover:border-studio-accent/40 hover:bg-studio-card cursor-pointer transition-all space-y-2 group"
+                        className="p-4 bg-studio-card/25 border border-white/5 rounded-2xl hover:border-studio-accent/40 hover:bg-studio-card/50 cursor-pointer transition-all space-y-2 group"
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold text-studio-text group-hover:text-studio-accent transition-colors">{temp.name}</span>
@@ -505,15 +509,15 @@ export const WorkspaceSidebar: React.FC = () => {
                     ].map((asset, i) => (
                       <div
                         key={i}
-                        className="p-3 bg-studio-card/30 border border-studio-border/60 rounded-xl flex flex-col items-center justify-center text-center gap-1.5 hover:border-studio-border hover:bg-studio-card transition-all"
+                        className="p-3 bg-studio-card/25 border border-white/5 rounded-xl flex flex-col items-center justify-center text-center gap-1.5 hover:border-white/10 hover:bg-studio-card/45 transition-all"
                       >
-                        <div className="w-8 h-8 rounded-lg bg-studio-panel/50 border border-studio-border flex items-center justify-center">
-                          <Image className="w-4 h-4 text-studio-accent" />
+                        <div className="w-8 h-8 rounded-lg bg-[#070B14]/40 border border-white/5 flex items-center justify-center">
+                          <Image className="w-4 h-4 text-studio-accent animate-pulse" />
                         </div>
                         <div className="text-[9px] font-bold text-studio-text truncate w-full">
                           {asset.name}
                         </div>
-                        <span className="text-[8px] bg-studio-panel text-studio-muted px-1.5 py-0.5 rounded-full border border-studio-border">
+                        <span className="text-[8px] bg-[#070B14]/40 text-studio-muted px-1.5 py-0.5 rounded-full border border-white/5">
                           {asset.type}
                         </span>
                       </div>
@@ -537,7 +541,7 @@ export const WorkspaceSidebar: React.FC = () => {
                       value={customApiKey}
                       onChange={(e) => setCustomApiKey(e.target.value)}
                       placeholder="AIzaSy..."
-                      className="w-full bg-studio-bg border border-studio-border rounded-xl px-3.5 py-2.5 text-xs text-studio-text outline-none focus:border-studio-accent transition-all font-mono"
+                      className="w-full bg-[#070B14]/60 border border-white/5 rounded-xl px-3.5 py-2.5 text-xs text-studio-text outline-none focus:border-studio-accent transition-all font-mono"
                     />
                   </div>
                   <div className="flex gap-2">
@@ -550,7 +554,7 @@ export const WorkspaceSidebar: React.FC = () => {
                     {localStorage.getItem("nexo_custom_api_key") && (
                       <button
                         onClick={handleClearApiKey}
-                        className="px-3.5 py-2.5 bg-studio-card border border-studio-border hover:border-studio-muted text-studio-muted hover:text-studio-text rounded-xl text-xs font-bold transition-all"
+                        className="px-3.5 py-2.5 bg-studio-card border border-[#070B14]/20 hover:border-studio-muted text-studio-muted hover:text-studio-text rounded-xl text-xs font-bold transition-all"
                       >
                         Clear
                       </button>
@@ -562,7 +566,7 @@ export const WorkspaceSidebar: React.FC = () => {
               {/* DEPLOYMENTS VIEW */}
               {activeTab === "deploy" && (
                 <div className="space-y-4">
-                  <div className="p-4 bg-studio-card/30 border border-studio-border/60 rounded-2xl space-y-3.5">
+                  <div className="p-4 bg-studio-card/25 border border-white/5 rounded-2xl space-y-3.5">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-bold text-studio-muted uppercase tracking-wider">Live Status</span>
                       <span
@@ -571,7 +575,7 @@ export const WorkspaceSidebar: React.FC = () => {
                             ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                             : deployStatus === "deploying"
                               ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
-                              : "bg-studio-panel text-studio-muted border-studio-border"
+                              : "bg-[#070B14]/45 text-studio-muted border-white/5"
                         }`}
                       >
                         {deployStatus === "done" ? "Active" : deployStatus === "deploying" ? "Building" : "Idle"}
@@ -621,13 +625,13 @@ export const WorkspaceSidebar: React.FC = () => {
                     <label className="text-[10px] font-black text-studio-muted uppercase tracking-wider block">AI LLM Model</label>
                     <button
                       onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-                      className="w-full flex items-center justify-between px-3.5 py-2.5 bg-studio-bg border border-studio-border rounded-xl text-xs text-studio-text hover:border-studio-accent transition-all font-mono"
+                      className="w-full flex items-center justify-between px-3.5 py-2.5 bg-[#070B14]/60 border border-white/5 rounded-xl text-xs text-studio-text hover:border-studio-accent transition-all font-mono"
                     >
                       <span>{models.find((m) => m.id === selectedModel)?.name || "Gemini 2.5 Flash"}</span>
                       <ChevronDown className="w-3 h-3 text-studio-muted" />
                     </button>
                     {isModelDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-studio-card border border-studio-border rounded-xl shadow-2xl p-1 z-50">
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-studio-card border border-white/10 rounded-xl shadow-2xl p-1 z-50">
                         {models.map((m) => (
                           <button
                             key={m.id}
@@ -638,7 +642,7 @@ export const WorkspaceSidebar: React.FC = () => {
                             className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                               selectedModel === m.id
                                 ? "bg-studio-accent text-white"
-                                : "hover:bg-studio-panel text-studio-muted"
+                                : "hover:bg-studio-panel hover:text-white text-studio-muted"
                             }`}
                           >
                             {m.name}
@@ -651,11 +655,11 @@ export const WorkspaceSidebar: React.FC = () => {
                   {/* Mode Selector */}
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-studio-muted uppercase tracking-wider block">Developer Mode</label>
-                    <div className="flex bg-studio-bg p-1 rounded-xl border border-studio-border">
+                    <div className="flex bg-[#070B14]/60 p-1 rounded-xl border border-white/5">
                       <button
                         onClick={() => setProjectMode("frontend")}
                         className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                          projectMode === "frontend" ? "bg-studio-accent text-studio-text shadow" : "text-studio-muted hover:text-studio-text"
+                          projectMode === "frontend" ? "bg-studio-accent text-white shadow" : "text-studio-muted hover:text-white"
                         }`}
                       >
                         <Palette className="w-3.5 h-3.5" /> UI Design
@@ -663,7 +667,7 @@ export const WorkspaceSidebar: React.FC = () => {
                       <button
                         onClick={() => setProjectMode("fullstack")}
                         className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                          projectMode === "fullstack" ? "bg-studio-accent text-studio-text shadow" : "text-studio-muted hover:text-studio-text"
+                          projectMode === "fullstack" ? "bg-studio-accent text-white shadow" : "text-studio-muted hover:text-white"
                         }`}
                       >
                         <Database className="w-3.5 h-3.5" /> Fullstack
@@ -676,13 +680,13 @@ export const WorkspaceSidebar: React.FC = () => {
                     <label className="text-[10px] font-black text-studio-muted uppercase tracking-wider block">Source Language</label>
                     <button
                       onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
-                      className="w-full flex items-center justify-between px-3.5 py-2.5 bg-studio-bg border border-studio-border rounded-xl text-xs text-studio-text hover:border-studio-accent transition-all"
+                      className="w-full flex items-center justify-between px-3.5 py-2.5 bg-[#070B14]/60 border border-white/5 rounded-xl text-xs text-studio-text hover:border-studio-accent transition-all"
                     >
                       <span>{selectedLanguage}</span>
                       <ChevronDown className="w-3 h-3 text-studio-muted" />
                     </button>
                     {isLangDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-studio-card border border-studio-border rounded-xl shadow-2xl p-1 z-50">
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-studio-card border border-white/10 rounded-xl shadow-2xl p-1 z-50">
                         {languages.map((lang) => (
                           <button
                             key={lang}
@@ -693,7 +697,7 @@ export const WorkspaceSidebar: React.FC = () => {
                             className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
                               selectedLanguage === lang
                                 ? "bg-studio-accent text-white"
-                                : "hover:bg-studio-panel text-studio-muted"
+                                : "hover:bg-studio-panel hover:text-white text-studio-muted"
                             }`}
                           >
                             {lang}
@@ -738,6 +742,7 @@ export const WorkspaceSidebar: React.FC = () => {
                   </div>
                 </div>
               )}
+            </div>
             </div>
           </motion.div>
         )}

@@ -102,9 +102,9 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-studio-panel/30 border border-studio-border/60 rounded-[24px] shadow-2xl backdrop-blur-md overflow-hidden">
+    <div className="h-full flex flex-col bg-[#0F172A]/90 border border-white/5 rounded-3xl shadow-2xl overflow-hidden backdrop-blur-md">
       {/* Editor Header / Tab Bar */}
-      <div className="h-12 bg-studio-panel/50 border-b border-studio-border/60 flex items-center justify-between px-5 shrink-0 select-none">
+      <div className="h-12 bg-[#0F172A]/40 border-b border-white/5 flex items-center justify-between px-5 shrink-0 select-none">
         {/* Open Tabs */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar h-full pt-2">
           {openTabs.map((tab) => (
@@ -113,15 +113,15 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               onClick={() => setSelectedFileName(tab)}
               className={`h-full px-3.5 flex items-center gap-2 rounded-t-xl text-xs font-semibold cursor-pointer border-t-2 transition-all duration-300 ${
                 selectedFileName === tab
-                  ? "bg-studio-bg text-studio-accent border-t-studio-accent border-x border-studio-border/60 shadow-inner"
-                  : "text-studio-muted hover:text-studio-text hover:bg-studio-panel/30 border-t-transparent"
+                  ? "bg-[#070B14]/40 text-studio-accent border-t-studio-accent border-x border-white/5 shadow-inner"
+                  : "text-studio-muted hover:text-white hover:bg-white/5 border-t-transparent"
               }`}
             >
               <FileCode className="w-3.5 h-3.5" />
               <span className="max-w-[110px] truncate">{tab}</span>
               <button
                 onClick={(e) => handleCloseTab(e, tab)}
-                className="p-0.5 rounded-full hover:bg-studio-panel text-studio-muted hover:text-studio-accent transition-colors"
+                className="p-0.5 rounded-full hover:bg-white/10 text-studio-muted hover:text-studio-accent transition-colors"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -132,15 +132,15 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
         {/* Toolbar Controls */}
         <div className="flex items-center gap-2">
           {/* Font Size Selector */}
-          <div className="flex items-center bg-studio-bg border border-studio-border/60 rounded-xl px-2.5 py-1.5 gap-1.5">
+          <div className="flex items-center bg-[#070B14]/40 border border-white/5 rounded-xl px-2.5 py-1.5 gap-1.5">
             <Type className="w-3.5 h-3.5 text-studio-muted" />
             <select
               value={fontSize}
               onChange={(e) => setFontSize(parseInt(e.target.value))}
-              className="bg-transparent text-[10px] text-studio-muted font-bold outline-none cursor-pointer border-none focus:text-studio-accent"
+              className="bg-transparent text-[10px] text-studio-muted font-bold outline-none cursor-pointer border-none focus:text-studio-accent font-sans"
             >
               {[11, 12, 13, 14, 15, 16].map((sz) => (
-                <option key={sz} value={sz} className="bg-studio-card text-studio-text">
+                <option key={sz} value={sz} className="bg-[#0F172A] text-studio-text">
                   {sz}px
                 </option>
               ))}
@@ -153,7 +153,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
             className={`p-2 rounded-xl border transition-all duration-300 ${
               minimap
                 ? "bg-studio-accent/15 text-studio-accent border-studio-accent/30 shadow-md shadow-studio-accent/5"
-                : "bg-studio-bg text-studio-muted border-studio-border/60 hover:text-studio-text hover:bg-studio-panel"
+                : "bg-[#070B14]/40 text-studio-muted border-white/5 hover:text-white hover:bg-white/5"
             }`}
             title="Toggle Minimap"
           >
@@ -166,7 +166,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
             className={`p-2 rounded-xl border transition-all duration-300 ${
               wordWrap === "on"
                 ? "bg-studio-accent/15 text-studio-accent border-studio-accent/30 shadow-md shadow-studio-accent/5"
-                : "bg-studio-bg text-studio-muted border-studio-border/60 hover:text-studio-text hover:bg-studio-panel"
+                : "bg-[#070B14]/40 text-studio-muted border-white/5 hover:text-white hover:bg-white/5"
             }`}
             title="Toggle Word Wrap"
           >
@@ -177,7 +177,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
       {/* Editor Window wrapper capturing ContextMenu */}
       <div 
-        className="flex-grow overflow-hidden relative bg-studio-bg/10"
+        className="flex-grow overflow-hidden relative bg-transparent"
         onContextMenu={handleContextMenu}
       >
         {selectedFileName ? (

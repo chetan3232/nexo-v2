@@ -20,7 +20,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const location = useLocation();
-  const isDemo = location.pathname === "/demo";
+  const isDemo = location.pathname.startsWith("/demo");
   const [user, setUser] = useState<FirebaseUser | null>(null);
 
   useEffect(() => {
@@ -125,7 +125,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({
       )}
 
       <main
-        className={`flex-grow ${isDemo ? "h-screen pt-0 px-0 overflow-hidden flex flex-col" : "pt-24 px-4"}`}
+        className={`flex-grow ${isDemo ? "h-screen pt-0 px-0 overflow-hidden flex flex-col bg-[#070B14]" : "pt-24 px-4"}`}
       >
         {children}
       </main>
