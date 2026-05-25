@@ -4,6 +4,7 @@ import { Layout } from "./components/Layout";
 import Home from "./pages/Home";
 import ChatInterface from "./pages/ChatInterface";
 import Build from "./pages/Build";
+import SharedProjectPage from "./pages/SharedProjectPage";
 
 const App: React.FC = () => {
   return (
@@ -13,6 +14,7 @@ const App: React.FC = () => {
           <Route path="/" element={<Home />} />
           <Route path="/demo" element={<ChatInterface />} />
           <Route path="/build" element={<Build />} />
+          <Route path="/s/:shareId" element={<SharedProjectPage />} />
         </Routes>
       </Layout>
     </Router>

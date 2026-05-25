@@ -1,383 +1,300 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
-  Send,
   Sparkles,
-  Loader2,
-  Brain,
-  FileCode2,
-  CheckCircle2,
-  Zap,
-  Hammer,
+  Cpu,
+  ChevronDown,
+  Mic,
+  Send,
   AlertTriangle,
-  Wrench,
-  Rocket,
-  Shuffle,
-  PartyPopper
+  Plus,
+  X,
+  Paperclip,
+  Image as ImageIcon,
 } from "lucide-react";
 import { useChatStore } from "../../stores/chatStore";
 import { useProjectStore } from "../../stores/projectStore";
-import { AgentEvent } from "../../types/agentEvents";
+import { useAgentStore } from "../../stores/agentStore";
+import toast from "react-hot-toast";
 
 interface ChatPanelProps {
-  onSend: (text: string) => void;
+  onSend: (text: string, attachments?: { name: string; content: string; type: string }[]) => void;
 }
 
-// ─── Individual Event Cards ─────────────────────────────────────────────────
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 8, filter: "blur(4px)" },
-  visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.25, ease: "easeOut" as any } },
-};
-
-const ThinkingCard: React.FC<{ message: string }> = ({ message }) => (
-  <motion.div variants={cardVariants} initial="hidden" animate="visible" className="flex items-start gap-3">
-    <div className="mt-0.5 w-6 h-6 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center shrink-0">
-      <Brain className="w-3.5 h-3.5 text-indigo-600 animate-pulse" />
-    </div>
-    <div className="bg-indigo-50/80 border border-indigo-100 rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[90%]">
-      <p className="text-[11px] font-semibold text-indigo-700 uppercase tracking-widest mb-0.5">Thinking</p>
-      <p className="text-[13px] text-indigo-900 leading-relaxed">{message}</p>
-    </div>
-  </motion.div>
-);
-
-const FileCreateCard: React.FC<{ path: string; isDone: boolean }> = ({ path, isDone }) => (
-  <motion.div variants={cardVariants} initial="hidden" animate="visible" className="flex items-center gap-2.5 ml-9">
-    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDone ? "bg-emerald-500" : "bg-amber-400 animate-pulse"}`} />
-    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[12px] font-mono font-medium transition-all duration-300 ${isDone ? "bg-emerald-50 border-emerald-100 text-emerald-700" : "bg-amber-50 border-amber-100 text-amber-700"}`}>
-      <FileCode2 className="w-3 h-3 shrink-0" />
-      {path}
-      {!isDone && <Loader2 className="w-3 h-3 animate-spin ml-1 opacity-60" />}
-      {isDone && <CheckCircle2 className="w-3 h-3 ml-1 text-emerald-500" />}
-    </div>
-  </motion.div>
-);
-
-const CodePreviewCard: React.FC<{ path: string; chunk: string }> = ({ path, chunk }) => {
-  const lines = chunk.split("\n").slice(0, 5);
-  return (
-    <motion.div variants={cardVariants} initial="hidden" animate="visible" className="ml-9 max-w-[90%]">
-      <div className="bg-stone-900 rounded-xl overflow-hidden border border-stone-700/50">
-        <div className="flex items-center gap-2 px-3 py-2 bg-stone-800/80 border-b border-stone-700/50">
-          <Zap className="w-3 h-3 text-amber-400" />
-          <span className="text-[10px] font-mono text-stone-400">{path}</span>
-          <span className="ml-auto text-[9px] text-stone-500 uppercase tracking-wider">writing...</span>
-        </div>
-        <div className="px-3 py-2.5 space-y-0.5">
-          {lines.map((line, i) => (
-            <div key={i} className="flex gap-3">
-              <span className="text-stone-600 text-[10px] font-mono w-4 text-right shrink-0">{i + 1}</span>
-              <span className="text-stone-300 text-[10px] font-mono truncate">{line || " "}</span>
-            </div>
-          ))}
-          <div className="flex gap-3">
-            <span className="text-stone-600 text-[10px] font-mono w-4 text-right shrink-0">···</span>
-            <span className="text-indigo-400 text-[10px] font-mono animate-pulse">▋</span>
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
-};
-
-const BuildStartCard: React.FC = () => (
-  <motion.div variants={cardVariants} initial="hidden" animate="visible" className="flex items-center gap-3 ml-1">
-    <div className="w-6 h-6 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
-      <Hammer className="w-3.5 h-3.5 text-amber-600" />
-    </div>
-    <div className="bg-amber-50/80 border border-amber-100 rounded-2xl rounded-tl-sm px-4 py-2.5">
-      <p className="text-[12px] font-bold text-amber-800">🏗️ Starting build process...</p>
-      <div className="mt-2 h-1 w-48 bg-amber-100 rounded-full overflow-hidden">
-        <div className="h-full bg-amber-400 rounded-full animate-[buildProgress_2s_ease-in-out_infinite]" style={{ width: "70%" }} />
-      </div>
-    </div>
-  </motion.div>
-);
-
-const BuildSuccessCard: React.FC = () => (
-  <motion.div variants={cardVariants} initial="hidden" animate="visible" className="flex items-center gap-3 ml-1">
-    <div className="w-6 h-6 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0">
-      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-    </div>
-    <div className="bg-emerald-50/80 border border-emerald-100 rounded-2xl rounded-tl-sm px-4 py-2.5">
-      <p className="text-[12px] font-bold text-emerald-800">✅ Build successful!</p>
-    </div>
-  </motion.div>
-);
-
-const BuildErrorCard: React.FC<{ message: string }> = ({ message }) => (
-  <motion.div variants={cardVariants} initial="hidden" animate="visible" className="flex items-start gap-3 ml-1">
-    <div className="mt-0.5 w-6 h-6 rounded-full bg-red-100 border border-red-200 flex items-center justify-center shrink-0">
-      <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
-    </div>
-    <div className="bg-red-50/80 border border-red-100 rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[90%]">
-      <p className="text-[12px] font-bold text-red-800 mb-1">⚠️ Error detected</p>
-      <p className="text-[11px] text-red-700 font-mono leading-relaxed opacity-80 break-all">{message}</p>
-    </div>
-  </motion.div>
-);
-
-const AutoFixCard: React.FC<{ attempt: number; maxAttempts: number; error: string }> = ({ attempt, maxAttempts, error }) => (
-  <motion.div variants={cardVariants} initial="hidden" animate="visible" className="flex items-start gap-3 ml-1">
-    <div className="mt-0.5 w-6 h-6 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
-      <Wrench className="w-3.5 h-3.5 text-amber-600 animate-spin" style={{ animationDuration: "2s" }} />
-    </div>
-    <div className="bg-amber-50/80 border border-amber-100 rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[90%]">
-      <p className="text-[12px] font-bold text-amber-800">🔧 Auto-fixing (attempt {attempt}/{maxAttempts})</p>
-      <p className="text-[11px] text-amber-700 font-mono mt-0.5 opacity-70 truncate">{error.slice(0, 80)}</p>
-    </div>
-  </motion.div>
-);
-
-const PreviewReadyCard: React.FC<{ url: string }> = ({ url }) => (
-  <motion.div
-    variants={cardVariants}
-    initial="hidden"
-    animate="visible"
-    className="flex items-start gap-3 ml-1"
-  >
-    <div className="mt-0.5 w-6 h-6 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center shrink-0">
-      <Rocket className="w-3.5 h-3.5 text-blue-600" />
-    </div>
-    <div className="bg-blue-50/80 border border-blue-100 rounded-2xl rounded-tl-sm px-4 py-2.5">
-      <p className="text-[12px] font-bold text-blue-800">🚀 Preview is ready!</p>
-      <p className="text-[11px] text-blue-600 mt-0.5 font-mono">{url}</p>
-    </div>
-  </motion.div>
-);
-
-const AgentSwitchCard: React.FC<{ from: string; to: string }> = ({ from, to }) => (
-  <motion.div variants={cardVariants} initial="hidden" animate="visible" className="flex items-center gap-2 ml-9">
-    <Shuffle className="w-3 h-3 text-stone-400" />
-    <span className="text-[11px] text-stone-400">Failover: <span className="line-through opacity-50">{from}</span> → <span className="font-semibold text-stone-600">{to}</span></span>
-  </motion.div>
-);
-
-const DoneCard: React.FC<{ message: string; fileCount: number }> = ({ message, fileCount }) => (
-  <motion.div
-    variants={cardVariants}
-    initial="hidden"
-    animate="visible"
-    className="flex items-start gap-3 ml-1"
-  >
-    <div className="mt-0.5 w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-200">
-      <PartyPopper className="w-3.5 h-3.5 text-white" />
-    </div>
-    <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200/60 rounded-2xl rounded-tl-sm px-5 py-3.5 max-w-[90%]">
-      <p className="text-[13px] font-bold text-indigo-900">{message}</p>
-      {fileCount > 0 && (
-        <div className="flex items-center gap-1.5 mt-2">
-          <FileCode2 className="w-3 h-3 text-indigo-500" />
-          <span className="text-[11px] text-indigo-600 font-semibold">{fileCount} files generated</span>
-        </div>
-      )}
-    </div>
-  </motion.div>
-);
-
-const UserBubble: React.FC<{ text: string }> = ({ text }) => (
-  <motion.div variants={cardVariants} initial="hidden" animate="visible" className="flex justify-end">
-    <div className="px-5 py-3 rounded-2xl rounded-tr-sm text-[13px] max-w-[85%] leading-relaxed bg-stone-900 text-white shadow-sm">
-      {text}
-    </div>
-  </motion.div>
-);
-
-const AssistantBubble: React.FC<{ text: string }> = ({ text }) => (
-  <motion.div variants={cardVariants} initial="hidden" animate="visible" className="flex justify-start">
-    <div className="px-5 py-3 rounded-2xl rounded-tl-sm text-[13px] max-w-[90%] leading-relaxed bg-white text-stone-800 border border-stone-200 shadow-sm">
-      <div className="flex items-center gap-1.5 mb-1.5 opacity-50">
-        <Sparkles className="w-3 h-3" />
-        <span className="text-[9px] font-black uppercase tracking-widest">Nexo AI</span>
-      </div>
-      <div className="prose prose-sm max-w-none prose-stone">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
-      </div>
-    </div>
-  </motion.div>
-);
-
-// ─── Event Renderer ─────────────────────────────────────────────────────────
-
-const EventRenderer: React.FC<{ event: AgentEvent; doneFiles: Set<string>; fileChunks: Record<string, string> }> = ({
-  event,
-  doneFiles,
-  fileChunks,
-}) => {
-  switch (event.type) {
-    case "thinking":
-      return <ThinkingCard message={event.message} />;
-    case "file_create":
-      return <FileCreateCard path={event.path} isDone={doneFiles.has(event.path)} />;
-    case "file_write":
-      // Show code preview only for meaningful chunks
-      if (event.chunk && event.chunk.trim().length > 20) {
-        return <CodePreviewCard path={event.path} chunk={event.chunk} />;
-      }
-      return null;
-    case "file_done":
-      return null; // file_create card handles done state via doneFiles set
-    case "build_start":
-      return <BuildStartCard />;
-    case "build_success":
-      return <BuildSuccessCard />;
-    case "build_error":
-      return <BuildErrorCard message={event.message} />;
-    case "auto_fix":
-      return <AutoFixCard attempt={event.attempt} maxAttempts={event.maxAttempts} error={event.error} />;
-    case "preview_ready":
-      return <PreviewReadyCard url={event.url} />;
-    case "agent_switch":
-      return <AgentSwitchCard from={event.from} to={event.to} />;
-    case "user":
-      return <UserBubble text={event.text} />;
-    case "assistant":
-      return <AssistantBubble text={event.text} />;
-    case "done":
-      return <DoneCard message={event.message} fileCount={event.fileCount} />;
-    default:
-      return null;
-  }
-};
-
-// ─── Main ChatPanel ──────────────────────────────────────────────────────────
+// All supported models
+const ALL_MODELS = [
+  { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", badge: "Default" },
+  { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", badge: "Pro" },
+  { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", badge: "" },
+  { id: "gemini-2.0-flash-lite", name: "Gemini 2.0 Flash-Lite", badge: "Fast" },
+  { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", badge: "" },
+  { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", badge: "" },
+  { id: "qwen/qwen-2.5-72b-instruct:free", name: "Qwen 2.5 72B", badge: "Free" },
+  { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B", badge: "Groq" },
+];
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
   const { messages, input, setInput } = useChatStore();
   const { buildPhase, subStatus, tasks } = useProjectStore();
+  const { selectedModel, setSelectedModel } = useAgentStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
+  const [attachments, setAttachments] = useState<{ name: string; content: string; type: string }[]>([]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, buildPhase]);
+
+  // Close model menu on outside click
+  useEffect(() => {
+    const close = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-model-menu]")) setIsModelMenuOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
 
   const handleSend = () => {
-    if (!input.trim()) return;
-    onSend(input);
+    if (!input.trim() && attachments.length === 0) return;
+
+    let finalText = input.trim();
+
+    // Append file contents to the message
+    if (attachments.length > 0) {
+      const attachText = attachments
+        .map((a) =>
+          a.type.startsWith("image/")
+            ? `[Image attached: ${a.name}]`
+            : `\n\n--- File: ${a.name} ---\n${a.content}`
+        )
+        .join("\n");
+      finalText = finalText ? `${finalText}${attachText}` : attachText.trim();
+    }
+
+    onSend(finalText, attachments);
     setInput("");
+    setAttachments([]);
   };
 
+  // Handle file/image upload
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB limit
+
+    const processed = await Promise.all(
+      files.map(async (file) => {
+        if (file.size > MAX_SIZE) {
+          toast.error(`${file.name} is too large (max 5MB)`);
+          return null;
+        }
+
+        return new Promise<{ name: string; content: string; type: string } | null>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            resolve({
+              name: file.name,
+              content: reader.result as string,
+              type: file.type,
+            });
+          };
+          reader.onerror = () => {
+            toast.error(`Failed to read ${file.name}`);
+            resolve(null);
+          };
+          if (file.type.startsWith("image/")) {
+            reader.readAsDataURL(file);
+          } else {
+            reader.readAsText(file);
+          }
+        });
+      })
+    );
+
+    const valid = processed.filter(Boolean) as { name: string; content: string; type: string }[];
+    setAttachments((prev) => [...prev, ...valid]);
+
+    // Reset input so same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, []);
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const selectedModelName =
+    ALL_MODELS.find((m) => m.id === selectedModel)?.name || "Gemini 2.5 Flash";
+
   return (
-    <div className="h-full flex flex-col bg-stone-50/30 backdrop-blur-xl border-r border-stone-200 relative">
-      <div className="h-12 border-b border-stone-200 flex items-center justify-between px-4 shrink-0 bg-white/50 backdrop-blur-md z-10">
+    <div className="h-full flex flex-col bg-white overflow-hidden relative">
+      {/* ── Header ── */}
+      <div className="h-[52px] border-b border-[#e8e8e8] flex items-center justify-between px-4 shrink-0 select-none bg-white relative z-20">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-blue-500" />
-          <span className="font-medium text-sm text-stone-900">Nexo</span>
+          <Sparkles className="w-3.5 h-3.5 text-[#0ea5e9]" />
+          <span className="text-sm font-semibold text-[#111]">Nexo</span>
         </div>
-        <button className="p-1.5 text-stone-400 hover:text-stone-600 rounded-md transition-colors hover:bg-stone-100">
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
+        <button
+          onClick={() => {
+            useChatStore.getState().resetChat();
+            useProjectStore.getState().setCurrentContent(null);
+          }}
+          className="p-1.5 hover:bg-[#f3f3f3] rounded-lg text-[#aaa] hover:text-[#111] transition-colors"
+          title="New Chat"
+        >
+          <Plus className="w-4 h-4" />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white pb-32 no-scrollbar">
-        <AnimatePresence initial={false}>
-          {messages.map((msg, i) => (
-            <motion.div
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              key={i}
-              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={`px-5 py-3 rounded-2xl text-[13px] max-w-[90%] leading-relaxed shadow-sm border ${msg.role === "user" ? "bg-stone-900 text-white border-stone-800" : "bg-white text-stone-800 border-stone-200"}`}
-              >
-                {msg.role === "assistant" && (
-                  <div className="flex items-center gap-1.5 mb-1 opacity-50">
-                    <Sparkles className="w-3 h-3" />
-                    <span className="text-[9px] font-black uppercase tracking-widest">
-                      Nexo AI
-                    </span>
-                  </div>
-                )}
-                <div className="prose prose-sm max-w-none prose-stone">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {msg.text}
-                  </ReactMarkdown>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-          {buildPhase === "building" && (
-            <motion.div
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col gap-3"
-            >
-              <div className="bg-white border border-stone-100 rounded-2xl px-4 py-3 shadow-sm flex items-center gap-3 w-fit">
-                <div className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-                </div>
-                <span className="text-[10px] font-black text-stone-900 uppercase tracking-widest flex items-center gap-2">
-                  Nexo AI:{" "}
-                  <span className="text-stone-400 font-bold normal-case tracking-normal">
-                    {subStatus || "Processing..."}
-                  </span>
-                </span>
-              </div>
-
-              {/* Task List UI */}
-              <div className="ml-5 flex flex-col gap-1.5 border-l-2 border-stone-50 pl-4 py-2">
-                {tasks.map((task) => (
+      {/* ── Messages ── */}
+      <div className="flex-grow overflow-y-auto p-4 space-y-3 pb-[160px] scrollbar-hide relative z-10">
+        {messages.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-center px-6 space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-[#f3f3f3] border border-[#e8e8e8] flex items-center justify-center">
+              <Sparkles className="w-6 h-6 text-[#0ea5e9]" />
+            </div>
+            <div className="space-y-1.5 max-w-[220px]">
+              <h3 className="text-sm font-semibold text-[#111]">Nexo Workspace</h3>
+              <p className="text-xs text-[#888] leading-relaxed">
+                Describe what you'd like to build. Nexo will generate it live.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <AnimatePresence initial={false}>
+              {messages.map((msg, i) => (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                  key={i}
+                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                >
                   <div
-                    key={task.id}
-                    className="flex items-center gap-2.5 group"
+                    className={`px-4 py-3 rounded-2xl text-xs leading-relaxed max-w-[88%] ${
+                      msg.role === "user"
+                        ? "bg-[#111] text-white rounded-br-sm"
+                        : msg.isError
+                        ? "bg-red-50 border border-red-200 text-red-700 rounded-bl-sm flex gap-2"
+                        : "bg-[#f3f3f3] border border-[#e8e8e8] text-[#111] rounded-bl-sm"
+                    }`}
                   >
-                    <div
-                      className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${
-                        task.status === "done"
-                          ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
-                          : task.status === "running"
-                            ? "bg-indigo-500 animate-pulse"
-                            : "bg-stone-200"
-                      }`}
-                    />
-                    <span
-                      className={`text-[10px] font-bold tracking-tight transition-all duration-300 ${
-                        task.status === "done"
-                          ? "text-stone-900"
-                          : task.status === "running"
-                            ? "text-indigo-600"
-                            : "text-stone-400"
-                      }`}
-                    >
-                      {task.label}
-                    </span>
-                    {task.status === "done" && (
-                      <span className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100/50">
-                        Done
-                      </span>
+                    {msg.role !== "user" && !msg.isError && (
+                      <div className="flex items-center gap-1.5 mb-2 select-none">
+                        <Sparkles className="w-3 h-3 text-[#0ea5e9]" />
+                        <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-[#0ea5e9]">
+                          Nexo
+                        </span>
+                      </div>
                     )}
+                    {msg.isError && (
+                      <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
+                    )}
+                    <div className="prose prose-xs max-w-none">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {msg.text}
+                      </ReactMarkdown>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                </motion.div>
+              ))}
+
+              {/* Build progress */}
+              {buildPhase === "building" && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex flex-col gap-3 max-w-[88%]"
+                >
+                  <div className="bg-[#f3f3f3] border border-[#e8e8e8] rounded-2xl px-4 py-3 flex items-center gap-2.5 w-fit select-none">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#0ea5e9] opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#0ea5e9]" />
+                    </span>
+                    <span className="text-[10px] font-semibold text-[#555] uppercase tracking-wide">
+                      {subStatus || "Building…"}
+                    </span>
+                  </div>
+
+                  {tasks.length > 0 && (
+                    <div className="ml-4 flex flex-col gap-2 border-l border-[#e8e8e8] pl-3 py-1 select-none">
+                      {tasks.map((task) => (
+                        <div key={task.id} className="flex items-center gap-2">
+                          <div
+                            className={`w-1.5 h-1.5 rounded-full transition-all ${
+                              task.status === "done"
+                                ? "bg-emerald-500"
+                                : task.status === "running"
+                                ? "bg-[#0ea5e9] animate-pulse"
+                                : "bg-[#ddd]"
+                            }`}
+                          />
+                          <span
+                            className={`text-[10px] font-medium transition-all ${
+                              task.status === "done"
+                                ? "text-[#aaa] line-through"
+                                : task.status === "running"
+                                ? "text-[#0ea5e9]"
+                                : "text-[#bbb]"
+                            }`}
+                          >
+                            {task.label}
+                          </span>
+                          {task.status === "done" && (
+                            <span className="text-[8px] font-bold text-emerald-600 uppercase tracking-wide bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                              Done
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-stone-100">
-        <div className="relative border border-stone-200 rounded-2xl bg-white shadow-sm focus-within:border-stone-300 focus-within:shadow-md transition-all overflow-hidden flex flex-col">
+      {/* ── Floating Input ── */}
+      <div className="absolute bottom-0 left-0 right-0 px-3 pb-3 pt-8 bg-gradient-to-t from-white via-white/90 to-transparent z-20">
+        <div className="border border-[#e8e8e8] bg-white rounded-2xl shadow-sm focus-within:border-[#0ea5e9]/40 focus-within:shadow-[0_0_0_3px_rgba(14,165,233,0.08)] transition-all">
+
+          {/* Attachment previews */}
+          {attachments.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 px-3 pt-2.5">
+              {attachments.map((att, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-1.5 bg-[#f3f3f3] border border-[#e8e8e8] rounded-lg px-2 py-1 text-[10px] text-[#555] max-w-[140px]"
+                >
+                  {att.type.startsWith("image/") ? (
+                    <ImageIcon className="w-3 h-3 text-[#0ea5e9] shrink-0" />
+                  ) : (
+                    <Paperclip className="w-3 h-3 text-[#0ea5e9] shrink-0" />
+                  )}
+                  <span className="truncate font-medium">{att.name}</span>
+                  <button
+                    onClick={() => removeAttachment(i)}
+                    className="shrink-0 text-[#aaa] hover:text-[#e55] transition-colors"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Textarea */}
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            disabled={buildPhase === "building"}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -385,67 +302,102 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
               }
             }}
             placeholder="Make changes, add new features, ask for anything"
-            className="w-full bg-transparent py-3 px-4 text-sm resize-none h-20 placeholder:text-stone-400 outline-none"
+            className="w-full bg-transparent py-3 px-4 text-xs text-[#111] placeholder:text-[#aaa] resize-none h-[58px] outline-none leading-relaxed"
           />
-          <div className="flex items-center justify-between px-2 pb-2">
-            <div className="flex items-center gap-1">
-              <button className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-full transition-colors">
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+
+          {/* Toolbar */}
+          <div className="flex items-center justify-between px-3 pb-2.5">
+            <div className="flex items-center gap-1.5">
+
+              {/* Model picker */}
+              <div className="relative" data-model-menu>
+                <button
+                  type="button"
+                  onClick={() => setIsModelMenuOpen((v) => !v)}
+                  className="flex items-center gap-1 px-2 py-1 bg-[#f3f3f3] hover:bg-[#ebebeb] border border-[#e8e8e8] rounded-lg text-[10px] font-semibold text-[#555] hover:text-[#111] transition-all select-none max-w-[130px]"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-                  />
-                </svg>
+                  <Cpu className="w-3 h-3 text-[#0ea5e9] shrink-0" />
+                  <span className="truncate">{selectedModelName}</span>
+                  <ChevronDown className="w-2.5 h-2.5 text-[#aaa] shrink-0" />
+                </button>
+
+                {isModelMenuOpen && (
+                  <div className="absolute bottom-full left-0 mb-1.5 bg-white border border-[#e8e8e8] rounded-xl shadow-xl p-1 w-52 z-50">
+                    <div className="px-2 py-1 text-[9px] font-bold text-[#aaa] uppercase tracking-wider">
+                      Select Model
+                    </div>
+                    {ALL_MODELS.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedModel(m.id);
+                          setIsModelMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-lg transition-all flex items-center justify-between gap-2 ${
+                          selectedModel === m.id
+                            ? "bg-[#0ea5e9] text-white"
+                            : "hover:bg-[#f3f3f3] text-[#333]"
+                        }`}
+                      >
+                        <span className="text-[11px] font-medium">{m.name}</span>
+                        {m.badge && (
+                          <span
+                            className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide shrink-0 ${
+                              selectedModel === m.id
+                                ? "bg-white/20 text-white"
+                                : "bg-[#e8e8e8] text-[#666]"
+                            }`}
+                          >
+                            {m.badge}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,.txt,.md,.js,.ts,.tsx,.jsx,.css,.html,.json,.py,.rs,.go,.java,.cpp,.c,.php,.rb,.xml,.yaml,.yml,.sh,.env,.csv"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+
+              {/* Attach file */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="p-1.5 rounded-lg text-[#aaa] hover:text-[#0ea5e9] hover:bg-[#f3f3f3] transition-colors"
+                title="Attach file or image"
+              >
+                <Paperclip className="w-3.5 h-3.5" />
               </button>
-              <button className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-full transition-colors">
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
+
+              {/* Mic */}
+              <button
+                type="button"
+                className="p-1.5 rounded-lg text-[#aaa] hover:text-[#555] hover:bg-[#f3f3f3] transition-colors"
+                title="Voice input"
+              >
+                <Mic className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            {/* Send button */}
+            {/* Send */}
             <button
               onClick={handleSend}
-              disabled={!input.trim()}
-              className="p-1.5 bg-stone-900 text-white rounded-full hover:bg-black disabled:opacity-50 transition-all flex items-center justify-center"
+              disabled={!input.trim() && attachments.length === 0}
+              className="w-8 h-8 bg-[#111] hover:bg-[#333] text-white rounded-xl disabled:opacity-25 transition-all flex items-center justify-center active:scale-95 disabled:scale-100"
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
+              <Send className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
-        <p className="text-center text-[9px] text-stone-400 mt-2 font-medium tracking-wide uppercase">
-          Nexo AI Workspace Engine · Autonomous Code Generation
-        </p>
       </div>
     </div>
   );

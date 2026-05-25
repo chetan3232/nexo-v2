@@ -155,17 +155,17 @@ export const DevTools: React.FC<DevToolsProps> = ({ defaultTab = "terminal" }) =
   };
 
   return (
-    <div className="bg-[#070B14]/90 text-studio-text font-mono text-[10px] flex flex-col overflow-hidden h-full border border-white/5 rounded-3xl shadow-2xl backdrop-blur-md">
+    <div className="bg-[#181818] text-[#d4d4d4] font-mono text-[10px] flex flex-col overflow-hidden h-full">
       {/* Tab Header (Compact) */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-white/5 bg-[#0F172A]/40 shrink-0 overflow-x-auto no-scrollbar gap-2">
-        <div className="flex gap-1">
+      <div className="flex items-center justify-between px-2 py-1 border-b border-stone-800 bg-[#252526] shrink-0 overflow-x-auto no-scrollbar">
+        <div className="flex gap-0.5">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as TabType)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all shrink-0 ${activeTab === tab.id ? "bg-[#070B14]/65 text-studio-accent border border-white/5 font-semibold" : "text-studio-muted hover:text-white"}`}
+              className={`flex items-center gap-1 px-2 py-1 rounded transition-all shrink-0 ${activeTab === tab.id ? "bg-[#1e1e1e] text-indigo-400" : "text-stone-500 hover:text-stone-300"}`}
             >
-              <tab.icon className="w-3 h-3" />
+              <tab.icon className="w-2.5 h-2.5" />
               <span className="font-bold text-[9px]">{tab.label}</span>
             </button>
           ))}
@@ -176,17 +176,17 @@ export const DevTools: React.FC<DevToolsProps> = ({ defaultTab = "terminal" }) =
               terminalLogs.slice(-10).join("\n"),
             )
           }
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-studio-accent/15 hover:bg-studio-accent/25 text-studio-accent border border-studio-accent/30 rounded-lg text-[8px] font-black transition-all shrink-0 ml-2"
+          className="flex items-center gap-1 px-2 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded text-[8px] font-black transition-all shrink-0 ml-2"
         >
-          <Sparkles className="w-2.5 h-2.5 animate-pulse" />
-          <span>FIX</span>
+          <Sparkles className="w-2 h-2" />
+          FIX
         </button>
       </div>
 
       {/* Tab Content */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto p-3.5 custom-scrollbar bg-transparent"
+        className="flex-1 overflow-y-auto p-2 custom-scrollbar bg-[#1e1e1e]"
       >
         {renderContent()}
       </div>

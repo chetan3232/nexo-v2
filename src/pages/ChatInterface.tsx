@@ -6,13 +6,10 @@ import {
   Separator as PanelResizeHandle,
 } from "react-resizable-panels";
 import toast, { Toaster } from "react-hot-toast";
-import { motion, AnimatePresence } from "framer-motion";
 
 import { ChatPanel } from "../components/chat/ChatPanel";
 import { InitialOverlay } from "../components/chat/InitialOverlay";
-import { WorkspaceSidebar } from "../components/sidebar/WorkspaceSidebar";
-import { auth, saveChatToFirebase, signInWithGoogle } from "../services/firebase";
-import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
+import { auth, saveChatToFirebase } from "../services/firebase";
 
 // Lazy load heavy components
 const EditorPanel = React.lazy(() =>
@@ -26,7 +23,6 @@ const PreviewPanel = React.lazy(() =>
   })),
 );
 
-import { DevTools } from "../components/editor/DevTools";
 import { SettingsModal } from "../components/ui/SettingsModal";
 
 // Stores & Services
@@ -39,27 +35,19 @@ import { Message } from "../types";
 
 // Icons
 import {
-  MessageSquare,
-  Code,
-  Terminal,
-  FileText,
-  Sparkles,
   ArrowLeft,
-  Share2,
   Settings,
   Download,
-  FolderLock,
+  Pencil,
+  RotateCw,
+  Monitor,
+  Sparkles,
+  Share2,
   GitBranch,
-  Cpu,
-  Layers,
-  Search,
-  Globe,
-  Layout,
-  User,
+  X,
+  ExternalLink,
 } from "lucide-react";
 import JSZip from "jszip";
-
-type CenterTab = "chat" | "code" | "console" | "logs";
 
 const ChatInterface: React.FC = () => {
   const navigate = useNavigate();
@@ -67,40 +55,18 @@ const ChatInterface: React.FC = () => {
   const projectStore = useProjectStore();
   const { setSelectedElement } = useDesignStore();
 
-  // Active Tab for the Center Panel from store
-  const { activeCenterTab, setActiveCenterTab } = projectStore;
-
-  // UI State
+  const [workspaceTab, setWorkspaceTab] = useState<"preview" | "code">("preview");
   const [isVisualMode, setIsVisualMode] = useState(false);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
-  const [showSettings, setShowSettings] = useState(false);
-  const [projectTitle, setProjectTitle] = useState("Untitled Project");
+  const [settingsTab, setSettingsTab] = useState<string | null>(null);
+  const [projectTitle, setProjectTitle] = useState("Untitled");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-
-  const [user, setUser] = useState<FirebaseUser | null>(null);
-  const { deployStatus, deployUrl, setDeployStatus, setDeployUrl } = useProjectStore();
-  const [isDeploying, setIsDeploying] = useState(false);
+  const [ghPushing, setGhPushing] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
-    return () => unsubscribe();
-  }, []);
+    if (selectedFileName) setWorkspaceTab("code");
+  }, [selectedFileName]);
 
-  const handleDeploy = () => {
-    setIsDeploying(true);
-    setDeployStatus("deploying");
-    setTimeout(() => {
-      setIsDeploying(false);
-      setDeployStatus("done");
-      const mockUrl = `https://nexo-preview-${Math.random().toString(36).substring(2, 7)}.vercel.app`;
-      setDeployUrl(mockUrl);
-      toast.success("Project deployed live!");
-    }, 3000);
-  };
-
-  // Sync selectedFileName if none is selected and project has files
   useEffect(() => {
     if (!selectedFileName && projectStore.currentContent?.files) {
       const files = Object.keys(projectStore.currentContent.files);
@@ -111,19 +77,17 @@ const ChatInterface: React.FC = () => {
     }
   }, [projectStore.currentContent, selectedFileName]);
 
-  // Sync project title when chat messages change
   useEffect(() => {
     if (chatStore.messages.length > 0) {
       const firstUserMessage =
-        chatStore.messages.find((m) => m.role === "user")?.text ||
-        "New Project";
+        chatStore.messages.find((m) => m.role === "user")?.text || "New Project";
       const title =
-        firstUserMessage.length > 20
-          ? firstUserMessage.substring(0, 20) + "..."
+        firstUserMessage.length > 24
+          ? firstUserMessage.substring(0, 24) + "..."
           : firstUserMessage;
       setProjectTitle(title);
     } else {
-      setProjectTitle("Untitled Project");
+      setProjectTitle("Untitled");
     }
   }, [chatStore.messages]);
 
@@ -143,20 +107,15 @@ const ChatInterface: React.FC = () => {
     return () => window.removeEventListener("message", handleMessage);
   }, [setSelectedElement]);
 
-  // Auto-save chat to Firebase when messages or content change
   useEffect(() => {
-    const currentUser = auth.currentUser;
-    if (!currentUser || chatStore.messages.length === 0) return;
-
+    if (!auth.currentUser || chatStore.messages.length === 0) return;
     const saveTimeout = setTimeout(() => {
       const chatId = chatStore.currentChatId || crypto.randomUUID();
-      if (!chatStore.currentChatId) {
-        chatStore.setCurrentChatId(chatId);
-      }
-
-      saveChatToFirebase(currentUser.uid, {
+      if (!chatStore.currentChatId) chatStore.setCurrentChatId(chatId);
+      saveChatToFirebase(auth.currentUser.uid, {
         id: chatId,
         name: projectTitle,
+        title: projectTitle,
         date: new Date().toLocaleDateString(),
         updatedAt: Date.now(),
         messages: chatStore.messages,
@@ -166,17 +125,27 @@ const ChatInterface: React.FC = () => {
         messageCount: chatStore.messages.length,
         fileCount: Object.keys(projectStore.currentContent?.files || {}).length,
       });
-    }, 2000); // Debounce saves by 2 seconds
-
+    }, 2000);
     return () => clearTimeout(saveTimeout);
   }, [chatStore.messages, projectStore.currentContent, projectTitle]);
 
-  const handleSend = async (prompt: string) => {
-    chatStore.setMessages((prev: Message[]) => [
-      ...prev,
-      { role: "user", text: prompt, timestamp: Date.now() },
-    ]);
-    setActiveCenterTab("chat");
+  const handleSend = async (prompt: string, attachments?: { name: string; content: string; type: string }[]) => {
+    const userMsg: Message = {
+      role: "user",
+      text: prompt,
+      timestamp: Date.now(),
+    };
+    const images = attachments?.filter(a => a.type.startsWith("image/")) || [];
+    if (images.length > 0) {
+      userMsg.content = [
+        { type: "text", text: prompt },
+        ...images.map(img => ({
+          type: "image_url",
+          image_url: { url: img.content }
+        }))
+      ];
+    }
+    chatStore.setMessages((prev: Message[]) => [...prev, userMsg]);
     try {
       await Orchestrator.getInstance().executeFullFlow(prompt);
     } catch (error) {
@@ -213,236 +182,266 @@ const ChatInterface: React.FC = () => {
     }
   };
 
-  const currentModel = useAgentStore((state) => state.selectedModel);
+  const handleOneClickGithubPush = async () => {
+    const token = localStorage.getItem("nexo_gh_token") || "";
+    const repo = localStorage.getItem("nexo_gh_repo") || "";
+    const branch = localStorage.getItem("nexo_gh_branch") || "main";
+    const commit = "Update from Nexo";
+
+    if (!token || !repo) {
+      toast.error("Please configure GitHub settings in Integrations tab.");
+      setSettingsTab("Integrations");
+      return;
+    }
+    const files = projectStore.currentContent?.files;
+    if (!files || Object.keys(files).length === 0) {
+      toast.error("No files to push. Build a project first.");
+      return;
+    }
+    const repoMatch = repo.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+    if (!repoMatch) {
+      toast.error("Invalid GitHub repository URL configured in Settings.");
+      setSettingsTab("Integrations");
+      return;
+    }
+    const owner = repoMatch[1];
+    const repoName = repoMatch[2].replace(/\.git$/, "");
+    setGhPushing(true);
+    const loadingToast = toast.loading("Pushing to GitHub…");
+    try {
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github.v3+json",
+        "Content-Type": "application/json",
+      };
+      const refRes = await fetch(`https://api.github.com/repos/${owner}/${repoName}/git/refs/heads/${branch}`, { headers });
+      if (!refRes.ok) throw new Error("Branch not found or token lacks access.");
+      const refData = await refRes.json();
+      const latestCommitSha = refData.object.sha;
+      const commitRes = await fetch(`https://api.github.com/repos/${owner}/${repoName}/git/commits/${latestCommitSha}`, { headers });
+      const commitData = await commitRes.json();
+      const baseTreeSha = commitData.tree.sha;
+      const tree = Object.entries(files).map(([path, content]) => ({
+        path: path.startsWith("/") ? path.slice(1) : path,
+        mode: "100644", type: "blob", content,
+      }));
+      const newTreeRes = await fetch(`https://api.github.com/repos/${owner}/${repoName}/git/trees`, {
+        method: "POST", headers, body: JSON.stringify({ base_tree: baseTreeSha, tree }),
+      });
+      if (!newTreeRes.ok) throw new Error("Failed to create Git tree.");
+      const newTreeSha = (await newTreeRes.json()).sha;
+      const newCommitRes = await fetch(`https://api.github.com/repos/${owner}/${repoName}/git/commits`, {
+        method: "POST", headers,
+        body: JSON.stringify({ message: commit, tree: newTreeSha, parents: [latestCommitSha] }),
+      });
+      if (!newCommitRes.ok) throw new Error("Failed to create commit.");
+      const newCommitSha = (await newCommitRes.json()).sha;
+      const updateRes = await fetch(`https://api.github.com/repos/${owner}/${repoName}/git/refs/heads/${branch}`, {
+        method: "PATCH", headers, body: JSON.stringify({ sha: newCommitSha }),
+      });
+      if (!updateRes.ok) throw new Error("Failed to update branch ref.");
+      toast.dismiss(loadingToast);
+      toast.success("✓ Pushed to GitHub!");
+    } catch (err: any) {
+      toast.dismiss(loadingToast);
+      toast.error(err.message || "GitHub push failed.");
+    } finally {
+      setGhPushing(false);
+    }
+  };
 
   return (
-    <div className="h-screen w-full bg-[#070B14] text-studio-text flex flex-col overflow-hidden font-sans relative">
-      {/* Background cinematic blur radial gradients */}
-      <div className="absolute top-[-25%] left-[-15%] w-[60%] h-[60%] rounded-full bg-studio-accent/5 blur-[120px] pointer-events-none animate-glow" />
-      <div className="absolute bottom-[-25%] right-[-15%] w-[60%] h-[60%] rounded-full bg-studio-secondary/5 blur-[120px] pointer-events-none animate-glow" />
+    <div className="h-full w-full flex flex-col overflow-hidden font-sans bg-[#f7f7f7]">
+      {chatStore.messages.length === 0 && (
+        <InitialOverlay onStart={handleSend} />
+      )}
 
-      {/* Sticky glassmorphic navbar */}
-      <header className="h-14 border-b border-white/5 bg-[#070B14]/65 backdrop-blur-md flex items-center justify-between px-6 shrink-0 relative z-50 select-none">
-        {/* Left: Brand & Rename input */}
-        <div className="flex items-center gap-4">
+      {/* ── Workspace Inner Header (Back + Title) ── */}
+      <div className="h-[52px] bg-white border-b border-[#e8e8e8] flex items-center justify-between px-5 shrink-0 z-20 select-none">
+        {/* Left: back + editable title */}
+        <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate("/")}
-            className="flex items-center gap-2 group cursor-pointer"
+            onClick={handleBackToStart}
+            className="flex items-center gap-1.5 text-[#888] hover:text-[#111] transition-colors text-xs font-medium"
           >
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-studio-accent to-blue-500 flex items-center justify-center shadow-lg shadow-studio-accent/20 group-hover:scale-105 active:scale-95 transition-transform duration-300">
-              <Sparkles className="w-4 h-4 text-white animate-pulse" />
-            </div>
-            <span className="font-black text-xs tracking-wider uppercase text-white bg-clip-text">
-              Nexo
-            </span>
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back to start
           </button>
-        </div>
-
-        <div className="flex-1 flex justify-center font-medium text-stone-900 text-sm w-1/3">
-          Untitled
-        </div>
-
-        {/* Center: Command Palette Trigger */}
-        <div className="hidden md:flex items-center justify-center">
-          <button
-            onClick={() => {
-              window.dispatchEvent(new KeyboardEvent('keydown', { key: '/' }));
-            }}
-            className="flex items-center gap-2 px-3 py-1.5 bg-[#0F172A]/40 hover:bg-[#0F172A]/70 border border-white/5 rounded-xl text-xs text-studio-muted transition-all w-60 justify-between group shadow-inner"
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-stone-400 group-hover:text-studio-text transition-colors">Search or command...</span>
-            </div>
-            <kbd className="bg-white/5 text-[9px] px-1.5 py-0.5 rounded border border-white/10 text-stone-400 group-hover:text-studio-text font-sans font-black tracking-wide">
-              /
-            </kbd>
-          </button>
-        </div>
-
-        {/* Right: Model Status & Actions & User Profile */}
-        <div className="flex items-center gap-4">
-          {/* Active AI Model Status */}
-          <div className="hidden sm:flex items-center gap-2 bg-[#0F172A]/40 border border-white/5 px-3 py-1.5 rounded-xl text-[10px] font-bold text-studio-muted">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <span className="uppercase tracking-wider font-semibold">Active:</span>
-            <span className="font-mono text-studio-accent">{currentModel}</span>
-          </div>
-
-          <div className="h-4 w-[1px] bg-white/10 hidden sm:block" />
-
-          {/* Quick Actions */}
-          <div className="flex items-center gap-2">
-            {/* Share */}
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(window.location.href);
-                toast.success("Project workspace URL copied!");
+          <div className="h-4 w-px bg-[#e8e8e8]" />
+          {isEditingTitle ? (
+            <input
+              type="text"
+              value={projectTitle}
+              onChange={(e) => setProjectTitle(e.target.value)}
+              onBlur={() => setIsEditingTitle(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") setIsEditingTitle(false);
               }}
-              className="p-2 bg-[#0F172A]/40 hover:bg-studio-panel border border-white/5 rounded-xl text-studio-muted hover:text-studio-text transition-colors shadow-sm"
-              title="Share Workspace"
-            >
-              <Share2 className="w-3.5 h-3.5" />
-            </button>
-
-            {/* Export ZIP */}
-            <button
-              onClick={handleDownloadZip}
-              className="p-2 bg-[#0F172A]/40 hover:bg-studio-panel border border-white/5 rounded-xl text-studio-muted hover:text-studio-text transition-colors shadow-sm"
-              title="Export Source ZIP"
-            >
-              <Download className="w-3.5 h-3.5" />
-            </button>
-
-            {/* Deploy */}
-            <button
-              onClick={handleDeploy}
-              disabled={isDeploying}
-              className="px-3.5 py-1.5 bg-gradient-to-tr from-studio-accent to-blue-600 hover:from-studio-accent hover:to-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-lg shadow-studio-accent/15 disabled:opacity-50"
-            >
-              {isDeploying ? (
-                <>
-                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Deploying</span>
-                </>
-              ) : (
-                <>
-                  <Globe className="w-3 h-3" />
-                  <span>Deploy</span>
-                </>
-              )}
-            </button>
-          </div>
-
-          <div className="h-4 w-[1px] bg-white/10" />
-
-          {/* Profile Avatar / User info */}
-          {user ? (
-            <img
-              src={user.photoURL || ""}
-              alt="Profile"
-              className="w-7 h-7 rounded-full border border-white/10 shadow-md"
-              title={user.email || ""}
+              className="border border-[#e8e8e8] rounded-lg px-2.5 py-1 text-sm font-semibold text-[#111] focus:border-[#0ea5e9] outline-none w-36 bg-white"
+              autoFocus
             />
           ) : (
-            <button
-              onClick={signInWithGoogle}
-              className="w-7 h-7 rounded-full bg-studio-panel border border-white/5 flex items-center justify-center text-studio-muted hover:text-studio-text transition-colors"
-              title="Sign In"
+            <span
+              onClick={() => setIsEditingTitle(true)}
+              className="text-sm font-semibold text-[#111] cursor-pointer hover:text-[#0ea5e9] transition-colors"
             >
-              <User className="w-3.5 h-3.5" />
-            </button>
+              {projectTitle}
+            </span>
           )}
         </div>
-      </header>
 
-      {/* Main Workspace Resizable Panels */}
-      <main className="flex-1 flex overflow-hidden min-h-0 relative z-10 bg-transparent">
+        {/* Right: GitHub + Remix / Share / Publish + icon buttons */}
+        <div className="flex items-center gap-2">
+          {/* GitHub one-click */}
+          <button
+            onClick={handleOneClickGithubPush}
+            disabled={ghPushing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#555] hover:text-[#111] hover:bg-[#f3f3f3] border border-[#e8e8e8] transition-all disabled:opacity-50"
+            title="Push to GitHub"
+          >
+            <GitBranch className="w-3.5 h-3.5" />
+            {ghPushing ? "Pushing…" : "GitHub"}
+          </button>
+          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#555] hover:text-[#111] hover:bg-[#f3f3f3] border border-[#e8e8e8] transition-all">
+            <Sparkles className="w-3.5 h-3.5 text-[#0ea5e9]" />
+            Remix
+          </button>
+          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#555] hover:text-[#111] hover:bg-[#f3f3f3] border border-[#e8e8e8] transition-all">
+            <Share2 className="w-3.5 h-3.5" />
+            Share
+          </button>
+          <button
+            onClick={handleDownloadZip}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#111] hover:bg-[#333] transition-all"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Publish
+          </button>
+          <div className="w-px h-4 bg-[#e8e8e8]" />
+          <button
+            onClick={() => setIsEditingTitle(true)}
+            className="p-2 rounded-lg text-[#888] hover:text-[#111] hover:bg-[#f3f3f3] transition-colors"
+            title="Rename"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => setSettingsTab("Chat")}
+            className="p-2 rounded-lg text-[#888] hover:text-[#111] hover:bg-[#f3f3f3] transition-colors"
+            title="Settings"
+          >
+            <Settings className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* ── Main Workspace ── */}
+      <main className="flex-1 flex overflow-hidden min-h-0">
         <PanelGroup orientation="horizontal">
-          {/* Panel 1: Collapsible Left Sidebar */}
-          <Panel defaultSize={22} minSize={16} maxSize={30} className="flex">
-            <WorkspaceSidebar />
-          </Panel>
 
-          {/* Custom styled resizer split-lines */}
-          <PanelResizeHandle className="w-[3px] bg-studio-bg hover:bg-studio-accent/35 transition-colors cursor-col-resize z-10 relative flex items-center justify-center">
-            <div className="absolute h-10 w-[1px] bg-white/10 rounded" />
-          </PanelResizeHandle>
+          {/* LEFT: Preview / Code panel */}
+          <Panel defaultSize={65} minSize={40} maxSize={82} className="flex flex-col overflow-hidden p-3 pr-1.5 gap-2">
 
-          {/* Panel 2: Center Editor/Chat panel */}
-          <Panel defaultSize={43} minSize={30} maxSize={60} className="flex flex-col overflow-hidden bg-transparent p-4 gap-4">
-            {/* Center Tab Header (Only shown when not in Chat mode) */}
-            {activeCenterTab !== "chat" && (
-              <div className="h-12 bg-studio-panel/45 border border-white/5 backdrop-blur-md rounded-2xl flex items-center justify-between px-4 shrink-0 select-none shadow-lg shadow-black/20">
-                <div className="flex items-center gap-1.5">
-                  {[
-                    { id: "chat", label: "AI Assistant", icon: MessageSquare },
-                    { id: "code", label: "Monaco Editor", icon: Code },
-                    { id: "console", label: "DevTools", icon: Terminal },
-                    { id: "logs", label: "Agent Logs", icon: FileText },
-                  ].map((tab) => {
-                    const Icon = tab.icon;
-                    const isActive = activeCenterTab === tab.id;
-                    return (
-                      <button
-                        key={tab.id}
-                        onClick={() => setActiveCenterTab(tab.id as CenterTab)}
-                        className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 relative ${
-                          isActive
-                            ? "text-studio-accent bg-studio-panel border border-white/10 shadow-sm"
-                            : "text-studio-muted hover:text-studio-text hover:bg-studio-panel/45"
-                        }`}
-                      >
-                        <Icon className="w-3.5 h-3.5" />
-                        <span>{tab.label}</span>
-                        {isActive && (
-                          <motion.div
-                            layoutId="centerTabGlow"
-                            className="absolute -bottom-px left-1/4 right-1/4 h-[1px] bg-studio-accent"
-                          />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+            {/* Secondary toolbar: Preview | Code toggle */}
+            <div className="bg-white rounded-xl border border-[#e8e8e8] h-11 flex items-center justify-between px-3 shrink-0 shadow-sm">
+              <div className="flex items-center gap-0.5 bg-[#f3f3f3] rounded-lg p-0.5">
                 <button
-                  onClick={() => {
-                    setActiveCenterTab("chat");
-                    setSelectedFileName(null);
-                  }}
-                  className="px-3 py-1.5 rounded-xl text-xs font-bold text-studio-muted hover:text-studio-accent hover:bg-studio-panel/45 transition-all"
+                  onClick={() => setWorkspaceTab("preview")}
+                  className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                    workspaceTab === "preview"
+                      ? "bg-white text-[#111] shadow-sm"
+                      : "text-[#888] hover:text-[#333]"
+                  }`}
                 >
-                  Back to Chat
+                  Preview
+                </button>
+                <button
+                  onClick={() => setWorkspaceTab("code")}
+                  className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                    workspaceTab === "code"
+                      ? "bg-white text-[#111] shadow-sm"
+                      : "text-[#888] hover:text-[#333]"
+                  }`}
+                >
+                  Code
                 </button>
               </div>
-            )}
 
-            {/* Viewport Content */}
-            <div className="flex-grow overflow-hidden relative">
+              <div className="flex items-center gap-1.5">
+                {workspaceTab === "preview" ? (
+                  <>
+                    <button
+                      onClick={() => useProjectStore.getState().incrementPreviewKey()}
+                      className="p-1.5 rounded-lg text-[#888] hover:text-[#111] hover:bg-[#f3f3f3] transition-colors"
+                      title="Reload preview"
+                    >
+                      <RotateCw className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setIsVisualMode(!isVisualMode)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                        isVisualMode
+                          ? "bg-[#0ea5e9]/10 text-[#0ea5e9] border-[#0ea5e9]/25"
+                          : "text-[#888] border-[#e8e8e8] hover:text-[#111] hover:bg-[#f3f3f3]"
+                      }`}
+                    >
+                      <Monitor className="w-3 h-3" />
+                      Visual Mode
+                    </button>
+                  </>
+                ) : (
+                  <span className="text-[10px] text-[#bbb] font-semibold uppercase tracking-wider">
+                    Editor Active
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Canvas */}
+            <div className="flex-1 overflow-hidden bg-white rounded-xl border border-[#e8e8e8] shadow-sm">
               <React.Suspense
                 fallback={
-                  <div className="h-full w-full flex items-center justify-center bg-studio-panel/50 backdrop-blur-md rounded-2xl border border-white/5 shadow-2xl">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-8 h-8 border-2 border-studio-accent/25 border-t-studio-accent rounded-full animate-spin" />
-                      <span className="text-[10px] font-black text-studio-muted uppercase tracking-[0.2em] animate-pulse">
-                        Booting Sandbox...
-                      </span>
-                    </div>
+                  <div className="h-full w-full flex flex-col items-center justify-center gap-4 bg-white">
+                    <Monitor className="w-10 h-10 text-[#ddd]" strokeWidth={1} />
+                    <span className="text-[10px] font-bold text-[#bbb] uppercase tracking-[0.25em]">
+                      Booting Runtime
+                    </span>
                   </div>
                 }
               >
-                {activeCenterTab === "chat" && (
-                  <ChatPanel onSend={handleSend} />
-                )}
-                {activeCenterTab === "code" && (
+                {workspaceTab === "preview" ? (
+                  <PreviewPanel
+                    isVisualMode={isVisualMode}
+                    setIsVisualMode={setIsVisualMode}
+                  />
+                ) : (
                   <EditorPanel
                     selectedFileName={selectedFileName}
                     setSelectedFileName={setSelectedFileName}
                   />
                 )}
-                {activeCenterTab === "console" && (
-                  <DevTools defaultTab="console" />
-                )}
-                {activeCenterTab === "logs" && (
-                  <DevTools defaultTab="terminal" />
-                )}
               </React.Suspense>
             </div>
           </Panel>
 
-          <PanelResizeHandle className="w-[3px] bg-studio-bg hover:bg-studio-accent/35 transition-colors cursor-col-resize z-10 relative flex items-center justify-center">
-            <div className="absolute h-10 w-[1px] bg-white/10 rounded" />
-          </PanelResizeHandle>
+          {/* Resize handle */}
+          <PanelResizeHandle className="w-1.5 bg-transparent hover:bg-[#0ea5e9]/20 transition-colors cursor-col-resize" />
 
-          {/* Panel 3: Right Live Preview Sandbox */}
-          <Panel defaultSize={35} minSize={25} maxSize={50} className="flex flex-col overflow-hidden p-4 pl-0">
-            <PreviewPanel
-              isVisualMode={isVisualMode}
-              setIsVisualMode={setIsVisualMode}
-            />
+          {/* RIGHT: Chat sidebar */}
+          <Panel defaultSize={35} minSize={22} maxSize={50} className="flex flex-col overflow-hidden p-3 pl-1.5">
+            <div className="flex-1 overflow-hidden rounded-xl border border-[#e8e8e8] shadow-sm bg-white">
+              <React.Suspense
+                fallback={
+                  <div className="h-full w-full flex items-center justify-center bg-white rounded-xl">
+                    <div className="w-6 h-6 border-2 border-[#e8e8e8] border-t-[#0ea5e9] rounded-full animate-spin" />
+                  </div>
+                }
+              >
+                <ChatPanel onSend={handleSend} />
+              </React.Suspense>
+            </div>
           </Panel>
+
         </PanelGroup>
       </main>
 
@@ -450,22 +449,24 @@ const ChatInterface: React.FC = () => {
         position="bottom-right"
         toastOptions={{
           style: {
-            background: "#0F172A",
-            color: "#F8FAFC",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
+            background: "#111",
+            color: "#fff",
+            border: "1px solid rgba(255,255,255,0.08)",
             fontSize: "12px",
             fontWeight: "600",
-            borderRadius: "14px",
-            boxShadow: "0 10px 30px rgba(0, 0, 0, 0.5)",
+            borderRadius: "12px",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.4)",
           },
         }}
       />
-      {showSettings && (
+
+      {settingsTab !== null && (
         <SettingsModal
-          onClose={() => setShowSettings(false)}
+          initialTab={settingsTab}
+          onClose={() => setSettingsTab(null)}
           onDeploy={() => toast.success("Deploying...")}
           onLoadHistory={() => toast.success("Loading history...")}
-          onDownloadZip={() => toast.success("Downloading...")}
+          onDownloadZip={handleDownloadZip}
           temperature={0.7}
           setTemperature={() => {}}
           topP={1}

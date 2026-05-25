@@ -21,6 +21,7 @@ interface SettingsModalProps {
   setTemperature: (t: number) => void;
   topP: number;
   setTopP: (t: number) => void;
+  initialTab?: string;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -32,15 +33,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   setTemperature,
   topP,
   setTopP,
+  initialTab,
 }) => {
-  const [activeTab, setActiveTab] = useState("Chat");
+  const [activeTab, setActiveTab] = useState(initialTab || "Chat");
   const tabs = ["Chat", "Share", "Publish", "Versions", "Integrations"];
   const { selectedModel, setSelectedModel } = useAgentStore();
 
-  const [githubToken, setGithubToken] = useState("");
-  const [repoUrl, setRepoUrl] = useState("");
-  const [commitMessage, setCommitMessage] = useState("");
-  const [branchName, setBranchName] = useState("main");
+  const [githubToken, setGithubToken] = useState(() => localStorage.getItem("nexo_gh_token") || "");
+  const [repoUrl, setRepoUrl] = useState(() => localStorage.getItem("nexo_gh_repo") || "");
+  const [commitMessage, setCommitMessage] = useState("Update from Nexo");
+  const [branchName, setBranchName] = useState(() => localStorage.getItem("nexo_gh_branch") || "main");
+
+  React.useEffect(() => {
+    localStorage.setItem("nexo_gh_token", githubToken);
+  }, [githubToken]);
+
+  React.useEffect(() => {
+    localStorage.setItem("nexo_gh_repo", repoUrl);
+  }, [repoUrl]);
+
+  React.useEffect(() => {
+    localStorage.setItem("nexo_gh_branch", branchName);
+  }, [branchName]);
 
   const handleGithubPush = async () => {
     if (!githubToken || !repoUrl || !commitMessage) {
@@ -199,6 +213,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   >
                     <option value="gemini-2.5-flash">
                       Gemini 2.5 Flash — Fast reasoning, high quota (Default)
+                    </option>
+                    <option value="gemini-2.5-pro">
+                      Gemini 2.5 Pro — Deep reasoning, high intelligence
                     </option>
                     <option value="gemini-2.0-flash">
                       Gemini 2.0 Flash — Balanced speed &amp; quality

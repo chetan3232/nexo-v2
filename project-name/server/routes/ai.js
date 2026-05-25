@@ -1,9 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const fs = require('fs');
-const path = require('path');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const AIGateway = require("../services/aiGateway");
 
+<<<<<<< HEAD
+router.post("/chat", AIGateway.handleRequest);
+=======
 // Load Gemini API Key from environment variable
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -72,16 +73,16 @@ const logUsage = (tokens = 0) => {
 
 router.post('/chat', async (req, res) => {
     try {
-        const { messages, model = 'inclusionai/ling-2.6-1t:free', temperature = 1.0, top_p = 1.0, projectMode = 'frontend', techStack = 'Vanilla', stream = true, enableThinking = true } = req.body;
+        const { messages, model = 'gemini-2.5-flash', temperature = 1.0, top_p = 1.0, projectMode = 'frontend', techStack = 'Vanilla', stream = true, enableThinking = true } = req.body;
 
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
             return res.status(400).json({ error: 'Messages array is required' });
         }
 
-        const apiKey = process.env.OPENROUTER_API_KEY || process.env.NVIDIA_API_KEY;
+        const apiKey = process.env.NVIDIA_API_KEY || process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY;
 
         if (!apiKey) {
-            return res.status(401).json({ error: 'API Key (OPENROUTER_API_KEY or NVIDIA_API_KEY) is missing.' });
+            return res.status(401).json({ error: 'API Key (NVIDIA_API_KEY, GROQ_API_KEY, or GEMINI_API_KEY) is missing.' });
         }
 
         const reqTemperature = 1.0;
@@ -130,7 +131,7 @@ router.post('/chat', async (req, res) => {
             }))
         ];
 
-        let invokeUrl = "https://openrouter.ai/api/v1/chat/completions";
+        let invokeUrl = null;
         let finalMessages = [...messagesPayload];
         
         // Route: NVIDIA NIM API (for MiniMax-M2.7 and other NVIDIA-hosted models)
@@ -139,6 +140,9 @@ router.post('/chat', async (req, res) => {
         // Route: Groq API
         const isGroqModel = !isNvidiaModel && (model.startsWith('groq/') || model.includes('llama') || model.includes('mixtral'));
         
+        // Route: Google Gemini API (official direct)
+        const isGoogleModel = !isNvidiaModel && !isGroqModel && (model.startsWith('google/') || model.startsWith('gemini-')) && process.env.GEMINI_API_KEY;
+
         if (isNvidiaModel) {
             invokeUrl = 'https://integrate.api.nvidia.com/v1/chat/completions';
             console.log(`[AI Route] Routing to NVIDIA NIM API with model: ${model}`);
@@ -153,25 +157,33 @@ router.post('/chat', async (req, res) => {
                 finalMessages = [systemMessage, ...history];
                 console.log(`[AI Direct Route] Compressed Groq context. Kept system prompt + last 2 messages. Count: ${finalMessages.length}`);
             }
+        } else if (isGoogleModel) {
+            invokeUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+            console.log(`[AI Direct Route] Routing to Google Gemini API with model: ${model}`);
+        } else {
+            return res.status(400).json({ error: `Unsupported model "${model}". Use a gemini-, google/, groq/, or nvidia/ model.` });
         }
 
         const payload = {
-            model: isGroqModel ? (model.startsWith('groq/') ? model.replace('groq/', '') : model) : isNvidiaModel ? 'minimaxai/minimax-m2.7' : model,
+            model: isGroqModel 
+                ? (model.startsWith('groq/') ? model.replace('groq/', '') : model) 
+                : isNvidiaModel 
+                    ? 'minimaxai/minimax-m2.7' 
+                    : isGoogleModel 
+                        ? model.replace('google/', '') 
+                        : model,
             messages: finalMessages,
             max_tokens: isNvidiaModel ? 8192 : maxTokens,
             temperature: isNvidiaModel ? 1 : reqTemperature,
             top_p: isNvidiaModel ? 0.95 : reqTopP,
             stream: isNvidiaModel ? false : stream,  // NVIDIA doesn't support streaming for this model
-            ...(!isGroqModel && !isNvidiaModel ? { chat_template_kwargs: chatTemplateKwargs } : {}),
-            ...(stream && !isGroqModel && !isNvidiaModel ? { stream_options: { include_usage: true } } : {})
+            ...(!isGroqModel && !isNvidiaModel && !isGoogleModel ? { chat_template_kwargs: chatTemplateKwargs } : {}),
+            ...(stream && !isGroqModel && !isNvidiaModel && !isGoogleModel ? { stream_options: { include_usage: true } } : {})
         };
 
         let headers = {
             "Content-Type": "application/json",
-            "Accept": "text/event-stream",
-            "Authorization": `Bearer ${apiKey}`,
-            "HTTP-Referer": "http://localhost:5000",
-            "X-Title": "Nexo AI Code Editor"
+            "Authorization": `Bearer ${apiKey}`
         };
 
         if (isNvidiaModel && process.env.NVIDIA_API_KEY) {
@@ -186,6 +198,12 @@ router.post('/chat', async (req, res) => {
                 "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
             };
             console.log(`[AI Direct Route] Calling official Groq API directly with model: ${payload.model}`);
+        } else if (isGoogleModel && process.env.GEMINI_API_KEY) {
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${process.env.GEMINI_API_KEY}`
+            };
+            console.log(`[AI Direct Route] Calling official Google Gemini API directly with model: ${payload.model}`);
         }
         
         const apiResponse = await fetch(invokeUrl, {
@@ -252,5 +270,6 @@ router.post('/chat', async (req, res) => {
         }
     }
 });
+>>>>>>> v2
 
 module.exports = router;

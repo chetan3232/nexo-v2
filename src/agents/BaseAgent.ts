@@ -77,7 +77,7 @@ export abstract class BaseAgent {
   ) {
     const messages = history.map((msg) => ({
       role: msg.role === "user" ? "user" : "assistant",
-      content: msg.text || "",
+      content: msg.content || msg.text || "",
     }));
 
     if (systemPrompt) {

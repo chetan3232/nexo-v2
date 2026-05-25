@@ -58,6 +58,7 @@ export const logout = async () => {
 export interface ChatSaveData {
   id: string;
   name: string;
+  title?: string;
   date: string;
   updatedAt: number;
   messages: any[];
@@ -127,4 +128,162 @@ export const deleteChatFromFirebase = async (uid: string, chatId: string) => {
   } catch (error) {
     console.error("Error deleting chat from Firebase:", error);
   }
+};
+
+// ─── Publish ───────────────────────────────────────────────────────────────────
+
+export interface PublishedProject {
+  id: string;
+  ownerId: string;
+  title: string;
+  htmlContent: string;   // self-contained HTML bundle
+  publishedAt: number;
+  viewCount: number;
+}
+
+/**
+ * Publish project as a self-contained HTML bundle stored in Firebase.
+ * Returns a shareable projectId.
+ */
+export const publishProject = async (
+  uid: string,
+  title: string,
+  files: Record<string, string>,
+): Promise<string> => {
+  const projectId = crypto.randomUUID();
+
+  // Build self-contained HTML: find index.html or stitch CSS/JS into one file
+  let html = files["/index.html"] || files["index.html"] || "";
+  if (!html) {
+    // Fallback: wrap all JS/TS as a script, CSS as style
+    const css = Object.entries(files)
+      .filter(([k]) => k.endsWith(".css"))
+      .map(([, v]) => v)
+      .join("\n");
+    const js = Object.entries(files)
+      .filter(([k]) => k.endsWith(".js") || k.endsWith(".ts"))
+      .map(([, v]) => v)
+      .join("\n");
+    html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${css}</style></head><body>${js ? `<script>${js}</script>` : ""}</body></html>`;
+  }
+
+  const projectRef = ref(db, `published/${projectId}`);
+  await set(projectRef, {
+    id: projectId,
+    ownerId: uid,
+    title,
+    htmlContent: html,
+    publishedAt: Date.now(),
+    viewCount: 0,
+  });
+  return projectId;
+};
+
+export const getPublishedProject = async (
+  projectId: string,
+): Promise<PublishedProject | null> => {
+  try {
+    const snap = await get(ref(db, `published/${projectId}`));
+    return snap.exists() ? (snap.val() as PublishedProject) : null;
+  } catch {
+    return null;
+  }
+};
+
+// ─── Share ─────────────────────────────────────────────────────────────────────
+
+export type SharePermission = "read" | "write";
+
+export interface SharedProject {
+  id: string;
+  ownerId: string;
+  chatId: string;
+  title: string;
+  permission: SharePermission;
+  botRestrictions: string;  // comma-separated topics the bot cannot change
+  messages: any[];
+  content: any | null;
+  createdAt: number;
+  ownerName: string;
+}
+
+/**
+ * Create a share link for the current project stored in Firebase.
+ * Returns the shareId to construct: /s/{shareId}
+ */
+export const shareProject = async ({
+  uid,
+  chatId,
+  title,
+  permission,
+  botRestrictions,
+  messages,
+  content,
+  ownerName,
+}: {
+  uid: string;
+  chatId: string;
+  title: string;
+  permission: SharePermission;
+  botRestrictions: string;
+  messages: any[];
+  content: any | null;
+  ownerName: string;
+}): Promise<string> => {
+  const shareId = crypto.randomUUID();
+  const shareRef = ref(db, `shares/${shareId}`);
+  await set(shareRef, {
+    id: shareId,
+    ownerId: uid,
+    chatId,
+    title,
+    permission,
+    botRestrictions,
+    messages,
+    content: content ? { ...content, files: content.files || {} } : null,
+    createdAt: Date.now(),
+    ownerName,
+  });
+  return shareId;
+};
+
+export const getSharedProject = async (
+  shareId: string,
+): Promise<SharedProject | null> => {
+  try {
+    const snap = await get(ref(db, `shares/${shareId}`));
+    return snap.exists() ? (snap.val() as SharedProject) : null;
+  } catch {
+    return null;
+  }
+};
+
+// ─── Remix ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Fork a shared project into the current user's chat history.
+ * Returns the new chatId.
+ */
+export const remixProject = async (
+  uid: string,
+  shared: SharedProject | ChatSaveData,
+  remixerName: string,
+): Promise<string> => {
+  const newChatId = crypto.randomUUID();
+  const title = `${(shared as any).title || "Project"} (Remix)`;
+  const chatRef = ref(db, `users/${uid}/chats/${newChatId}`);
+  await set(chatRef, {
+    id: newChatId,
+    name: title,
+    title,
+    date: new Date().toLocaleDateString(),
+    updatedAt: Date.now(),
+    messages: (shared as any).messages || [],
+    content: (shared as any).content || null,
+    messageCount: ((shared as any).messages || []).length,
+    fileCount: Object.keys((shared as any).content?.files || {}).length,
+    remixedFrom: (shared as any).id || null,
+    remixedBy: remixerName,
+  });
+  return newChatId;
 };
