@@ -15,7 +15,22 @@
     {
       "timestamp": "2026-05-12T07:30:45.289Z",
       "tokens": 6836
+    },
+    {
+      "timestamp": "2026-05-25T12:20:35.122Z",
+      "model": "stepfun-ai/step-3.5-flash",
+      "tokens": 2882
+    },
+    {
+      "timestamp": "2026-05-25T12:27:38.252Z",
+      "model": "stepfun-ai/step-3.5-flash",
+      "tokens": 8802
+    },
+    {
+      "timestamp": "2026-05-25T12:38:11.052Z",
+      "model": "stepfun-ai/step-3.5-flash",
+      "tokens": 2971
     }
   ],
-  "totalTokens": 31822
+  "totalTokens": 46477
 }
