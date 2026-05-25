@@ -21,9 +21,16 @@ Focus on:
 
 Output Format: Markdown with clear headings.
 `;
-    const messages = history.map((m) => ({ role: m.role, content: m.text }));
+    const lastUserMsg = history[history.length - 1];
+    const messages = history.slice(0, -1).map((m) => ({
+      role: m.role === "model" || m.role === "assistant" ? "assistant" : m.role,
+      content: m.content || m.text || "",
+    }));
     messages.push({ role: "system", content: systemPrompt } as any);
-    messages.push({ role: "user", content: prompt });
+    messages.push({
+      role: "user",
+      content: lastUserMsg?.content || lastUserMsg?.text || prompt,
+    });
 
     return await invokeAI(messages, options.model, 0.1, options.topP, false);
   }

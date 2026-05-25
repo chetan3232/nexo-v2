@@ -138,7 +138,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
       if (Object.keys(files).length === 0) {
         zip.file(
           "README.md",
-          `# ${chat.title || "Nexo Project"}\n\nNo files were found in this project.`,
+          `# ${projName}\n\nNo files were found in this project.`,
         );
       } else {
         Object.entries(files).forEach(([filePath, content]) => {
@@ -152,7 +152,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${(chat.title || "nexo-project").replace(/\s+/g, "-").toLowerCase()}.zip`;
+      a.download = `${projName.replace(/\s+/g, "-").toLowerCase()}.zip`;
       a.click();
       URL.revokeObjectURL(url);
       setZipStatus((prev) => ({ ...prev, [chat.id]: "done" }));
@@ -188,14 +188,14 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
       const zip = new JSZip();
       const files = chat.content?.files || {};
       if (Object.keys(files).length === 0) {
-        zip.file("README.md", `# ${chat.title || "Nexo Project"}`);
+        zip.file("README.md", `# ${projName}`);
       } else {
         Object.entries(files).forEach(([fp, content]) => {
           zip.file(fp.startsWith("/") ? fp.slice(1) : fp, content as string);
         });
       }
       const blob = await zip.generateAsync({ type: "blob" });
-      const fileName = `${(chat.title || "nexo-project").replace(/\s+/g, "-").toLowerCase()}.zip`;
+      const fileName = `${projName.replace(/\s+/g, "-").toLowerCase()}.zip`;
 
       const metadata = {
         name: fileName,
@@ -306,7 +306,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
       <div className="w-72 hidden lg:flex flex-col border-r border-studio-border bg-studio-panel/40 backdrop-blur-xl shrink-0 z-10">
         {/* Logo Header */}
         <div className="p-8 flex items-center gap-3 select-none">
-          <div className="w-10 h-10 bg-gradient-to-tr from-studio-accent to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-studio-accent/25 shrink-0 transition-transform duration-300 hover:scale-105 active:scale-95 cursor-pointer">
+          <div className="w-10 h-10 bg-gradient-to-tr from-studio-accent to-blue-500 rounded-xl flex items-center justify-center shadow-lg shadow-studio-accent/25 shrink-0 transition-transform duration-300 hover:scale-105 active:scale-95 cursor-pointer">
             <Sparkles className="w-5 h-5 text-white" />
           </div>
           <span className="font-black text-xl tracking-tighter text-studio-text truncate">
@@ -346,7 +346,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
                 <div className="flex items-center gap-3 overflow-hidden pr-2">
                   <MessageSquare className="w-4 h-4 text-stone-400 shrink-0" />
                   <div className="truncate text-[13px] font-medium text-stone-700">
-                    {chat.title}
+                    {chat.name || chat.title || "Untitled Project"}
                   </div>
                 </div>
 
@@ -456,7 +456,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
       <div className="flex-1 flex flex-col items-center justify-center p-6 relative min-w-0 z-10">
         {/* Mobile Logo Fallback */}
         <div className="absolute top-8 left-8 flex items-center gap-3 lg:hidden select-none">
-          <div className="w-9 h-9 bg-gradient-to-tr from-studio-accent to-purple-650 rounded-xl flex items-center justify-center shadow-lg">
+          <div className="w-9 h-9 bg-gradient-to-tr from-studio-accent to-blue-500 rounded-xl flex items-center justify-center shadow-lg">
             <Sparkles className="w-5 h-5 text-white" />
           </div>
           <span className="font-black text-lg tracking-tighter text-studio-text">
@@ -473,7 +473,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
           <div className="space-y-4 text-center">
             <h2 className="text-4xl md:text-6xl font-black text-studio-text tracking-tighter leading-none">
               Build your next{" "}
-              <span className="bg-gradient-to-r from-studio-accent via-purple-400 to-studio-secondary bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-studio-accent via-sky-400 to-studio-secondary bg-clip-text text-transparent">
                 masterpiece.
               </span>
             </h2>
@@ -502,7 +502,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
               <button
                 type="submit"
                 disabled={!prompt.trim()}
-                className="px-7 py-3.5 bg-gradient-to-tr from-studio-accent to-purple-600 hover:from-studio-accent/90 hover:to-purple-500 text-studio-text rounded-2xl font-bold shadow-xl shadow-studio-accent/20 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:scale-100 transition-all flex items-center gap-2.5 group"
+                className="px-7 py-3.5 bg-gradient-to-tr from-studio-accent to-blue-500 hover:from-studio-accent/90 hover:to-sky-400 text-white rounded-2xl font-bold shadow-xl shadow-studio-accent/20 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:scale-100 transition-all flex items-center gap-2.5 group"
               >
                 <span>Start Generation</span>{" "}
                 <ArrowRight className="w-4.5 h-4.5 group-hover:translate-x-1.5 transition-transform" />

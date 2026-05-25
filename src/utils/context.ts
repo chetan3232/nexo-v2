@@ -32,7 +32,7 @@ export class ContextManager {
 
     const messages = toSummarize.map((m) => ({
       role: m.role,
-      content: m.text,
+      content: m.content || m.text,
     }));
     messages.push({ role: "system", content: summaryPrompt } as any);
 

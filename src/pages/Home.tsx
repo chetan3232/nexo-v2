@@ -20,7 +20,7 @@ const Home: React.FC = () => {
       <section className="relative min-h-[85vh] flex flex-col items-center justify-center text-center mt-0">
         {/* Background Gradients */}
         <div className="absolute inset-0 pointer-events-none -z-10 overflow-hidden">
-          <div className="absolute top-[10%] left-[50%] -translate-x-1/2 w-[800px] h-[800px] bg-gradient-to-br from-orange-100/50 via-blue-100/30 to-purple-100/30 rounded-full blur-3xl opacity-60"></div>
+          <div className="absolute top-[10%] left-[50%] -translate-x-1/2 w-[800px] h-[800px] bg-gradient-to-br from-orange-100/50 via-blue-100/30 to-sky-100/30 rounded-full blur-3xl opacity-60"></div>
         </div>
 
         <motion.div
@@ -132,11 +132,11 @@ const Home: React.FC = () => {
       {/* Big Feature Block */}
       <section className="relative rounded-[3rem] overflow-hidden bg-stone-900 text-white shadow-2xl mx-4">
         <div className="absolute inset-0 opacity-20 bg-[url('https://grainy-gradients.vercel.app/noise.svg')]"></div>
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-indigo-500 to-purple-600 opacity-30 blur-[100px] rounded-full"></div>
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-sky-500 to-blue-600 opacity-30 blur-[100px] rounded-full"></div>
 
         <div className="relative z-10 grid md:grid-cols-2 gap-12 p-12 md:p-24 items-center">
           <div className="space-y-8">
-            <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-1 rounded-full text-sm font-medium text-indigo-200">
+            <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-1 rounded-full text-sm font-medium text-sky-200">
               <Sparkles className="w-4 h-4" />
               <span>New Feature</span>
             </div>
@@ -168,7 +168,7 @@ const Home: React.FC = () => {
               </span>
             </div>
             <div className="font-mono text-sm space-y-2">
-              <p className="text-purple-400">
+              <p className="text-sky-400">
                 def <span className="text-blue-400">create_happiness</span>():
               </p>
               <p className="text-stone-300 pl-4">

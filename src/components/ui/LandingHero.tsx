@@ -7,7 +7,6 @@ import {
   Globe,
   Monitor,
 } from "lucide-react";
-import { AVAILABLE_MODELS } from "../../services/geminiService";
 
 interface LandingHeroProps {
   inputText: string;
@@ -66,7 +65,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
         <div className="max-w-3xl w-full space-y-10 text-center animate-in fade-in zoom-in duration-700 relative z-10 px-4">
           <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[0.9] text-white selection:bg-indigo-500/30">
             Build projects <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-300 to-orange-300 animate-pulse-slow">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-blue-300 to-orange-300 animate-pulse-slow">
               at light speed.
             </span>
           </h1>

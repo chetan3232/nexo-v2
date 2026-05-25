@@ -131,9 +131,24 @@ export default async function handler(req, res) {
             }))
         ];
 
-        const invokeUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+        let invokeUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+        let apiToken = apiKey;
+        let modelParam = model;
+
+        if (model.startsWith('groq/')) {
+            invokeUrl = "https://api.groq.com/openai/v1/chat/completions";
+            apiToken = process.env.GROQ_API_KEY || apiKey;
+            modelParam = model.replace('groq/', '');
+        } else if (model.includes('qwen/')) {
+            invokeUrl = "https://openrouter.ai/api/v1/chat/completions";
+            apiToken = process.env.OPENROUTER_API_KEY || "";
+            modelParam = model;
+        } else {
+            modelParam = model.startsWith('google/') ? model.replace('google/', '') : model;
+        }
+
         const payload = {
-            model: model.startsWith('google/') ? model.replace('google/', '') : model,
+            model: modelParam,
             messages: messagesPayload,
             max_tokens: maxTokens,
             temperature: reqTemperature,
@@ -142,9 +157,18 @@ export default async function handler(req, res) {
         };
 
         const headers = {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`
+            "Content-Type": "application/json"
         };
+
+        if (invokeUrl.includes('openrouter.ai')) {
+            headers["HTTP-Referer"] = "https://nexo.ai";
+            headers["X-Title"] = "Nexo AI Workspace";
+            if (apiToken) {
+                headers["Authorization"] = `Bearer ${apiToken}`;
+            }
+        } else {
+            headers["Authorization"] = `Bearer ${apiToken}`;
+        }
 
         const apiResponse = await fetch(invokeUrl, {
             method: 'POST',

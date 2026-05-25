@@ -231,6 +231,11 @@ NEXO V2 incorporates several "Killer Features" that set it apart:
 ### ⚡ 11.5 SaaS Killer Export
 *   **One-Click SaaS:** Automatically adds Auth (Firebase/Clerk), Payments (Stripe), and a Dashboard to any project during export.
 
+### 🌐 11.6 Multimodal Chat, Dynamic API Routing & GitHub Integration (V2.2.1)
+*   **Multimodal Attachments:** Drag/attach file and image uploads in chat panel. Text files are parsed as code blocks, and images are structured into Base64 `image_url` OpenAI/Gemini compatible payloads.
+*   **One-Click GitHub Push:** Credentials (`githubToken`, `repoUrl`, `branchName`) are managed and persisted under Settings > Integrations. The main header button triggers an immediate one-click background push without confirmation popups.
+*   **Multi-Provider Routing:** Backend router `/api/chat` handles model prefix requests dynamically (routing Google Gemini to Generative Language API, Groq models to Groq, and Qwen models to OpenRouter).
+
 ---
 
 ## 📝 12. Common Data Structures (Detailed)

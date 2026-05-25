@@ -23,6 +23,7 @@ export interface Message {
   codeExecution?: CodeExecutionResult;
   websiteContent?: WebsiteContent;
   isError?: boolean;
+  content?: any;
 }
 
 export enum CompanionState {

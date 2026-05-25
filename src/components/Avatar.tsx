@@ -80,7 +80,7 @@ const Avatar: React.FC<AvatarProps> = ({ state }) => {
             : state === CompanionState.THINKING
               ? "bg-blue-400"
               : state === CompanionState.CODING
-                ? "bg-purple-500"
+                ? "bg-blue-500"
                 : state === CompanionState.BUILDING
                   ? "bg-indigo-500"
                   : state === CompanionState.SPEAKING
@@ -99,14 +99,14 @@ const Avatar: React.FC<AvatarProps> = ({ state }) => {
       >
         {/* Left Eye */}
         <motion.div
-          className={`w-8 bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.6)] ${state === CompanionState.CODING ? "bg-purple-200" : state === CompanionState.BUILDING ? "bg-indigo-200" : ""}`}
+          className={`w-8 bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.6)] ${state === CompanionState.CODING ? "bg-blue-200" : state === CompanionState.BUILDING ? "bg-indigo-200" : ""}`}
           variants={eyeVariants}
           animate={isBlinking ? { scaleY: 0.1, height: 80 } : state}
         />
 
         {/* Right Eye */}
         <motion.div
-          className={`w-8 bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.6)] ${state === CompanionState.CODING ? "bg-purple-200" : state === CompanionState.BUILDING ? "bg-indigo-200" : ""}`}
+          className={`w-8 bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.6)] ${state === CompanionState.CODING ? "bg-blue-200" : state === CompanionState.BUILDING ? "bg-indigo-200" : ""}`}
           variants={eyeVariants}
           animate={isBlinking ? { scaleY: 0.1, height: 80 } : state}
         />
