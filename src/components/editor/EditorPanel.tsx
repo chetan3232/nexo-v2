@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
-import { FileCode, Files, Loader2, CheckCircle2 } from "lucide-react";
+import { FileCode, X, Minimize2, Text, Type, Sparkles, Cpu, Hammer, Code, Files, Loader2, CheckCircle2 } from "lucide-react";
 import { useProjectStore } from "../../stores/projectStore";
 import { useAgentEventStore } from "../../stores/agentEventStore";
+import { Orchestrator } from "../../agents/Orchestrator";
 
 interface EditorPanelProps {
   selectedFileName: string | null;
@@ -16,6 +17,22 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
   const { currentContent, setCurrentContent } = useProjectStore();
   const { activeFiles, createdFiles } = useAgentEventStore();
   const [localValue, setLocalValue] = useState<string>("");
+  const [openTabs, setOpenTabs] = useState<string[]>([]);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  
+  const editorRef = useRef<any>(null);
+
+  // Editor Options State
+  const [fontSize, setFontSize] = useState<number>(13);
+  const [minimap, setMinimap] = useState<boolean>(false);
+  const [wordWrap, setWordWrap] = useState<"on" | "off">("on");
+
+  // Sync open tabs with selectedFileName
+  useEffect(() => {
+    if (selectedFileName && !openTabs.includes(selectedFileName)) {
+      setOpenTabs((prev) => [...prev, selectedFileName]);
+    }
+  }, [selectedFileName]);
 
   // Sync local value when file selection changes
   useEffect(() => {
@@ -43,101 +60,228 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
     return () => clearTimeout(timeout);
   }, [localValue, selectedFileName]);
 
+  // Handle outside click to close context menu
+  useEffect(() => {
+    const handleClose = () => setContextMenu(null);
+    window.addEventListener("click", handleClose);
+    return () => window.removeEventListener("click", handleClose);
+  }, []);
+
+  const handleEditorDidMount = (editor: any) => {
+    editorRef.current = editor;
+  };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (!selectedFileName) return;
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  const getSelectedText = () => {
+    if (editorRef.current) {
+      const selection = editorRef.current.getSelection();
+      const model = editorRef.current.getModel();
+      if (selection && model) {
+        const text = model.getValueInRange(selection);
+        if (text) return text;
+      }
+    }
+    return localValue;
+  };
+
+  const handleCloseTab = (e: React.MouseEvent, tabName: string) => {
+    e.stopPropagation();
+    const remainingTabs = openTabs.filter((t) => t !== tabName);
+    setOpenTabs(remainingTabs);
+
+    if (selectedFileName === tabName) {
+      if (remainingTabs.length > 0) {
+        setSelectedFileName(remainingTabs[remainingTabs.length - 1]);
+      } else {
+        setSelectedFileName(null);
+      }
+    }
+  };
+
   return (
-    <div className="h-full flex bg-[#1e1e1e] overflow-hidden">
-      {/* Minimalist File Explorer Sidebar */}
-      <div className="w-48 border-r border-white/5 flex flex-col bg-[#181818] shrink-0">
-        <div className="h-10 px-4 flex items-center gap-2 border-b border-white/5 bg-white/5">
-          <Files className="w-3.5 h-3.5 text-stone-500" />
-          <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
-            Explorer
-          </span>
-        </div>
-        <div className="flex-1 overflow-y-auto py-2 no-scrollbar">
-          {/* Live files being written (from agent event stream) */}
-          {createdFiles
-            .filter((f) => !currentContent?.files[f])
-            .map((filename) => (
-              <div
-                key={`live-${filename}`}
-                className="w-full px-4 py-2 flex items-center gap-2 text-[11px] font-medium text-amber-400 bg-amber-500/5"
-              >
-                <FileCode className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                <span className="truncate flex-1">{filename}</span>
-                {activeFiles.has(filename) ? (
-                  <Loader2 className="w-3 h-3 text-amber-400 animate-spin shrink-0" />
-                ) : (
-                  <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
-                )}
-              </div>
-            ))}
-          {/* Existing project files */}
-          {currentContent?.files &&
-            Object.keys(currentContent.files).map((filename) => (
+    <div className="h-full flex flex-col bg-[#0F172A]/90 border border-white/5 rounded-3xl shadow-2xl overflow-hidden backdrop-blur-md">
+      {/* Editor Header / Tab Bar */}
+      <div className="h-12 bg-[#0F172A]/40 border-b border-white/5 flex items-center justify-between px-5 shrink-0 select-none">
+        {/* Open Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar h-full pt-2">
+          {openTabs.map((tab) => (
+            <div
+              key={tab}
+              onClick={() => setSelectedFileName(tab)}
+              className={`h-full px-3.5 flex items-center gap-2 rounded-t-xl text-xs font-semibold cursor-pointer border-t-2 transition-all duration-300 ${
+                selectedFileName === tab
+                  ? "bg-[#070B14]/40 text-studio-accent border-t-studio-accent border-x border-white/5 shadow-inner"
+                  : "text-studio-muted hover:text-white hover:bg-white/5 border-t-transparent"
+              }`}
+            >
+              <FileCode className="w-3.5 h-3.5" />
+              <span className="max-w-[110px] truncate">{tab}</span>
               <button
-                key={filename}
-                onClick={() => setSelectedFileName(filename)}
-                className={`w-full px-4 py-2 flex items-center gap-2 text-[11px] font-medium transition-all group ${selectedFileName === filename ? "text-white bg-indigo-600/10" : "text-stone-500 hover:text-stone-300 hover:bg-white/5"}`}
+                onClick={(e) => handleCloseTab(e, tab)}
+                className="p-0.5 rounded-full hover:bg-white/10 text-studio-muted hover:text-studio-accent transition-colors"
               >
-                <FileCode
-                  className={`w-3.5 h-3.5 shrink-0 ${selectedFileName === filename ? "text-indigo-400" : "text-stone-600 group-hover:text-stone-400"}`}
-                />
-                <span className="truncate flex-1">{filename}</span>
-                {activeFiles.has(filename) && (
-                  <Loader2 className="w-3 h-3 text-amber-400 animate-spin shrink-0" />
-                )}
+                <X className="w-3.5 h-3.5" />
               </button>
-            ))}
+            </div>
+          ))}
+        </div>
+
+        {/* Toolbar Controls */}
+        <div className="flex items-center gap-2">
+          {/* Font Size Selector */}
+          <div className="flex items-center bg-[#070B14]/40 border border-white/5 rounded-xl px-2.5 py-1.5 gap-1.5">
+            <Type className="w-3.5 h-3.5 text-studio-muted" />
+            <select
+              value={fontSize}
+              onChange={(e) => setFontSize(parseInt(e.target.value))}
+              className="bg-transparent text-[10px] text-studio-muted font-bold outline-none cursor-pointer border-none focus:text-studio-accent font-sans"
+            >
+              {[11, 12, 13, 14, 15, 16].map((sz) => (
+                <option key={sz} value={sz} className="bg-[#0F172A] text-studio-text">
+                  {sz}px
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Minimap Toggle */}
+          <button
+            onClick={() => setMinimap(!minimap)}
+            className={`p-2 rounded-xl border transition-all duration-300 ${
+              minimap
+                ? "bg-studio-accent/15 text-studio-accent border-studio-accent/30 shadow-md shadow-studio-accent/5"
+                : "bg-[#070B14]/40 text-studio-muted border-white/5 hover:text-white hover:bg-white/5"
+            }`}
+            title="Toggle Minimap"
+          >
+            <Minimize2 className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Word Wrap Toggle */}
+          <button
+            onClick={() => setWordWrap(wordWrap === "on" ? "off" : "on")}
+            className={`p-2 rounded-xl border transition-all duration-300 ${
+              wordWrap === "on"
+                ? "bg-studio-accent/15 text-studio-accent border-studio-accent/30 shadow-md shadow-studio-accent/5"
+                : "bg-[#070B14]/40 text-studio-muted border-white/5 hover:text-white hover:bg-white/5"
+            }`}
+            title="Toggle Word Wrap"
+          >
+            <Text className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
 
-      {/* Editor Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="h-10 px-4 flex items-center gap-2 border-b border-white/5 bg-[#1e1e1e]">
-          {selectedFileName && (
-            <>
-              <FileCode className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="text-[11px] font-bold text-stone-200">
-                {selectedFileName}
-              </span>
-            </>
-          )}
-        </div>
-        <div className="flex-1 overflow-hidden">
-          {selectedFileName ? (
-            <Editor
-              height="100%"
-              theme="vs-dark"
-              path={selectedFileName}
-              language={
-                selectedFileName.split(".").pop() === "tsx"
-                  ? "typescript"
-                  : "javascript"
-              }
-              value={localValue}
-              onChange={(val) => setLocalValue(val || "")}
-              options={{
-                fontSize: 13,
-                minimap: { enabled: false },
-                fontFamily: "JetBrains Mono, monospace",
-                lineHeight: 1.6,
-                padding: { top: 12 },
-                automaticLayout: true,
-                scrollBeyondLastLine: false,
-                smoothScrolling: true,
-                cursorSmoothCaretAnimation: "on",
-                renderLineHighlight: "all",
-              }}
-            />
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center text-stone-700 gap-4 opacity-50">
-              <Files className="w-12 h-12 text-stone-800" />
-              <span className="text-[10px] font-black uppercase tracking-[0.3em]">
+      {/* Editor Window wrapper capturing ContextMenu */}
+      <div 
+        className="flex-grow overflow-hidden relative bg-transparent"
+        onContextMenu={handleContextMenu}
+      >
+        {selectedFileName ? (
+          <Editor
+            height="100%"
+            theme="vs-dark"
+            path={selectedFileName}
+            language={
+              selectedFileName.split(".").pop() === "tsx" ||
+              selectedFileName.split(".").pop() === "ts"
+                ? "typescript"
+                : selectedFileName.split(".").pop() === "json"
+                ? "json"
+                : "javascript"
+            }
+            value={localValue}
+            onChange={(val) => setLocalValue(val || "")}
+            onMount={handleEditorDidMount}
+            options={{
+              fontSize,
+              minimap: { enabled: minimap },
+              wordWrap,
+              fontFamily: "JetBrains Mono, monospace",
+              lineHeight: 1.6,
+              padding: { top: 12 },
+              automaticLayout: true,
+              scrollBeyondLastLine: false,
+              smoothScrolling: true,
+              cursorSmoothCaretAnimation: "on",
+              renderLineHighlight: "all",
+              contextmenu: false, // Disable default Monaco context menu
+            }}
+          />
+        ) : (
+          <div className="h-full flex flex-col items-center justify-center text-studio-muted gap-5 bg-studio-bg/60 rounded-3xl border border-studio-border/50 border-dashed m-6">
+            <div className="w-14 h-14 rounded-2xl bg-studio-panel border border-studio-border/80 flex items-center justify-center shadow-lg shadow-black/40">
+              <FileCode className="w-7 h-7 text-studio-accent animate-pulse" />
+            </div>
+            <div className="text-center space-y-1.5 select-none">
+              <span className="block text-xs font-black uppercase tracking-[0.25em] text-studio-text">
                 No File Selected
               </span>
+              <span className="block text-[10px] text-studio-muted">
+                Select a workspace file from the explorer sidebar to begin editing.
+              </span>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {/* Custom Glassmorphic Context Menu */}
+        {contextMenu && selectedFileName && (
+          <div
+            className="fixed bg-studio-card/95 backdrop-blur-xl border border-studio-border/80 rounded-2xl py-2 shadow-2xl z-[9999] w-52 text-left"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => {
+                Orchestrator.getInstance().explainCode(selectedFileName, getSelectedText());
+                setContextMenu(null);
+              }}
+              className="w-full px-4.5 py-2.5 hover:bg-studio-accent/10 text-xs font-bold text-studio-muted hover:text-studio-text flex items-center gap-3 transition-all"
+            >
+              <Sparkles className="w-4 h-4 text-studio-accent shrink-0" />
+              <span>Explain Code</span>
+            </button>
+            <button
+              onClick={() => {
+                Orchestrator.getInstance().optimizeCode(selectedFileName, getSelectedText());
+                setContextMenu(null);
+              }}
+              className="w-full px-4.5 py-2.5 hover:bg-studio-accent/10 text-xs font-bold text-studio-muted hover:text-studio-text flex items-center gap-3 transition-all"
+            >
+              <Cpu className="w-4 h-4 text-studio-accent shrink-0" />
+              <span>Optimize Code</span>
+            </button>
+            <button
+              onClick={() => {
+                Orchestrator.getInstance().manualFix(`Fix code block in ${selectedFileName}:\n${getSelectedText()}`);
+                setContextMenu(null);
+              }}
+              className="w-full px-4.5 py-2.5 hover:bg-studio-accent/10 text-xs font-bold text-studio-muted hover:text-studio-text flex items-center gap-3 transition-all"
+            >
+              <Hammer className="w-4 h-4 text-studio-accent shrink-0" />
+              <span>Fix Selected Code</span>
+            </button>
+            <div className="h-px bg-studio-border mx-2.5 my-1.5" />
+            <button
+              onClick={() => {
+                const promptVal = prompt("Enter refactor instruction (e.g. 'convert to async/await'):");
+                if (promptVal) {
+                  Orchestrator.getInstance().refactorSelection(selectedFileName, getSelectedText(), promptVal);
+                }
+                setContextMenu(null);
+              }}
+              className="w-full px-4.5 py-2.5 hover:bg-studio-accent/10 text-xs font-bold text-studio-muted hover:text-studio-text flex items-center gap-3 transition-all"
+            >
+              <Code className="w-4 h-4 text-studio-accent shrink-0" />
+              <span>Refactor Code...</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

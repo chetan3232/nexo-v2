@@ -6,10 +6,13 @@ import {
   Separator as PanelResizeHandle,
 } from "react-resizable-panels";
 import toast, { Toaster } from "react-hot-toast";
+import { motion, AnimatePresence } from "framer-motion";
 
 import { ChatPanel } from "../components/chat/ChatPanel";
 import { InitialOverlay } from "../components/chat/InitialOverlay";
-import { auth, saveChatToFirebase } from "../services/firebase";
+import { WorkspaceSidebar } from "../components/sidebar/WorkspaceSidebar";
+import { auth, saveChatToFirebase, signInWithGoogle } from "../services/firebase";
+import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 
 // Lazy load heavy components
 const EditorPanel = React.lazy(() =>
@@ -24,9 +27,7 @@ const PreviewPanel = React.lazy(() =>
 );
 
 import { DevTools } from "../components/editor/DevTools";
-import { ExportModal } from "../components/ui/ExportModal";
 import { SettingsModal } from "../components/ui/SettingsModal";
-import { UsageStats } from "../components/ui/UsageStats";
 
 // Stores & Services
 import { useProjectStore } from "../stores/projectStore";
@@ -38,16 +39,27 @@ import { Message } from "../types";
 
 // Icons
 import {
+  MessageSquare,
+  Code,
+  Terminal,
+  FileText,
   Sparkles,
+  ArrowLeft,
+  Share2,
   Settings,
   Download,
-  Rocket,
-  Code,
+  FolderLock,
+  GitBranch,
+  Cpu,
+  Layers,
+  Search,
   Globe,
-  Terminal,
   Layout,
-  Loader2,
+  User,
 } from "lucide-react";
+import JSZip from "jszip";
+
+type CenterTab = "chat" | "code" | "console" | "logs";
 
 const ChatInterface: React.FC = () => {
   const navigate = useNavigate();
@@ -55,14 +67,65 @@ const ChatInterface: React.FC = () => {
   const projectStore = useProjectStore();
   const { setSelectedElement } = useDesignStore();
 
+  // Active Tab for the Center Panel from store
+  const { activeCenterTab, setActiveCenterTab } = projectStore;
+
   // UI State
-  const [activeTab, setActiveTab] = useState<"preview" | "code" | "terminal">(
-    "preview",
-  );
   const [isVisualMode, setIsVisualMode] = useState(false);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [projectTitle, setProjectTitle] = useState("Untitled Project");
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const { deployStatus, deployUrl, setDeployStatus, setDeployUrl } = useProjectStore();
+  const [isDeploying, setIsDeploying] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleDeploy = () => {
+    setIsDeploying(true);
+    setDeployStatus("deploying");
+    setTimeout(() => {
+      setIsDeploying(false);
+      setDeployStatus("done");
+      const mockUrl = `https://nexo-preview-${Math.random().toString(36).substring(2, 7)}.vercel.app`;
+      setDeployUrl(mockUrl);
+      toast.success("Project deployed live!");
+    }, 3000);
+  };
+
+  // Sync selectedFileName if none is selected and project has files
+  useEffect(() => {
+    if (!selectedFileName && projectStore.currentContent?.files) {
+      const files = Object.keys(projectStore.currentContent.files);
+      if (files.length > 0) {
+        const main = files.find((f) => f.includes("App.tsx")) || files[0];
+        setSelectedFileName(main);
+      }
+    }
+  }, [projectStore.currentContent, selectedFileName]);
+
+  // Sync project title when chat messages change
+  useEffect(() => {
+    if (chatStore.messages.length > 0) {
+      const firstUserMessage =
+        chatStore.messages.find((m) => m.role === "user")?.text ||
+        "New Project";
+      const title =
+        firstUserMessage.length > 20
+          ? firstUserMessage.substring(0, 20) + "..."
+          : firstUserMessage;
+      setProjectTitle(title);
+    } else {
+      setProjectTitle("Untitled Project");
+    }
+  }, [chatStore.messages]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -82,7 +145,8 @@ const ChatInterface: React.FC = () => {
 
   // Auto-save chat to Firebase when messages or content change
   useEffect(() => {
-    if (!auth.currentUser || chatStore.messages.length === 0) return;
+    const currentUser = auth.currentUser;
+    if (!currentUser || chatStore.messages.length === 0) return;
 
     const saveTimeout = setTimeout(() => {
       const chatId = chatStore.currentChatId || crypto.randomUUID();
@@ -90,17 +154,9 @@ const ChatInterface: React.FC = () => {
         chatStore.setCurrentChatId(chatId);
       }
 
-      const firstUserMessage =
-        chatStore.messages.find((m) => m.role === "user")?.text ||
-        "New Project";
-      const title =
-        firstUserMessage.length > 30
-          ? firstUserMessage.substring(0, 30) + "..."
-          : firstUserMessage;
-
-      saveChatToFirebase(auth.currentUser.uid, {
+      saveChatToFirebase(currentUser.uid, {
         id: chatId,
-        name: title,
+        name: projectTitle,
         date: new Date().toLocaleDateString(),
         updatedAt: Date.now(),
         messages: chatStore.messages,
@@ -113,13 +169,14 @@ const ChatInterface: React.FC = () => {
     }, 2000); // Debounce saves by 2 seconds
 
     return () => clearTimeout(saveTimeout);
-  }, [chatStore.messages, projectStore.currentContent]);
+  }, [chatStore.messages, projectStore.currentContent, projectTitle]);
 
   const handleSend = async (prompt: string) => {
     chatStore.setMessages((prev: Message[]) => [
       ...prev,
       { role: "user", text: prompt, timestamp: Date.now() },
     ]);
+    setActiveCenterTab("chat");
     try {
       await Orchestrator.getInstance().executeFullFlow(prompt);
     } catch (error) {
@@ -128,217 +185,279 @@ const ChatInterface: React.FC = () => {
   };
 
   const handleBackToStart = () => {
-    // Reset chat state → triggers InitialOverlay to show again (keeps model/language/mode selections)
     useChatStore.getState().resetChat();
     useProjectStore.getState().setCurrentContent(null);
   };
 
-  return (
-    <div className="h-screen w-full bg-[#fbf9f6] flex flex-col overflow-hidden font-sans">
-      {chatStore.messages.length === 0 && (
-        <InitialOverlay onStart={handleSend} />
-      )}
+  const handleDownloadZip = async () => {
+    const files = projectStore.currentContent?.files || {};
+    if (Object.keys(files).length === 0) {
+      toast.error("No code generated to export.");
+      return;
+    }
+    try {
+      const zip = new JSZip();
+      Object.entries(files).forEach(([path, content]) => {
+        zip.file(path.startsWith("/") ? path.slice(1) : path, content as string);
+      });
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${projectTitle.replace(/\s+/g, "-").toLowerCase()}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("ZIP exported successfully!");
+    } catch (e) {
+      toast.error("Failed to build ZIP.");
+    }
+  };
 
-      {/* Premium Compact Header */}
-      <header className="h-14 border-b border-stone-200 bg-white flex items-center justify-between px-4 shrink-0 z-50 shadow-sm">
-        <div className="flex items-center w-1/3">
+  const currentModel = useAgentStore((state) => state.selectedModel);
+
+  return (
+    <div className="h-screen w-full bg-[#070B14] text-studio-text flex flex-col overflow-hidden font-sans relative">
+      {/* Background cinematic blur radial gradients */}
+      <div className="absolute top-[-25%] left-[-15%] w-[60%] h-[60%] rounded-full bg-studio-accent/5 blur-[120px] pointer-events-none animate-glow" />
+      <div className="absolute bottom-[-25%] right-[-15%] w-[60%] h-[60%] rounded-full bg-studio-secondary/5 blur-[120px] pointer-events-none animate-glow" />
+
+      {/* Sticky glassmorphic navbar */}
+      <header className="h-14 border-b border-white/5 bg-[#070B14]/65 backdrop-blur-md flex items-center justify-between px-6 shrink-0 relative z-50 select-none">
+        {/* Left: Brand & Rename input */}
+        <div className="flex items-center gap-4">
           <button
-            onClick={handleBackToStart}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-50 rounded-full border border-stone-200 transition-colors"
+            onClick={() => navigate("/")}
+            className="flex items-center gap-2 group cursor-pointer"
           >
-            &larr; Back to start
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-studio-accent to-blue-500 flex items-center justify-center shadow-lg shadow-studio-accent/20 group-hover:scale-105 active:scale-95 transition-transform duration-300">
+              <Sparkles className="w-4 h-4 text-white animate-pulse" />
+            </div>
+            <span className="font-black text-xs tracking-wider uppercase text-white bg-clip-text">
+              Nexo
+            </span>
           </button>
         </div>
 
         <div className="flex-1 flex justify-center font-medium text-stone-900 text-sm w-1/3">
-          {projectStore.buildPhase === "building" ? (
-            <div className="flex items-center gap-2 text-indigo-600 bg-indigo-50/50 px-3 py-1 rounded-full border border-indigo-100/50 animate-pulse font-medium text-xs">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />
-              <span>AI Active: {projectStore.subStatus || "Thinking..."}</span>
-            </div>
-          ) : (
-            "Nexo Editor"
-          )}
+          Untitled
         </div>
 
-        <div className="flex items-center justify-end gap-3 w-1/3">
-          <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-100 rounded-lg transition-colors">
-            <Sparkles className="w-3.5 h-3.5" /> Remix
-          </button>
-          <button className="px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-100 rounded-full border border-stone-200 transition-colors">
-            Share
-          </button>
+        {/* Center: Command Palette Trigger */}
+        <div className="hidden md:flex items-center justify-center">
           <button
-            onClick={() => setIsExportModalOpen(true)}
-            className="px-3 py-1.5 text-sm font-medium text-stone-900 bg-white border border-stone-200 hover:bg-stone-50 rounded-full transition-colors shadow-sm"
+            onClick={() => {
+              window.dispatchEvent(new KeyboardEvent('keydown', { key: '/' }));
+            }}
+            className="flex items-center gap-2 px-3 py-1.5 bg-[#0F172A]/40 hover:bg-[#0F172A]/70 border border-white/5 rounded-xl text-xs text-studio-muted transition-all w-60 justify-between group shadow-inner"
           >
-            Publish
+            <div className="flex items-center gap-2">
+              <span className="text-stone-400 group-hover:text-studio-text transition-colors">Search or command...</span>
+            </div>
+            <kbd className="bg-white/5 text-[9px] px-1.5 py-0.5 rounded border border-white/10 text-stone-400 group-hover:text-studio-text font-sans font-black tracking-wide">
+              /
+            </kbd>
           </button>
-          <button className="p-1.5 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-lg transition-colors">
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+        </div>
+
+        {/* Right: Model Status & Actions & User Profile */}
+        <div className="flex items-center gap-4">
+          {/* Active AI Model Status */}
+          <div className="hidden sm:flex items-center gap-2 bg-[#0F172A]/40 border border-white/5 px-3 py-1.5 rounded-xl text-[10px] font-bold text-studio-muted">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span className="uppercase tracking-wider font-semibold">Active:</span>
+            <span className="font-mono text-studio-accent">{currentModel}</span>
+          </div>
+
+          <div className="h-4 w-[1px] bg-white/10 hidden sm:block" />
+
+          {/* Quick Actions */}
+          <div className="flex items-center gap-2">
+            {/* Share */}
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(window.location.href);
+                toast.success("Project workspace URL copied!");
+              }}
+              className="p-2 bg-[#0F172A]/40 hover:bg-studio-panel border border-white/5 rounded-xl text-studio-muted hover:text-studio-text transition-colors shadow-sm"
+              title="Share Workspace"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"
-              />
-            </svg>
-          </button>
-          <button
-            onClick={() => setShowSettings(true)}
-            className="p-1.5 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
+              <Share2 className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Export ZIP */}
+            <button
+              onClick={handleDownloadZip}
+              className="p-2 bg-[#0F172A]/40 hover:bg-studio-panel border border-white/5 rounded-xl text-studio-muted hover:text-studio-text transition-colors shadow-sm"
+              title="Export Source ZIP"
+            >
+              <Download className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Deploy */}
+            <button
+              onClick={handleDeploy}
+              disabled={isDeploying}
+              className="px-3.5 py-1.5 bg-gradient-to-tr from-studio-accent to-blue-600 hover:from-studio-accent hover:to-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-lg shadow-studio-accent/15 disabled:opacity-50"
+            >
+              {isDeploying ? (
+                <>
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Deploying</span>
+                </>
+              ) : (
+                <>
+                  <Globe className="w-3 h-3" />
+                  <span>Deploy</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="h-4 w-[1px] bg-white/10" />
+
+          {/* Profile Avatar / User info */}
+          {user ? (
+            <img
+              src={user.photoURL || ""}
+              alt="Profile"
+              className="w-7 h-7 rounded-full border border-white/10 shadow-md"
+              title={user.email || ""}
+            />
+          ) : (
+            <button
+              onClick={signInWithGoogle}
+              className="w-7 h-7 rounded-full bg-studio-panel border border-white/5 flex items-center justify-center text-studio-muted hover:text-studio-text transition-colors"
+              title="Sign In"
+            >
+              <User className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </header>
 
-      <main className="flex-1 flex overflow-hidden min-h-0">
+      {/* Main Workspace Resizable Panels */}
+      <main className="flex-1 flex overflow-hidden min-h-0 relative z-10 bg-transparent">
         <PanelGroup orientation="horizontal">
-          <Panel defaultSize={60} minSize={40}>
-            <div className="h-full w-full flex flex-col bg-white overflow-hidden">
-              {/* Sub-header for context */}
-              <div className="h-12 px-4 flex items-center justify-between border-b border-stone-100 bg-white">
-                <div className="w-1/3 flex items-center gap-2">
-                  <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-stone-800"></div>
-                    {activeTab === "preview"
-                      ? "Preview"
-                      : activeTab === "code"
-                        ? "Code"
-                        : "Logs"}
-                  </span>
-                </div>
-                <div className="w-1/3 flex justify-center">
-                  <div className="flex items-center bg-stone-50 p-1 rounded-full border border-stone-200">
-                    <button
-                      onClick={() => setActiveTab("preview")}
-                      className={`px-4 py-1 rounded-full text-xs font-medium transition-all ${activeTab === "preview" ? "bg-white text-stone-900 shadow-sm border border-stone-200" : "text-stone-500 hover:text-stone-700 border border-transparent"}`}
-                    >
-                      Preview
-                    </button>
-                    <button
-                      onClick={() => setActiveTab("code")}
-                      className={`px-4 py-1 rounded-full text-xs font-medium transition-all ${activeTab === "code" ? "bg-white text-stone-900 shadow-sm border border-stone-200" : "text-stone-500 hover:text-stone-700 border border-transparent"}`}
-                    >
-                      Code
-                    </button>
-                  </div>
-                </div>
-                <div className="w-1/3 flex justify-end gap-2 items-center">
-                  <button className="p-1.5 text-stone-400 hover:text-stone-600 border border-stone-200 rounded-md transition-colors">
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                      />
-                    </svg>
-                  </button>
-                  <button className="p-1.5 text-stone-400 hover:text-stone-600 border border-stone-200 rounded-md transition-colors">
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
-                      />
-                    </svg>
-                  </button>
-                  <div className="w-px h-4 bg-stone-200 mx-1"></div>
-                  <button className="p-1.5 text-stone-400 hover:text-stone-600 border border-stone-200 rounded-md transition-colors">
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
-                      />
-                    </svg>
-                  </button>
-                  {activeTab === "preview" && (
-                    <button
-                      onClick={() => setIsVisualMode(!isVisualMode)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${isVisualMode ? "bg-indigo-600 text-white shadow-md" : "bg-white text-stone-600 border border-stone-200 hover:border-stone-400"}`}
-                    >
-                      <Layout className="w-3 h-3" />{" "}
-                      {isVisualMode ? "Exit Visual Mode" : "Visual Mode"}
-                    </button>
-                  )}
-                </div>
-              </div>
+          {/* Panel 1: Collapsible Left Sidebar */}
+          <Panel defaultSize={22} minSize={16} maxSize={30} className="flex">
+            <WorkspaceSidebar />
+          </Panel>
 
-              <div className="flex-1 overflow-hidden relative">
-                <React.Suspense
-                  fallback={
-                    <div className="h-full w-full flex items-center justify-center bg-stone-50">
-                      <div className="flex flex-col items-center gap-4">
-                        <div className="w-10 h-10 border-4 border-indigo-600/20 border-t-indigo-600 rounded-full animate-spin" />
-                        <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
-                          Preparing Workspace...
-                        </span>
-                      </div>
-                    </div>
-                  }
+          {/* Custom styled resizer split-lines */}
+          <PanelResizeHandle className="w-[3px] bg-studio-bg hover:bg-studio-accent/35 transition-colors cursor-col-resize z-10 relative flex items-center justify-center">
+            <div className="absolute h-10 w-[1px] bg-white/10 rounded" />
+          </PanelResizeHandle>
+
+          {/* Panel 2: Center Editor/Chat panel */}
+          <Panel defaultSize={43} minSize={30} maxSize={60} className="flex flex-col overflow-hidden bg-transparent p-4 gap-4">
+            {/* Center Tab Header (Only shown when not in Chat mode) */}
+            {activeCenterTab !== "chat" && (
+              <div className="h-12 bg-studio-panel/45 border border-white/5 backdrop-blur-md rounded-2xl flex items-center justify-between px-4 shrink-0 select-none shadow-lg shadow-black/20">
+                <div className="flex items-center gap-1.5">
+                  {[
+                    { id: "chat", label: "AI Assistant", icon: MessageSquare },
+                    { id: "code", label: "Monaco Editor", icon: Code },
+                    { id: "console", label: "DevTools", icon: Terminal },
+                    { id: "logs", label: "Agent Logs", icon: FileText },
+                  ].map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeCenterTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveCenterTab(tab.id as CenterTab)}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 relative ${
+                          isActive
+                            ? "text-studio-accent bg-studio-panel border border-white/10 shadow-sm"
+                            : "text-studio-muted hover:text-studio-text hover:bg-studio-panel/45"
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        <span>{tab.label}</span>
+                        {isActive && (
+                          <motion.div
+                            layoutId="centerTabGlow"
+                            className="absolute -bottom-px left-1/4 right-1/4 h-[1px] bg-studio-accent"
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => {
+                    setActiveCenterTab("chat");
+                    setSelectedFileName(null);
+                  }}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold text-studio-muted hover:text-studio-accent hover:bg-studio-panel/45 transition-all"
                 >
-                  {activeTab === "preview" && (
-                    <PreviewPanel isVisualMode={isVisualMode} />
-                  )}
-                  {activeTab === "code" && (
-                    <EditorPanel
-                      selectedFileName={selectedFileName}
-                      setSelectedFileName={setSelectedFileName}
-                    />
-                  )}
-                  {activeTab === "terminal" && <DevTools />}
-                </React.Suspense>
+                  Back to Chat
+                </button>
               </div>
+            )}
+
+            {/* Viewport Content */}
+            <div className="flex-grow overflow-hidden relative">
+              <React.Suspense
+                fallback={
+                  <div className="h-full w-full flex items-center justify-center bg-studio-panel/50 backdrop-blur-md rounded-2xl border border-white/5 shadow-2xl">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-8 h-8 border-2 border-studio-accent/25 border-t-studio-accent rounded-full animate-spin" />
+                      <span className="text-[10px] font-black text-studio-muted uppercase tracking-[0.2em] animate-pulse">
+                        Booting Sandbox...
+                      </span>
+                    </div>
+                  </div>
+                }
+              >
+                {activeCenterTab === "chat" && (
+                  <ChatPanel onSend={handleSend} />
+                )}
+                {activeCenterTab === "code" && (
+                  <EditorPanel
+                    selectedFileName={selectedFileName}
+                    setSelectedFileName={setSelectedFileName}
+                  />
+                )}
+                {activeCenterTab === "console" && (
+                  <DevTools defaultTab="console" />
+                )}
+                {activeCenterTab === "logs" && (
+                  <DevTools defaultTab="terminal" />
+                )}
+              </React.Suspense>
             </div>
           </Panel>
 
-          <PanelResizeHandle className="w-1 hover:bg-indigo-500 transition-colors cursor-col-resize" />
+          <PanelResizeHandle className="w-[3px] bg-studio-bg hover:bg-studio-accent/35 transition-colors cursor-col-resize z-10 relative flex items-center justify-center">
+            <div className="absolute h-10 w-[1px] bg-white/10 rounded" />
+          </PanelResizeHandle>
 
-          {/* Sidebar: Chat */}
-          <Panel
-            defaultSize={40}
-            minSize={28}
-            maxSize={45}
-            className="bg-white border-l border-stone-200"
-            style={{ minWidth: "280px", maxWidth: "520px" }}
-          >
-            <ChatPanel onSend={handleSend} />
+          {/* Panel 3: Right Live Preview Sandbox */}
+          <Panel defaultSize={35} minSize={25} maxSize={50} className="flex flex-col overflow-hidden p-4 pl-0">
+            <PreviewPanel
+              isVisualMode={isVisualMode}
+              setIsVisualMode={setIsVisualMode}
+            />
           </Panel>
         </PanelGroup>
       </main>
 
-      <Toaster position="bottom-right" />
-      <ExportModal
-        isOpen={isExportModalOpen}
-        onClose={() => setIsExportModalOpen(false)}
-        onExport={(type) => {
-          toast.success(`Exporting as ${type}...`);
-          setIsExportModalOpen(false);
+      <Toaster
+        position="bottom-right"
+        toastOptions={{
+          style: {
+            background: "#0F172A",
+            color: "#F8FAFC",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+            fontSize: "12px",
+            fontWeight: "600",
+            borderRadius: "14px",
+            boxShadow: "0 10px 30px rgba(0, 0, 0, 0.5)",
+          },
         }}
       />
       {showSettings && (

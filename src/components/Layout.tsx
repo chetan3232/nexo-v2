@@ -20,7 +20,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const location = useLocation();
-  const isDemo = location.pathname === "/demo";
+  const isDemo = location.pathname.startsWith("/demo");
   const [user, setUser] = useState<FirebaseUser | null>(null);
 
   useEffect(() => {
@@ -38,9 +38,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({
   return (
     <div className="min-h-screen flex flex-col font-sans bg-[#fbf9f6] text-stone-800 selection:bg-orange-100 selection:text-orange-900">
       <CommandPalette />
-      <header
-        className={`fixed top-0 w-full z-40 transition-all duration-300 ${isDemo ? "bg-white/80" : "bg-[#fbf9f6]/80"} backdrop-blur-xl border-b border-stone-200/50`}
-      >
+      {!isDemo && (
+        <header
+          className="fixed top-0 w-full z-40 transition-all duration-300 bg-[#fbf9f6]/80 backdrop-blur-xl border-b border-stone-200/50"
+        >
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5 group">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-300 overflow-hidden">
@@ -120,10 +121,11 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({
             </button>
           </div>
         </div>
-      </header>
+        </header>
+      )}
 
       <main
-        className={`flex-grow ${isDemo ? "h-[calc(100vh-4rem)] pt-16 px-0 overflow-hidden flex flex-col" : "pt-24 px-4"}`}
+        className={`flex-grow ${isDemo ? "h-screen pt-0 px-0 overflow-hidden flex flex-col bg-[#070B14]" : "pt-24 px-4"}`}
       >
         {children}
       </main>
@@ -223,7 +225,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({
                 <div className="flex items-center gap-2.5 text-stone-600 bg-stone-50 p-2.5 rounded-xl border border-stone-100 hover:border-amber-200 transition-all cursor-default">
                   <Cpu className="w-4 h-4 text-amber-500 shrink-0" />
                   <span className="font-semibold text-xs tracking-tight">
-                    OpenRouter API
+                    Google Gemini API
                   </span>
                 </div>
               </div>

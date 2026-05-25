@@ -276,20 +276,6 @@ export class Orchestrator {
     const parsed = extractCodeFromText(text);
     if (parsed.website) {
       useProjectStore.getState().setCurrentContent(parsed.website);
-
-      // Emit file_write events with accumulated content and mark done
-      Object.entries(parsed.website.files).forEach(([path, contents]) => {
-        bus.fileWrite(path, (contents as string).slice(0, 800)); // preview first 800 chars
-        bus.fileDone(path);
-      });
-
-      // Real-time dynamic file write for instant preview update
-      const wc = WebContainerService.getInstance().getWebContainer();
-      if (wc) {
-        Object.entries(parsed.website.files).forEach(([path, contents]) => {
-          wc.fs.writeFile(path, contents as string).catch(() => {});
-        });
-      }
     }
   }
 

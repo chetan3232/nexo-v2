@@ -19,6 +19,7 @@ import {
   MoreVertical,
   Check,
   CloudUpload,
+  User,
 } from "lucide-react";
 import { useAgentStore } from "../../stores/agentStore";
 import { useChatStore } from "../../stores/chatStore";
@@ -99,10 +100,20 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
     const { setMessages, setCurrentChatId, setHasStarted } =
       useChatStore.getState();
     const { setCurrentContent } = useProjectStore.getState();
+    const { setSelectedModel, setProjectMode, setTechStack } = useAgentStore.getState();
 
     setMessages(chat.messages || []);
     setCurrentContent(chat.content || null);
     setCurrentChatId(chat.id);
+    if (chat.model) {
+      setSelectedModel(chat.model);
+    }
+    if (chat.projectMode) {
+      setProjectMode(chat.projectMode);
+    }
+    if (chat.techStack) {
+      setTechStack(chat.techStack);
+    }
     if (chat.messages?.length > 0) {
       setHasStarted(true);
     }
@@ -125,10 +136,9 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
       const files = chat.content?.files || {};
       const projName = chat.name || chat.title || "Untitled Project";
       if (Object.keys(files).length === 0) {
-        // No files — just put a readme
         zip.file(
           "README.md",
-          `# ${projName}\n\nNo files were found in this project.`,
+          `# ${chat.title || "Nexo Project"}\n\nNo files were found in this project.`,
         );
       } else {
         Object.entries(files).forEach(([filePath, content]) => {
@@ -142,7 +152,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${projName.replace(/\s+/g, "-").toLowerCase()}.zip`;
+      a.download = `${(chat.title || "nexo-project").replace(/\s+/g, "-").toLowerCase()}.zip`;
       a.click();
       URL.revokeObjectURL(url);
       setZipStatus((prev) => ({ ...prev, [chat.id]: "done" }));
@@ -166,7 +176,6 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
     setDriveStatus((prev) => ({ ...prev, [chat.id]: "uploading" }));
     const projName = chat.name || chat.title || "Untitled Project";
     try {
-      // Re-authenticate with Drive scope
       const provider = new GoogleAuthProvider();
       provider.addScope("https://www.googleapis.com/auth/drive.file");
       const result = await signInWithPopup(auth, provider);
@@ -176,20 +185,18 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
 
       if (!token) throw new Error("No access token");
 
-      // Build ZIP
       const zip = new JSZip();
       const files = chat.content?.files || {};
       if (Object.keys(files).length === 0) {
-        zip.file("README.md", `# ${projName}`);
+        zip.file("README.md", `# ${chat.title || "Nexo Project"}`);
       } else {
         Object.entries(files).forEach(([fp, content]) => {
           zip.file(fp.startsWith("/") ? fp.slice(1) : fp, content as string);
         });
       }
       const blob = await zip.generateAsync({ type: "blob" });
-      const fileName = `${projName.replace(/\s+/g, "-").toLowerCase()}.zip`;
+      const fileName = `${(chat.title || "nexo-project").replace(/\s+/g, "-").toLowerCase()}.zip`;
 
-      // Upload to Drive
       const metadata = {
         name: fileName,
         mimeType: "application/zip",
@@ -237,16 +244,16 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
 
   const models = [
     {
-      id: "google/gemini-2.5-flash",
+      id: "gemini-2.5-flash",
       name: "Gemini 2.5 Flash",
       provider: "Google",
-      desc: "Superior Reasoning & Fast",
+      desc: "Fast reasoning, high free-tier quota (Recommended)",
     },
     {
-      id: "nvidia/minimax-m2.7",
-      name: "MiniMax M2.7",
-      provider: "NVIDIA",
-      desc: "NVIDIA NIM · 8K ctx",
+      id: "gemini-2.0-flash",
+      name: "Gemini 2.0 Flash",
+      provider: "Google",
+      desc: "Balanced speed & quality, generous limits",
     },
     {
       id: "stepfun-ai/step-3.5-flash",
@@ -255,16 +262,28 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
       desc: "StepFun Reasoning Model",
     },
     {
-      id: "qwen/qwen-2.5-72b-instruct:free",
-      name: "Qwen 2.5 72B",
-      provider: "OpenRouter",
-      desc: "Fast & Free",
+      id: "gemini-2.0-flash-lite",
+      name: "Gemini 2.0 Flash-Lite",
+      provider: "Google",
+      desc: "Fastest, highest free quota",
     },
     {
-      id: "groq/llama-3.3-70b-versatile",
-      name: "Llama 3.3 70B",
-      provider: "Groq",
-      desc: "Direct Ultra-Fast",
+      id: "gemini-1.5-flash",
+      name: "Gemini 1.5 Flash",
+      provider: "Google",
+      desc: "Stable & reliable fallback",
+    },
+    {
+      id: "gemini-1.5-pro",
+      name: "Gemini 1.5 Pro",
+      provider: "Google",
+      desc: "Deep reasoning, stable pro model",
+    },
+    {
+      id: "gemini-2.5-pro",
+      name: "Gemini 2.5 Pro",
+      provider: "Google",
+      desc: "Best quality (low free-tier quota)",
     },
   ];
 
@@ -278,34 +297,41 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
   ];
 
   return (
-    <div className="fixed inset-0 z-[100] bg-[#fbf9f6] flex font-sans">
+    <div className="fixed inset-0 z-[100] bg-studio-bg flex font-sans text-studio-text overflow-hidden">
+      {/* Background cinematic blur radial gradients */}
+      <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-studio-accent/5 blur-[120px] pointer-events-none animate-glow" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-studio-secondary/5 blur-[120px] pointer-events-none animate-glow" />
+
       {/* Sidebar Container */}
-      <div className="w-72 hidden lg:flex flex-col border-r border-stone-200/50 bg-[#fbf9f6] shrink-0">
+      <div className="w-72 hidden lg:flex flex-col border-r border-studio-border bg-studio-panel/40 backdrop-blur-xl shrink-0 z-10">
         {/* Logo Header */}
-        <div className="p-8 flex items-center gap-3">
-          <div className="w-9 h-9 bg-stone-900 rounded-xl flex items-center justify-center shadow-lg shrink-0">
+        <div className="p-8 flex items-center gap-3 select-none">
+          <div className="w-10 h-10 bg-gradient-to-tr from-studio-accent to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-studio-accent/25 shrink-0 transition-transform duration-300 hover:scale-105 active:scale-95 cursor-pointer">
             <Sparkles className="w-5 h-5 text-white" />
           </div>
-          <span className="font-black text-xl tracking-tighter text-stone-900 truncate">
-            NEXO STUDIO
+          <span className="font-black text-xl tracking-tighter text-studio-text truncate">
+            NEXO WORKSPACE
           </span>
         </div>
 
         {/* Chat History */}
         <div className="flex-1 flex flex-col px-6 pb-6 overflow-hidden">
-          <h3 className="text-[10px] font-bold text-stone-400 mb-4 uppercase tracking-widest px-2 shrink-0">
+          <h3 className="text-[10px] font-black text-studio-muted mb-4 uppercase tracking-[0.2em] px-2 shrink-0 select-none">
             Recent Projects
           </h3>
-          <div className="flex-1 overflow-y-auto space-y-1 pr-2 no-scrollbar">
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
             {chatHistory.length === 0 && (
-              <div className="text-[12px] text-stone-400 p-2">
+              <div className="text-[12px] text-studio-muted p-4 text-center rounded-2xl bg-studio-card/30 border border-studio-border/60 border-dashed">
                 {!auth.currentUser ? (
-                  <button
-                    onClick={handleLogin}
-                    className="text-indigo-500 font-medium hover:underline"
-                  >
-                    Sign in to save projects
-                  </button>
+                  <div className="space-y-3">
+                    <p className="text-xs">Sign in to save and sync projects.</p>
+                    <button
+                      onClick={handleLogin}
+                      className="px-4 py-2 bg-studio-accent hover:bg-studio-accent/90 text-white font-bold rounded-xl text-xs transition-all w-full flex items-center justify-center gap-2 shadow-lg shadow-studio-accent/20"
+                    >
+                      <User className="w-4.5 h-4.5" /> Connect Google Account
+                    </button>
+                  </div>
                 ) : (
                   "No projects found."
                 )}
@@ -315,12 +341,12 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
               <div
                 key={chat.id}
                 onClick={() => handleLoadChat(chat)}
-                className="group relative flex items-center justify-between p-3 rounded-xl hover:bg-white border border-transparent hover:border-stone-200 hover:shadow-sm transition-all cursor-pointer"
+                className="group relative flex items-center justify-between p-3.5 rounded-xl bg-studio-card/25 hover:bg-studio-card/65 border border-studio-border/60 hover:border-studio-accent/30 shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer"
               >
                 <div className="flex items-center gap-3 overflow-hidden pr-2">
                   <MessageSquare className="w-4 h-4 text-stone-400 shrink-0" />
                   <div className="truncate text-[13px] font-medium text-stone-700">
-                    {chat.name || chat.title || "Untitled Project"}
+                    {chat.title}
                   </div>
                 </div>
 
@@ -330,7 +356,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
-                    className="p-1.5 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                    className="p-1 text-studio-muted hover:text-studio-text hover:bg-studio-panel/50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                     onClick={(e) => {
                       e.stopPropagation();
                       setOpenMenuId(openMenuId === chat.id ? null : chat.id);
@@ -346,27 +372,27 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: -4 }}
                         transition={{ duration: 0.12 }}
-                        className="absolute right-0 top-full mt-1 bg-white border border-stone-200 shadow-2xl rounded-xl overflow-hidden z-50 w-44"
+                        className="absolute right-0 top-full mt-1.5 bg-studio-card border border-studio-border shadow-2xl rounded-xl overflow-hidden z-50 w-44"
                       >
                         {/* Download ZIP */}
                         <button
                           onClick={(e) => handleDownloadZip(e, chat)}
                           disabled={zipStatus[chat.id] === "zipping"}
-                          className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[12px] font-semibold text-stone-600 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                          className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[11px] font-bold text-studio-muted hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors"
                         >
                           {zipStatus[chat.id] === "zipping" ? (
                             <>
-                              <div className="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                              <div className="w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
                               <span>Zipping...</span>
                             </>
                           ) : zipStatus[chat.id] === "done" ? (
                             <>
-                              <Check className="w-4 h-4 text-emerald-500" />
+                              <Check className="w-3.5 h-3.5 text-emerald-400" />
                               <span>Downloaded!</span>
                             </>
                           ) : (
                             <>
-                              <FileArchive className="w-4 h-4" />
+                              <FileArchive className="w-3.5 h-3.5" />
                               <span>Download ZIP</span>
                             </>
                           )}
@@ -375,32 +401,32 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
                         <button
                           onClick={(e) => handleUploadToDrive(e, chat)}
                           disabled={driveStatus[chat.id] === "uploading"}
-                          className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[12px] font-semibold text-stone-600 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                          className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[11px] font-bold text-studio-muted hover:bg-studio-accent/15 hover:text-studio-accent transition-colors"
                         >
                           {driveStatus[chat.id] === "uploading" ? (
                             <>
-                              <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                              <div className="w-3.5 h-3.5 border-2 border-studio-accent border-t-transparent rounded-full animate-spin" />
                               <span>Uploading...</span>
                             </>
                           ) : driveStatus[chat.id] === "done" ? (
                             <>
-                              <Check className="w-4 h-4 text-indigo-500" />
-                              <span>Saved to Drive!</span>
+                              <Check className="w-3.5 h-3.5 text-studio-accent" />
+                              <span>Uploaded!</span>
                             </>
                           ) : (
                             <>
-                              <HardDrive className="w-4 h-4" />
+                              <HardDrive className="w-3.5 h-3.5" />
                               <span>Upload to Drive</span>
                             </>
                           )}
                         </button>
-                        <div className="h-px bg-stone-100 mx-2" />
+                        <div className="h-px bg-studio-border mx-2" />
                         {/* Delete */}
                         <button
                           onClick={(e) => handleDeleteChat(e, chat.id)}
-                          className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[12px] font-semibold text-red-500 hover:bg-red-50 transition-colors"
+                          className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[11px] font-bold text-red-400 hover:bg-red-950/20 transition-colors"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
                           <span>Delete</span>
                         </button>
                       </motion.div>
@@ -413,46 +439,52 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
         </div>
 
         {/* Status Indicator */}
-        <div className="p-8 pb-10 flex items-center gap-6 opacity-40 shrink-0">
+        <div className="p-8 pb-10 flex items-center gap-2 select-none opacity-60 shrink-0">
           <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            <span className="text-[9px] font-black text-stone-900 uppercase tracking-widest">
-              NVIDIA H100 Cluster Active
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+            </span>
+            <span className="text-[9px] font-black text-studio-muted uppercase tracking-[0.2em]">
+              Google Gemini Engine Active
             </span>
           </div>
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 relative min-w-0">
+      <div className="flex-1 flex flex-col items-center justify-center p-6 relative min-w-0 z-10">
         {/* Mobile Logo Fallback */}
-        <div className="absolute top-8 left-8 flex items-center gap-3 lg:hidden">
-          <div className="w-9 h-9 bg-stone-900 rounded-xl flex items-center justify-center shadow-lg">
+        <div className="absolute top-8 left-8 flex items-center gap-3 lg:hidden select-none">
+          <div className="w-9 h-9 bg-gradient-to-tr from-studio-accent to-purple-650 rounded-xl flex items-center justify-center shadow-lg">
             <Sparkles className="w-5 h-5 text-white" />
           </div>
-          <span className="font-black text-xl tracking-tighter text-stone-900">
-            NEXO STUDIO
+          <span className="font-black text-lg tracking-tighter text-studio-text">
+            NEXO WORKSPACE
           </span>
         </div>
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
           className="w-full max-w-4xl space-y-10"
         >
           <div className="space-y-4 text-center">
-            <h2 className="text-5xl font-black text-stone-900 tracking-tighter leading-none">
+            <h2 className="text-4xl md:text-6xl font-black text-studio-text tracking-tighter leading-none">
               Build your next{" "}
-              <span className="text-indigo-600">masterpiece.</span>
+              <span className="bg-gradient-to-r from-studio-accent via-purple-400 to-studio-secondary bg-clip-text text-transparent">
+                masterpiece.
+              </span>
             </h2>
-            <p className="text-stone-400 text-xl font-medium">
-              Simple, powerful, and autonomous AI development.
+            <p className="text-studio-muted text-lg font-medium max-w-xl mx-auto">
+              A premium AI Operating System for creating complete application structures.
             </p>
           </div>
 
           {/* Main Action Bar */}
           <form onSubmit={handleSubmit} className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-[2.5rem] blur opacity-5 group-focus-within:opacity-20 transition duration-1000"></div>
+            <div className="absolute -inset-1.5 bg-gradient-to-r from-studio-accent to-studio-secondary rounded-[2.5rem] blur opacity-15 group-focus-within:opacity-35 transition duration-1000"></div>
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
@@ -463,40 +495,41 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
                 }
               }}
               placeholder="Describe what you want to build (e.g. 'A modern SaaS dashboard with dark mode')..."
-              className="relative w-full bg-white border border-stone-200 rounded-[2.5rem] p-10 text-2xl font-medium text-black focus:border-indigo-500 transition-all min-h-[220px] resize-none outline-none shadow-xl"
+              className="relative w-full bg-white border border-stone-200 rounded-[2.5rem] p-10 text-2xl font-medium focus:border-indigo-500 transition-all min-h-[220px] resize-none outline-none shadow-xl"
               autoFocus
             />
             <div className="absolute bottom-6 right-6 flex items-center gap-4">
               <button
                 type="submit"
                 disabled={!prompt.trim()}
-                className="px-8 py-4 bg-stone-900 text-white rounded-2xl font-bold shadow-xl hover:bg-black hover:scale-105 active:scale-95 disabled:opacity-30 disabled:scale-100 transition-all flex items-center gap-3 group"
+                className="px-7 py-3.5 bg-gradient-to-tr from-studio-accent to-purple-600 hover:from-studio-accent/90 hover:to-purple-500 text-studio-text rounded-2xl font-bold shadow-xl shadow-studio-accent/20 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:scale-100 transition-all flex items-center gap-2.5 group"
               >
-                Start Generation{" "}
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                <span>Start Generation</span>{" "}
+                <ArrowRight className="w-4.5 h-4.5 group-hover:translate-x-1.5 transition-transform" />
               </button>
             </div>
           </form>
 
           {/* Horizontal Configuration Bar */}
-          <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+          <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
             {/* Model Selector */}
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-white border border-stone-200 rounded-full text-xs font-bold text-stone-600 hover:border-indigo-500 transition-all shadow-sm"
+                className="flex items-center gap-2 px-5 py-2.5 bg-studio-panel/55 border border-studio-border hover:border-studio-accent/50 rounded-full text-xs font-bold text-studio-muted hover:text-studio-text transition-all shadow-md select-none"
               >
-                <Cpu className="w-3.5 h-3.5" />
-                <span>{models.find((m) => m.id === selectedModel)?.name}</span>
-                <ChevronDown className="w-3 h-3" />
+                <Cpu className="w-4 h-4 text-studio-accent" />
+                <span>{models.find((m) => m.id === selectedModel)?.name || "Gemini 2.5 Flash"}</span>
+                <ChevronDown className="w-3.5 h-3.5" />
               </button>
               <AnimatePresence>
                 {isModelDropdownOpen && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="absolute bottom-full left-0 mb-3 bg-white border border-stone-200 rounded-2xl shadow-2xl p-2 w-56 z-50"
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute bottom-full left-0 mb-3 bg-studio-card border border-studio-border rounded-2xl shadow-2xl p-2 w-64 z-50"
                   >
                     {models.map((m) => (
                       <button
@@ -506,10 +539,10 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
                           setSelectedModel(m.id);
                           setIsModelDropdownOpen(false);
                         }}
-                        className={`w-full text-left px-4 py-2.5 rounded-xl transition-colors ${selectedModel === m.id ? "bg-indigo-50 text-indigo-600" : "hover:bg-stone-50 text-stone-600"}`}
+                        className={`w-full text-left px-4 py-2.5 rounded-xl transition-colors ${selectedModel === m.id ? "bg-studio-accent/15 text-studio-accent" : "hover:bg-studio-panel/40 text-studio-muted hover:text-studio-text"}`}
                       >
-                        <div className="text-[11px] font-bold">{m.name}</div>
-                        <div className="text-[9px] opacity-60">{m.desc}</div>
+                        <div className="text-xs font-bold">{m.name}</div>
+                        <div className="text-[9px] opacity-60 mt-0.5">{m.desc}</div>
                       </button>
                     ))}
                   </motion.div>
@@ -517,45 +550,46 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
               </AnimatePresence>
             </div>
 
-            <div className="h-4 w-px bg-stone-200" />
+            <div className="h-4 w-px bg-studio-border" />
 
             {/* Mode Selector */}
-            <div className="flex bg-white p-1 rounded-full border border-stone-200 shadow-sm">
+            <div className="flex bg-studio-panel/55 p-1 rounded-full border border-studio-border shadow-md">
               <button
                 type="button"
                 onClick={() => setProjectMode("frontend")}
-                className={`px-5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${projectMode === "frontend" ? "bg-indigo-600 text-white shadow-md" : "text-stone-400 hover:text-stone-600"}`}
+                className={`px-5 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${projectMode === "frontend" ? "bg-studio-accent text-white shadow-md shadow-studio-accent/10" : "text-studio-muted hover:text-studio-text"}`}
               >
-                <Palette className="w-3.5 h-3.5" /> Frontend
+                <Palette className="w-4 h-4" /> Frontend Only
               </button>
               <button
                 type="button"
                 onClick={() => setProjectMode("fullstack")}
-                className={`px-5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${projectMode === "fullstack" ? "bg-indigo-600 text-white shadow-md" : "text-stone-400 hover:text-stone-600"}`}
+                className={`px-5 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${projectMode === "fullstack" ? "bg-studio-accent text-white shadow-md shadow-studio-accent/10" : "text-studio-muted hover:text-studio-text"}`}
               >
-                <Database className="w-3.5 h-3.5" /> Fullstack
+                <Database className="w-4 h-4" /> Fullstack Node
               </button>
             </div>
 
-            <div className="h-4 w-px bg-stone-200" />
+            <div className="h-4 w-px bg-studio-border" />
 
             {/* Language Selector */}
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-white border border-stone-200 rounded-full text-xs font-bold text-stone-600 hover:border-indigo-500 transition-all shadow-sm"
+                className="flex items-center gap-2 px-5 py-2.5 bg-studio-panel/55 border border-studio-border hover:border-studio-accent/50 rounded-full text-xs font-bold text-studio-muted hover:text-studio-text transition-all shadow-md select-none"
               >
-                <Code className="w-3.5 h-3.5" />
+                <Code className="w-4 h-4 text-studio-secondary" />
                 <span>{selectedLanguage}</span>
-                <ChevronDown className="w-3 h-3" />
+                <ChevronDown className="w-3.5 h-3.5" />
               </button>
               <AnimatePresence>
                 {isLangDropdownOpen && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="absolute bottom-full left-0 mb-3 bg-white border border-stone-200 rounded-2xl shadow-2xl p-2 w-40 z-50"
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute bottom-full left-0 mb-3 bg-studio-card border border-studio-border rounded-2xl shadow-2xl p-2 w-44 z-50"
                   >
                     {languages.map((lang) => (
                       <button
@@ -565,9 +599,9 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
                           setSelectedLanguage(lang);
                           setIsLangDropdownOpen(false);
                         }}
-                        className={`w-full text-left px-4 py-2 rounded-xl transition-colors ${selectedLanguage === lang ? "bg-stone-900 text-white" : "hover:bg-stone-50 text-stone-600"}`}
+                        className={`w-full text-left px-4 py-2 rounded-xl transition-colors ${selectedLanguage === lang ? "bg-studio-accent text-white" : "hover:bg-studio-panel/40 text-studio-muted hover:text-studio-text"}`}
                       >
-                        <div className="text-[11px] font-bold">{lang}</div>
+                        <div className="text-xs font-bold">{lang}</div>
                       </button>
                     ))}
                   </motion.div>
@@ -577,22 +611,22 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
           </div>
 
           {/* Suggestion Chips */}
-          <div className="flex flex-wrap justify-center gap-3">
+          <div className="flex flex-wrap justify-center gap-3 select-none">
             {[
               "SaaS Dashboard",
               "AI Portfolio",
-              "Landing Page",
-              "E-commerce UI",
+              "3D Product Landing",
+              "Real-time E-commerce",
             ].map((tag) => (
               <button
                 key={tag}
                 type="button"
                 onClick={() =>
                   setPrompt(
-                    `Build a high-fidelity ${tag} with modern aesthetics...`,
+                    `Build a premium, high-fidelity ${tag} page with glowing cinematic design, responsive grid, dynamic charts, and clean animations...`,
                   )
                 }
-                className="px-5 py-2 bg-white rounded-full border border-stone-200 text-[11px] font-bold text-stone-500 hover:border-indigo-500 hover:text-indigo-600 transition-all shadow-sm"
+                className="px-5 py-2 bg-studio-panel/30 rounded-full border border-studio-border hover:border-studio-accent/40 text-xs font-bold text-studio-muted hover:text-studio-accent hover:bg-studio-panel/50 transition-all shadow-sm"
               >
                 {tag}
               </button>
