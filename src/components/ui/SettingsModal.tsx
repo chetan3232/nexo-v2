@@ -35,6 +35,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState("Chat");
   const tabs = ["Chat", "Share", "Publish", "Versions", "Integrations"];
+  const { selectedModel, setSelectedModel } = useAgentStore();
 
   const [githubToken, setGithubToken] = useState("");
   const [repoUrl, setRepoUrl] = useState("");
@@ -192,20 +193,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </label>
                 <div className="relative">
                   <select
-                    value={useAgentStore.getState().selectedModel}
-                    onChange={(e) =>
-                      useAgentStore.getState().setSelectedModel(e.target.value)
-                    }
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
                     className="w-full bg-white border border-stone-200 rounded-xl px-4 py-3.5 text-stone-800 outline-none focus:border-stone-300 appearance-none shadow-sm cursor-pointer"
                   >
-                    <option value="google/gemini-2.5-flash">
-                      Default (Gemini 3 Flash Preview)
+                    <option value="gemini-2.5-flash">
+                      Gemini 2.5 Flash — Fast reasoning, high quota (Default)
                     </option>
-                    <option value="google/gemini-2.5-pro">
-                      Gemini 2.5 Pro
+                    <option value="gemini-2.0-flash">
+                      Gemini 2.0 Flash — Balanced speed &amp; quality
                     </option>
-                    <option value="qwen/qwen-2.5-72b-instruct:free">
-                      Qwen 2.5 72B (Free)
+                    <option value="gemini-2.0-flash-lite">
+                      Gemini 2.0 Flash-Lite — Fastest, max free quota
+                    </option>
+                    <option value="gemini-1.5-flash">
+                      Gemini 1.5 Flash — Stable fallback
+                    </option>
+                    <option value="gemini-1.5-pro">
+                      Gemini 1.5 Pro — Deep reasoning, stable
+                    </option>
+                    <option value="gemini-2.5-pro">
+                      Gemini 2.5 Pro — Best quality (low free quota)
                     </option>
                   </select>
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-stone-400">
