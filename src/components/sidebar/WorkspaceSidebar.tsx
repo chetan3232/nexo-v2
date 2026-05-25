@@ -11,17 +11,17 @@ import {
   Code,
   FileCode,
   Download,
-  HardDrive,
   Trash2,
-  Check,
   ChevronDown,
   Image,
-  Layers,
-  Database,
   Palette,
   Play,
   User,
-  Plus
+  Plus,
+  Compass,
+  Database,
+  Layers,
+  Activity
 } from "lucide-react";
 import { useProjectStore } from "../../stores/projectStore";
 import { useChatStore } from "../../stores/chatStore";
@@ -31,7 +31,6 @@ import {
   auth,
   loadChatsFromFirebase,
   deleteChatFromFirebase,
-  saveChatToFirebase,
   signInWithGoogle
 } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -67,6 +66,7 @@ export const WorkspaceSidebar: React.FC = () => {
   const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isDeploying, setIsDeploying] = useState(false);
+  const [hoveredTab, setHoveredTab] = useState<string | null>(null);
 
   // Auth monitoring
   useEffect(() => {
@@ -214,216 +214,276 @@ export const WorkspaceSidebar: React.FC = () => {
 
   const languages = ["HTML", "TypeScript", "JavaScript", "Python"];
 
+  const tabs = [
+    { id: "projects", icon: FolderOpen, label: "Explorer" },
+    { id: "chats", icon: MessageSquare, label: "Chats" },
+    { id: "templates", icon: Compass, label: "Starters" },
+    { id: "assets", icon: Image, label: "Assets" },
+    { id: "keys", icon: Key, label: "API Keys" },
+    { id: "deploy", icon: Globe, label: "Deployments" },
+  ];
+
   return (
-    <div className="flex h-full bg-zinc-950 text-zinc-300 select-none shrink-0 z-20">
-      {/* Tab Icons (Vertical Bar) */}
-      <div className="w-16 bg-zinc-950 border-r border-zinc-900 flex flex-col items-center py-4 justify-between">
+    <div className="flex h-full bg-studio-bg text-studio-text select-none shrink-0 z-20 border-r border-studio-border/60">
+      {/* Icon Sidebar (Vertical Action Strip) */}
+      <div className="w-16 bg-studio-bg/95 flex flex-col items-center py-4 justify-between relative">
         <div className="flex flex-col items-center gap-4 w-full">
-          {/* Studio Brand Spark */}
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/10 mb-6">
-            <Sparkles className="w-5 h-5 text-white animate-pulse" />
+          {/* AI Pulse Logo */}
+          <div className="relative group cursor-pointer">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-studio-accent to-indigo-600 flex items-center justify-center shadow-lg shadow-studio-accent/20 transition-transform duration-300 group-hover:scale-105 active:scale-95">
+              <Sparkles className="w-5 h-5 text-studio-text" />
+            </div>
+            {/* Live pulsing glowing dot */}
+            <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border border-studio-bg"></span>
+            </span>
           </div>
 
-          {[
-            { id: "projects", icon: FolderOpen, label: "Explorer" },
-            { id: "chats", icon: MessageSquare, label: "Chats" },
-            { id: "templates", icon: Sparkles, label: "Starters" },
-            { id: "assets", icon: Image, label: "Assets" },
-            { id: "keys", icon: Key, label: "API Keys" },
-            { id: "deploy", icon: Globe, label: "Deploy" },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => handleTabClick(tab.id as SidebarTab)}
-              className={`p-3 rounded-xl transition-all relative group ${
-                activeTab === tab.id && isExpanded
-                  ? "bg-zinc-900 text-indigo-400 border border-zinc-800"
-                  : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50"
-              }`}
-              title={tab.label}
-            >
-              <tab.icon className="w-5 h-5" />
-              {activeTab === tab.id && isExpanded && (
-                <div className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-indigo-500 rounded-r" />
-              )}
-            </button>
-          ))}
+          <div className="h-px w-8 bg-studio-border/60 my-2" />
+
+          {/* Floating Create Button */}
+          <button
+            onClick={() => {
+              const name = prompt("Enter new filename:");
+              if (name) {
+                useProjectStore.getState().setCurrentContent((prev) => {
+                  const files = prev ? { ...prev.files } : {};
+                  return {
+                    files: { ...files, [name]: `// New file ${name}` },
+                    mainFile: prev?.mainFile || name,
+                    template: prev?.template || "web"
+                  };
+                });
+                setSelectedFileName(name);
+              }
+            }}
+            className="w-10 h-10 rounded-xl bg-studio-panel border border-studio-border hover:border-studio-accent text-studio-muted hover:text-studio-text flex items-center justify-center transition-all duration-300 shadow-md group hover:bg-studio-panel/80 hover:shadow-studio-accent/5"
+            title="Create New File"
+          >
+            <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+          </button>
+
+          {/* Tabs Map */}
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isTabActive = activeTab === tab.id && isExpanded;
+            return (
+              <div
+                key={tab.id}
+                className="relative"
+                onMouseEnter={() => setHoveredTab(tab.id)}
+                onMouseLeave={() => setHoveredTab(null)}
+              >
+                <button
+                  onClick={() => handleTabClick(tab.id as SidebarTab)}
+                  className={`p-3 rounded-xl transition-all duration-300 ${
+                    isTabActive
+                      ? "bg-studio-panel text-studio-accent border border-studio-border/60 shadow-lg shadow-black/30"
+                      : "text-studio-muted hover:text-studio-text hover:bg-studio-panel/40"
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  {isTabActive && (
+                    <motion.div
+                      layoutId="activeTabIndicator"
+                      className="absolute left-0 top-1/4 bottom-1/4 w-0.5 bg-studio-accent rounded-r"
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    />
+                  )}
+                </button>
+
+                {/* Micro Tooltip */}
+                <AnimatePresence>
+                  {hoveredTab === tab.id && (
+                    <motion.div
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 20 }}
+                      exit={{ opacity: 0, x: 10 }}
+                      className="absolute left-full top-1/2 -translate-y-1/2 bg-studio-card border border-studio-border px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-studio-text whitespace-nowrap shadow-xl z-50 pointer-events-none"
+                    >
+                      {tab.label}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          })}
         </div>
 
-        {/* Settings Icon (Bottom) */}
-        <button
-          onClick={() => handleTabClick("settings")}
-          className={`p-3 rounded-xl transition-all relative group ${
-            activeTab === "settings" && isExpanded
-              ? "bg-zinc-900 text-indigo-400 border border-zinc-800"
-              : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50"
-          }`}
-          title="Settings"
+        {/* Settings Button */}
+        <div
+          className="relative"
+          onMouseEnter={() => setHoveredTab("settings")}
+          onMouseLeave={() => setHoveredTab(null)}
         >
-          <Settings className="w-5 h-5" />
-          {activeTab === "settings" && isExpanded && (
-            <div className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-indigo-500 rounded-r" />
-          )}
-        </button>
+          <button
+            onClick={() => handleTabClick("settings")}
+            className={`p-3 rounded-xl transition-all duration-300 ${
+              activeTab === "settings" && isExpanded
+                ? "bg-studio-panel text-studio-accent border border-studio-border/60"
+                : "text-studio-muted hover:text-studio-text hover:bg-studio-panel/40"
+            }`}
+          >
+            <Settings className="w-5 h-5" />
+            {activeTab === "settings" && isExpanded && (
+              <div className="absolute left-0 top-1/4 bottom-1/4 w-0.5 bg-studio-accent rounded-r" />
+            )}
+          </button>
+          <AnimatePresence>
+            {hoveredTab === "settings" && (
+              <motion.div
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 20 }}
+                exit={{ opacity: 0, x: 10 }}
+                className="absolute left-full top-1/2 -translate-y-1/2 bg-studio-card border border-studio-border px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-studio-text whitespace-nowrap shadow-xl z-50 pointer-events-none"
+              >
+                Settings
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
-      {/* Expanded Subpanel Drawer */}
+      {/* Expanded Subpanel Panel */}
       <AnimatePresence>
         {isExpanded && (
           <motion.div
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: 280, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="w-72 bg-zinc-900/90 border-r border-zinc-900 flex flex-col overflow-hidden backdrop-blur-xl"
+            transition={{ type: "spring", stiffness: 260, damping: 26 }}
+            className="w-72 bg-studio-panel/30 border-r border-studio-border/60 flex flex-col overflow-hidden backdrop-blur-xl"
           >
-            {/* Header */}
-            <div className="h-14 border-b border-zinc-900 px-6 flex items-center justify-between shrink-0">
-              <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">
+            {/* Expanded Header */}
+            <div className="h-14 border-b border-studio-border/60 px-6 flex items-center justify-between shrink-0 bg-studio-panel/10">
+              <span className="text-[10px] font-black text-studio-accent uppercase tracking-[0.2em]">
                 {activeTab}
               </span>
               <button
                 onClick={() => setIsExpanded(false)}
-                className="text-zinc-500 hover:text-zinc-300 text-xs font-semibold px-2 py-1 rounded hover:bg-zinc-800 transition-all"
+                className="text-studio-muted hover:text-studio-text text-[10px] font-bold tracking-wider px-2 py-1 rounded-md border border-studio-border/60 hover:bg-studio-panel/50 transition-all"
               >
-                Hide &rarr;
+                Collapse
               </button>
             </div>
 
-            {/* Content Body */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
+            {/* Panel Body */}
+            <div className="flex-grow overflow-y-auto p-5 space-y-5 custom-scrollbar bg-studio-panel/5">
               {/* PROJECTS / EXPLORER VIEW */}
               {activeTab === "projects" && (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-zinc-500 font-medium">Workspace Files</span>
-                    <button
-                      onClick={() => {
-                        const name = prompt("Enter filename:");
-                        if (name) {
-                          useProjectStore.getState().setCurrentContent((prev) => {
-                            const files = prev ? { ...prev.files } : {};
-                            return {
-                              files: { ...files, [name]: `// Code for ${name}` },
-                              mainFile: prev?.mainFile || name,
-                              template: prev?.template || "web"
-                            };
-                          });
-                          setSelectedFileName(name);
-                        }
-                      }}
-                      className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white"
-                      title="New File"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
+                    <span className="text-[10px] text-studio-muted font-black uppercase tracking-wider">WORKSPACE FILES</span>
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     {currentContent?.files && Object.keys(currentContent.files).length > 0 ? (
                       Object.keys(currentContent.files).map((filename) => (
                         <button
                           key={filename}
                           onClick={() => setSelectedFileName(filename)}
-                          className={`w-full px-3 py-2 flex items-center gap-2 rounded-lg text-xs font-semibold tracking-wide text-left transition-all ${
+                          className={`w-full px-3 py-2.5 flex items-center gap-2.5 rounded-xl text-xs font-semibold tracking-wide text-left transition-all border ${
                             selectedFileName === filename
-                              ? "bg-indigo-600/10 text-indigo-400 border border-indigo-500/20"
-                              : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent"
+                              ? "bg-studio-accent/10 text-studio-text border-studio-accent/25 shadow-md shadow-studio-accent/5"
+                              : "bg-transparent border-transparent text-studio-muted hover:text-studio-text hover:bg-studio-panel/40"
                           }`}
                         >
-                          <FileCode className="w-4 h-4 shrink-0 text-zinc-500" />
+                          <FileCode className="w-4 h-4 shrink-0 text-studio-accent/80 animate-pulse" />
                           <span className="truncate">{filename}</span>
                         </button>
                       ))
                     ) : (
-                      <div className="text-zinc-500 text-xs italic text-center py-8">
-                        No files in project yet
+                      <div className="text-studio-muted text-xs italic text-center py-10 bg-studio-card/20 rounded-2xl border border-studio-border border-dashed">
+                        No files generated yet
                       </div>
                     )}
                   </div>
                 </div>
               )}
 
-              {/* CHATS / HISTORY VIEW */}
+              {/* CHATS HISTORY VIEW */}
               {activeTab === "chats" && (
-                <div className="space-y-2">
+                <div className="space-y-4">
                   {!user ? (
-                    <div className="text-center py-8 space-y-3">
-                      <p className="text-xs text-zinc-500">Sign in to save and browse your projects.</p>
+                    <div className="text-center py-10 space-y-4 bg-studio-card/30 rounded-2xl border border-studio-border p-4">
+                      <p className="text-xs text-studio-muted leading-relaxed">Sign in to save progress and collaborate on projects.</p>
                       <button
                         onClick={signInWithGoogle}
-                        className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-xs font-bold transition-all w-full flex items-center justify-center gap-2"
+                        className="px-4 py-2.5 bg-studio-accent hover:bg-studio-accent/90 text-studio-text rounded-xl text-xs font-bold transition-all w-full flex items-center justify-center gap-2 shadow-lg shadow-studio-accent/20"
                       >
-                        <User className="w-4 h-4" /> Sign In
+                        <User className="w-4 h-4" /> Google Connect
                       </button>
                     </div>
                   ) : chatHistory.length === 0 ? (
-                    <div className="text-zinc-500 text-xs italic text-center py-8">
+                    <div className="text-studio-muted text-xs italic text-center py-10 bg-studio-card/20 rounded-2xl border border-studio-border border-dashed">
                       No saved projects yet.
                     </div>
                   ) : (
-                    chatHistory.map((chat) => (
-                      <div
-                        key={chat.id}
-                        onClick={() => handleLoadChat(chat)}
-                        className={`group p-3 rounded-xl border transition-all cursor-pointer flex flex-col gap-1.5 ${
-                          currentChatId === chat.id
-                            ? "bg-zinc-800/80 border-indigo-500/30 shadow-md"
-                            : "bg-zinc-900 border-zinc-800/50 hover:border-zinc-800"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="text-xs font-bold text-zinc-200 truncate flex-1">
-                            {chat.name || "Untitled Project"}
-                          </span>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDownloadZip(chat);
-                              }}
-                              className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white"
-                              title="Download ZIP"
-                            >
-                              <Download className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteChat(chat.id);
-                              }}
-                              className="p-1 hover:bg-red-950 rounded text-zinc-500 hover:text-red-400"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                    <div className="space-y-2.5">
+                      {chatHistory.map((chat) => (
+                        <div
+                          key={chat.id}
+                          onClick={() => handleLoadChat(chat)}
+                          className={`group p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col gap-2 relative overflow-hidden ${
+                            currentChatId === chat.id
+                              ? "bg-studio-accent/10 border-studio-accent/30 shadow-lg"
+                              : "bg-studio-card/50 border-studio-border/60 hover:border-studio-border hover:bg-studio-card"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2 z-10">
+                            <span className="text-xs font-bold text-studio-text truncate flex-1">
+                              {chat.name || "Untitled Project"}
+                            </span>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownloadZip(chat);
+                                }}
+                                className="p-1 hover:bg-studio-panel rounded-md text-studio-muted hover:text-studio-text"
+                                title="Download Source ZIP"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteChat(chat.id);
+                                }}
+                                className="p-1 hover:bg-red-950/40 rounded-md text-studio-muted hover:text-red-400"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center text-[9px] text-studio-muted font-mono z-10">
+                            <span>{chat.date}</span>
+                            <span className="bg-studio-panel px-2 py-0.5 rounded-full border border-studio-border/80">{chat.fileCount || 0} files</span>
                           </div>
                         </div>
-                        <div className="flex justify-between items-center text-[10px] text-zinc-500 font-mono">
-                          <span>{chat.date}</span>
-                          <span>{chat.fileCount || 0} files</span>
-                        </div>
-                      </div>
-                    ))
+                      ))}
+                    </div>
                   )}
                 </div>
               )}
 
-              {/* STARTER TEMPLATES VIEW */}
+              {/* STARTERS VIEW */}
               {activeTab === "templates" && (
-                <div className="space-y-3">
-                  <span className="text-xs text-zinc-500">Pick a starter code repository:</span>
-                  <div className="grid gap-3">
+                <div className="space-y-4">
+                  <span className="text-xs text-studio-muted block">Apply boilerplate structures to kickstart app creation:</span>
+                  <div className="space-y-3">
                     {Object.values(PROJECT_TEMPLATES).map((temp) => (
                       <div
                         key={temp.id}
                         onClick={() => handleApplyTemplate(temp)}
-                        className="p-3 bg-zinc-900 border border-zinc-800/60 rounded-xl hover:border-indigo-500/40 hover:bg-zinc-800/20 cursor-pointer transition-all space-y-1.5"
+                        className="p-4 bg-studio-card/45 border border-studio-border/60 rounded-2xl hover:border-studio-accent/40 hover:bg-studio-card cursor-pointer transition-all space-y-2 group"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-zinc-200">{temp.name}</span>
-                          <Play className="w-3 h-3 text-indigo-400" />
+                          <span className="text-xs font-bold text-studio-text group-hover:text-studio-accent transition-colors">{temp.name}</span>
+                          <Play className="w-3 h-3 text-studio-muted group-hover:text-studio-accent transition-colors" />
                         </div>
-                        <p className="text-[10px] text-zinc-500 leading-relaxed">
+                        <p className="text-[10px] text-studio-muted leading-relaxed">
                           {temp.description}
                         </p>
                       </div>
@@ -434,24 +494,26 @@ export const WorkspaceSidebar: React.FC = () => {
 
               {/* ASSETS VIEW */}
               {activeTab === "assets" && (
-                <div className="space-y-3">
-                  <span className="text-xs text-zinc-500">Project Asset Library</span>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-4">
+                  <span className="text-xs text-studio-muted">Global asset dictionary</span>
+                  <div className="grid grid-cols-2 gap-2.5">
                     {[
-                      { name: "Nexo Logo", type: "Image", url: "/src/assets/NEXO-V2.png" },
-                      { name: "Background Wave", type: "SVG", url: "#" },
-                      { name: "Placeholder Avatar", type: "Image", url: "#" },
-                      { name: "Pricing Card", type: "Component", url: "#" },
+                      { name: "Brand Logo", type: "Image" },
+                      { name: "Glow Mesh", type: "SVG" },
+                      { name: "Avatar Map", type: "JSON" },
+                      { name: "Pricing UI", type: "CSS" },
                     ].map((asset, i) => (
                       <div
                         key={i}
-                        className="p-2.5 bg-zinc-900 border border-zinc-800/50 rounded-xl flex flex-col items-center justify-center text-center gap-1.5"
+                        className="p-3 bg-studio-card/30 border border-studio-border/60 rounded-xl flex flex-col items-center justify-center text-center gap-1.5 hover:border-studio-border hover:bg-studio-card transition-all"
                       >
-                        <Image className="w-6 h-6 text-zinc-600" />
-                        <div className="text-[10px] font-bold text-zinc-300 truncate w-full">
+                        <div className="w-8 h-8 rounded-lg bg-studio-panel/50 border border-studio-border flex items-center justify-center">
+                          <Image className="w-4 h-4 text-studio-accent" />
+                        </div>
+                        <div className="text-[9px] font-bold text-studio-text truncate w-full">
                           {asset.name}
                         </div>
-                        <span className="text-[8px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded font-mono">
+                        <span className="text-[8px] bg-studio-panel text-studio-muted px-1.5 py-0.5 rounded-full border border-studio-border">
                           {asset.type}
                         </span>
                       </div>
@@ -460,35 +522,35 @@ export const WorkspaceSidebar: React.FC = () => {
                 </div>
               )}
 
-              {/* API KEYS CONFIGURATION */}
+              {/* API KEYS CONFIG */}
               {activeTab === "keys" && (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider block">
-                      Google Gemini API Key
+                    <label className="text-[10px] font-black text-studio-muted uppercase tracking-wider block">
+                      Google Gemini Key
                     </label>
-                    <p className="text-[10px] text-zinc-500 leading-normal">
-                      Input your own API key to bypass rate limits. It is saved securely in your browser's local storage.
+                    <p className="text-[10px] text-studio-muted leading-relaxed">
+                      Supply a private key to bypass workspace limits. Keys are stored in the client local storage browser frame.
                     </p>
                     <input
                       type="password"
                       value={customApiKey}
                       onChange={(e) => setCustomApiKey(e.target.value)}
                       placeholder="AIzaSy..."
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-200 outline-none focus:border-indigo-500 transition-all font-mono"
+                      className="w-full bg-studio-bg border border-studio-border rounded-xl px-3.5 py-2.5 text-xs text-studio-text outline-none focus:border-studio-accent transition-all font-mono"
                     />
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={handleSaveApiKey}
-                      className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-indigo-500/10"
+                      className="flex-1 py-2.5 bg-studio-accent hover:bg-studio-accent/90 text-studio-text rounded-xl text-xs font-bold transition-all shadow-md shadow-studio-accent/25"
                     >
                       Save Key
                     </button>
                     {localStorage.getItem("nexo_custom_api_key") && (
                       <button
                         onClick={handleClearApiKey}
-                        className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg text-xs font-bold transition-all"
+                        className="px-3.5 py-2.5 bg-studio-card border border-studio-border hover:border-studio-muted text-studio-muted hover:text-studio-text rounded-xl text-xs font-bold transition-all"
                       >
                         Clear
                       </button>
@@ -497,33 +559,33 @@ export const WorkspaceSidebar: React.FC = () => {
                 </div>
               )}
 
-              {/* DEPLOYMENTS CONTROL */}
+              {/* DEPLOYMENTS VIEW */}
               {activeTab === "deploy" && (
                 <div className="space-y-4">
-                  <div className="p-4 bg-zinc-900 border border-zinc-800/80 rounded-xl space-y-3">
+                  <div className="p-4 bg-studio-card/30 border border-studio-border/60 rounded-2xl space-y-3.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-zinc-400">Status</span>
+                      <span className="text-[10px] font-bold text-studio-muted uppercase tracking-wider">Live Status</span>
                       <span
-                        className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${
+                        className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
                           deployStatus === "done"
-                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                             : deployStatus === "deploying"
-                              ? "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
-                              : "bg-zinc-800 text-zinc-400 border border-zinc-700"
+                              ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
+                              : "bg-studio-panel text-studio-muted border-studio-border"
                         }`}
                       >
-                        {deployStatus === "done" ? "Live" : deployStatus === "deploying" ? "Deploying" : "Not Deployed"}
+                        {deployStatus === "done" ? "Active" : deployStatus === "deploying" ? "Building" : "Idle"}
                       </span>
                     </div>
 
                     {deployUrl && (
                       <div className="space-y-1">
-                        <span className="text-[10px] text-zinc-500">Deployment URL</span>
+                        <span className="text-[9px] text-studio-muted uppercase block tracking-wider font-bold">App Endpoint</span>
                         <a
                           href={deployUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-xs text-indigo-400 hover:underline break-all block font-mono"
+                          className="text-xs text-studio-accent hover:underline break-all block font-mono"
                         >
                           {deployUrl}
                         </a>
@@ -534,17 +596,17 @@ export const WorkspaceSidebar: React.FC = () => {
                   <button
                     onClick={handleDeploy}
                     disabled={isDeploying}
-                    className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/10 disabled:opacity-50"
+                    className="w-full py-3 bg-gradient-to-tr from-studio-accent to-purple-600 hover:from-studio-accent hover:to-purple-500 text-studio-text rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-studio-accent/20 disabled:opacity-50"
                   >
                     {isDeploying ? (
                       <>
                         <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Deploying...
+                        Triggering Sandbox...
                       </>
                     ) : (
                       <>
                         <Globe className="w-4 h-4" />
-                        Deploy Live Website
+                        Deploy Live Endpoint
                       </>
                     )}
                   </button>
@@ -555,17 +617,17 @@ export const WorkspaceSidebar: React.FC = () => {
               {activeTab === "settings" && (
                 <div className="space-y-4">
                   {/* Model Selector */}
-                  <div className="space-y-1.5 relative">
-                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider block">AI Model</label>
+                  <div className="space-y-2 relative">
+                    <label className="text-[10px] font-black text-studio-muted uppercase tracking-wider block">AI LLM Model</label>
                     <button
                       onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-                      className="w-full flex items-center justify-between px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-zinc-200 hover:border-zinc-700 transition-all font-mono"
+                      className="w-full flex items-center justify-between px-3.5 py-2.5 bg-studio-bg border border-studio-border rounded-xl text-xs text-studio-text hover:border-studio-accent transition-all font-mono"
                     >
                       <span>{models.find((m) => m.id === selectedModel)?.name || "Gemini 2.5 Flash"}</span>
-                      <ChevronDown className="w-3 h-3 text-zinc-500" />
+                      <ChevronDown className="w-3 h-3 text-studio-muted" />
                     </button>
                     {isModelDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl p-1.5 z-50 space-y-0.5">
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-studio-card border border-studio-border rounded-xl shadow-2xl p-1 z-50">
                         {models.map((m) => (
                           <button
                             key={m.id}
@@ -573,13 +635,13 @@ export const WorkspaceSidebar: React.FC = () => {
                               setSelectedModel(m.id);
                               setIsModelDropdownOpen(false);
                             }}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
+                            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                               selectedModel === m.id
-                                ? "bg-indigo-600 text-white"
-                                : "hover:bg-zinc-900 text-zinc-400"
+                                ? "bg-studio-accent text-white"
+                                : "hover:bg-studio-panel text-studio-muted"
                             }`}
                           >
-                            <div>{m.name}</div>
+                            {m.name}
                           </button>
                         ))}
                       </div>
@@ -587,21 +649,21 @@ export const WorkspaceSidebar: React.FC = () => {
                   </div>
 
                   {/* Mode Selector */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider block">Project Mode</label>
-                    <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-850">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-studio-muted uppercase tracking-wider block">Developer Mode</label>
+                    <div className="flex bg-studio-bg p-1 rounded-xl border border-studio-border">
                       <button
                         onClick={() => setProjectMode("frontend")}
                         className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                          projectMode === "frontend" ? "bg-indigo-600 text-white shadow" : "text-zinc-500 hover:text-zinc-300"
+                          projectMode === "frontend" ? "bg-studio-accent text-studio-text shadow" : "text-studio-muted hover:text-studio-text"
                         }`}
                       >
-                        <Palette className="w-3.5 h-3.5" /> Frontend
+                        <Palette className="w-3.5 h-3.5" /> UI Design
                       </button>
                       <button
                         onClick={() => setProjectMode("fullstack")}
                         className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                          projectMode === "fullstack" ? "bg-indigo-600 text-white shadow" : "text-zinc-500 hover:text-zinc-300"
+                          projectMode === "fullstack" ? "bg-studio-accent text-studio-text shadow" : "text-studio-muted hover:text-studio-text"
                         }`}
                       >
                         <Database className="w-3.5 h-3.5" /> Fullstack
@@ -610,17 +672,17 @@ export const WorkspaceSidebar: React.FC = () => {
                   </div>
 
                   {/* Language Selector */}
-                  <div className="space-y-1.5 relative">
-                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider block">Code Language</label>
+                  <div className="space-y-2 relative">
+                    <label className="text-[10px] font-black text-studio-muted uppercase tracking-wider block">Source Language</label>
                     <button
                       onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
-                      className="w-full flex items-center justify-between px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-zinc-200 hover:border-zinc-700 transition-all"
+                      className="w-full flex items-center justify-between px-3.5 py-2.5 bg-studio-bg border border-studio-border rounded-xl text-xs text-studio-text hover:border-studio-accent transition-all"
                     >
                       <span>{selectedLanguage}</span>
-                      <ChevronDown className="w-3 h-3 text-zinc-500" />
+                      <ChevronDown className="w-3 h-3 text-studio-muted" />
                     </button>
                     {isLangDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl p-1.5 z-50">
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-studio-card border border-studio-border rounded-xl shadow-2xl p-1 z-50">
                         {languages.map((lang) => (
                           <button
                             key={lang}
@@ -630,8 +692,8 @@ export const WorkspaceSidebar: React.FC = () => {
                             }}
                             className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
                               selectedLanguage === lang
-                                ? "bg-indigo-600 text-white"
-                                : "hover:bg-zinc-900 text-zinc-400"
+                                ? "bg-studio-accent text-white"
+                                : "hover:bg-studio-panel text-studio-muted"
                             }`}
                           >
                             {lang}
@@ -642,10 +704,10 @@ export const WorkspaceSidebar: React.FC = () => {
                   </div>
 
                   {/* Temperature slider */}
-                  <div className="space-y-1.5 pt-2">
+                  <div className="space-y-2 pt-2">
                     <div className="flex justify-between text-xs">
-                      <span className="font-bold text-zinc-400 uppercase tracking-wider">Temperature</span>
-                      <span className="font-mono text-indigo-400 font-semibold">{temperature}</span>
+                      <span className="font-bold text-studio-muted uppercase tracking-wider text-[9px]">Temperature</span>
+                      <span className="font-mono text-studio-accent font-semibold">{temperature}</span>
                     </div>
                     <input
                       type="range"
@@ -654,15 +716,15 @@ export const WorkspaceSidebar: React.FC = () => {
                       step="0.1"
                       value={temperature}
                       onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                      className="w-full accent-indigo-500 bg-zinc-800 h-1 rounded-lg outline-none cursor-pointer"
+                      className="w-full accent-studio-accent bg-studio-bg h-1 rounded-lg outline-none cursor-pointer"
                     />
                   </div>
 
                   {/* Top P slider */}
-                  <div className="space-y-1.5 pt-2">
+                  <div className="space-y-2 pt-2">
                     <div className="flex justify-between text-xs">
-                      <span className="font-bold text-zinc-400 uppercase tracking-wider">Top P</span>
-                      <span className="font-mono text-indigo-400 font-semibold">{topP}</span>
+                      <span className="font-bold text-studio-muted uppercase tracking-wider text-[9px]">Top P</span>
+                      <span className="font-mono text-studio-accent font-semibold">{topP}</span>
                     </div>
                     <input
                       type="range"
@@ -671,7 +733,7 @@ export const WorkspaceSidebar: React.FC = () => {
                       step="0.1"
                       value={topP}
                       onChange={(e) => setTopP(parseFloat(e.target.value))}
-                      className="w-full accent-indigo-500 bg-zinc-800 h-1 rounded-lg outline-none cursor-pointer"
+                      className="w-full accent-studio-accent bg-studio-bg h-1 rounded-lg outline-none cursor-pointer"
                     />
                   </div>
                 </div>
