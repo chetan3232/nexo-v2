@@ -212,8 +212,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <option value="gemini-1.5-pro">
                       Gemini 1.5 Pro — Deep reasoning, stable
                     </option>
-                    <option value="gemini-2.5-pro">
-                      Gemini 2.5 Pro — Best quality (low free quota)
+                    <option value="qwen/qwen-2.5-72b-instruct:free">
+                      Qwen 2.5 72B (Free)
+                    </option>
+                    <option value="groq/llama-3.3-70b-versatile">
+                      Llama 3.3 70B (Groq)
                     </option>
                   </select>
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-stone-400">

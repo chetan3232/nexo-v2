@@ -34,6 +34,8 @@ import { BrainService } from "../services/brainService";
 import { VISUAL_EDITOR_SCRIPT } from "../utils/visualEditorScript";
 import { DepAnalyzer } from "../utils/depAnalyzer";
 import toast from "react-hot-toast";
+import { BackgroundPreserver } from "../utils/backgroundPreserver";
+import { AgentEventBus } from "../utils/agentEventBus";
 
 export class Orchestrator {
   private static instance: Orchestrator;
@@ -62,6 +64,7 @@ export class Orchestrator {
     const agentStore = useAgentStore.getState();
     const runtimeStore = useRuntimeStore.getState();
     const teamStore = useTeamStore.getState();
+    const bus = AgentEventBus.getInstance();
 
     const options = {
       model: agentStore.selectedModel,
@@ -72,16 +75,21 @@ export class Orchestrator {
       topP: agentStore.topP,
     };
 
+    // Emit user message into the event timeline
+    bus.clear();
+    bus.setGenerating(true);
+    bus.userMessage(prompt);
+
     UsageManager.getInstance().trackGeneration();
     UsageManager.getInstance().startRuntimeTracking();
     chatStore.setState(CompanionState.THINKING);
 
     projectStore.setBuildPhase("building");
+    BackgroundPreserver.activate().catch(() => {});
     projectStore.setReasoningSteps([]);
-    projectStore.addReasoningStep(
-      "Analyzing your prompt and project context...",
-    );
     projectStore.setSubStatus("Initializing parallel engine...");
+
+    bus.thinking("Analyzing your prompt and project context...");
 
     // Initialize Task List for Parallel Execution
     projectStore.setTasks([
@@ -115,9 +123,7 @@ export class Orchestrator {
       // 1. STRATEGIC PHASE (Parallel)
       projectStore.setSubStatus("Strategic planning...");
       projectStore.updateTask("strategy", { status: "running" });
-      projectStore.addReasoningStep(
-        "Strategizing architecture and design tokens (PM + Designer + DevOps)...",
-      );
+      bus.thinking("Creating product specification and design system (PM + Designer + DevOps)...");
       teamStore.updateStatus("pm-agent", "thinking");
       teamStore.updateStatus("designer-agent", "thinking");
 
@@ -144,9 +150,7 @@ export class Orchestrator {
       // 2. IMPLEMENTATION PHASE (Parallel & Collaborative)
       projectStore.setSubStatus("Building application layers...");
       projectStore.updateTask("implementation", { status: "running" });
-      projectStore.addReasoningStep(
-        "Generating full-stack implementation (Frontend + Backend)...",
-      );
+      bus.thinking("Generating full-stack implementation — writing all files now...");
       teamStore.updateStatus("pm-agent", "idle");
       teamStore.updateStatus("designer-agent", "idle");
       teamStore.updateStatus("nexo-core", "coding");
@@ -172,9 +176,7 @@ export class Orchestrator {
       // 3. VERIFICATION PHASE (Parallel)
       projectStore.setSubStatus("Verifying security and quality...");
       projectStore.updateTask("verification", { status: "running" });
-      projectStore.addReasoningStep(
-        "Running security scans and quality verification (QA + Security)...",
-      );
+      bus.thinking("Running quality checks and security scan (QA + Security)...");
 
       const qa = new QAAgent();
       const security = new SecurityAgent();
@@ -197,15 +199,20 @@ export class Orchestrator {
 
       // 4. RUNTIME BOOT
       projectStore.updateTask("runtime", { status: "running" });
+      bus.buildStart();
       await this.bootRuntime();
-      projectStore.addReasoningStep("Deploying to virtual browser runtime...");
       projectStore.updateTask("runtime", { status: "done" });
+      bus.buildSuccess();
 
       this.createSnapshot(prompt);
 
       projectStore.setSubStatus("Build successful!");
 
       // Run Dependency Analysis
+      const fileCount = projectStore.currentContent
+        ? Object.keys(projectStore.currentContent.files).length
+        : 0;
+
       if (projectStore.currentContent) {
         const nodes = DepAnalyzer.analyze(projectStore.currentContent.files);
         projectStore.setDepNodes(nodes);
@@ -216,6 +223,8 @@ export class Orchestrator {
         projectStore.currentContent,
         true,
       );
+
+      bus.done(`App generated successfully — ${fileCount} file${fileCount !== 1 ? "s" : ""} created! 🎉`, fileCount);
       teamStore.updateStatus("nexo-core", "idle");
     } catch (error: any) {
       teamStore.updateStatus("nexo-core", "idle");
@@ -223,6 +232,7 @@ export class Orchestrator {
       teamStore.updateStatus("designer-agent", "idle");
       console.error("Parallel Flow failed:", error);
       projectStore.setSubStatus("Build failed.");
+      bus.buildError(error.message || "An unexpected error occurred.");
       toast.error(`Build Error: ${error.message}`);
 
       // Update current running task to error
@@ -234,9 +244,11 @@ export class Orchestrator {
 
       await BrainService.getInstance().learnFromSession(prompt, null, false);
     } finally {
+      BackgroundPreserver.deactivate();
       projectStore.setBuildPhase("idle");
       chatStore.setState(CompanionState.IDLE);
       UsageManager.getInstance().stopRuntimeTracking();
+      AgentEventBus.getInstance().setGenerating(false);
     }
   }
 
@@ -253,17 +265,17 @@ export class Orchestrator {
     }
   }
 
+  private seenFilePaths = new Set<string>();
+
   private handleStream(text: string) {
+    const bus = AgentEventBus.getInstance();
+
+    // Parse file markers from the streaming text and emit events
+    this.seenFilePaths = bus.parseStreamChunkForFiles(text, this.seenFilePaths);
+
     const parsed = extractCodeFromText(text);
     if (parsed.website) {
       useProjectStore.getState().setCurrentContent(parsed.website);
-      // Real-time dynamic file write for instant preview update
-      const wc = WebContainerService.getInstance().getWebContainer();
-      if (wc) {
-        Object.entries(parsed.website.files).forEach(([path, contents]) => {
-          wc.fs.writeFile(path, contents as string).catch(() => {});
-        });
-      }
     }
   }
 
@@ -271,7 +283,9 @@ export class Orchestrator {
     const projectStore = useProjectStore.getState();
     const wc = WebContainerService.getInstance();
     const devServer = DevServerService.getInstance();
+    const bus = AgentEventBus.getInstance();
 
+    bus.thinking("Booting virtual runtime environment...");
     await wc.boot();
     const content = projectStore.currentContent;
     if (content) {
@@ -292,9 +306,13 @@ export class Orchestrator {
         wcFiles[path] = { file: { contents } };
       });
       await wc.mount(wcFiles);
+      bus.thinking("Installing dependencies...");
       await devServer.install();
       await this.setupBackend();
+      bus.thinking("Starting development server...");
       await devServer.start();
+      // Preview URL is determined by the WebContainer iframe — signal ready
+      bus.previewReady("http://localhost:3111");
     }
   }
 
@@ -304,13 +322,18 @@ export class Orchestrator {
   }
 
   public async triggerSelfHealing(errorMsg: string) {
+    const bus = AgentEventBus.getInstance();
+
     if (this.autoFixAttempts >= this.maxAutoFixAttempts) {
+      bus.buildError("Self-healing limit reached — rolling back to last stable snapshot...");
       toast.error("Self-healing limit reached. Attempting rollback...");
       this.rollbackToLastSnapshot();
       return;
     }
 
     this.autoFixAttempts++;
+    bus.autoFix(this.autoFixAttempts, this.maxAutoFixAttempts, errorMsg);
+
     useProjectStore
       .getState()
       .setSubStatus(
@@ -341,9 +364,11 @@ export class Orchestrator {
           }
         }
         this.updateProjectStore(resultText);
+        bus.buildSuccess();
         toast.success("Self-healing patch applied!");
       }
     } catch (e) {
+      bus.buildError(`Auto-fix attempt ${this.autoFixAttempts} failed — retrying...`);
       console.error("Healing failed:", e);
     }
   }
@@ -693,7 +718,7 @@ export class Orchestrator {
         `Initiating high-fidelity Firecrawl scraper for ${url}...`,
       );
 
-      const response = await fetch("http://localhost:5000/api/scrape", {
+      const response = await fetch("http://127.0.0.1:5000/api/scrape", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),

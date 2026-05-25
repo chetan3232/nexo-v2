@@ -54,7 +54,8 @@ import {
   Layers,
   Search,
   Globe,
-  User
+  Layout,
+  User,
 } from "lucide-react";
 import JSZip from "jszip";
 
@@ -235,33 +236,10 @@ const ChatInterface: React.FC = () => {
               Nexo
             </span>
           </button>
+        </div>
 
-          <div className="h-4 w-[1px] bg-white/10" />
-
-          {/* Project renaming input */}
-          <div className="flex items-center gap-1.5">
-            {isEditingTitle ? (
-              <input
-                type="text"
-                value={projectTitle}
-                onChange={(e) => setProjectTitle(e.target.value)}
-                onBlur={() => setIsEditingTitle(false)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") setIsEditingTitle(false);
-                }}
-                autoFocus
-                className="bg-studio-panel border border-studio-accent/30 rounded-lg px-2 py-0.5 text-xs text-studio-text focus:outline-none focus:border-studio-accent transition-all font-semibold"
-              />
-            ) : (
-              <div
-                onClick={() => setIsEditingTitle(true)}
-                className="text-xs font-semibold text-studio-text hover:bg-white/5 px-2 py-1 rounded-lg cursor-pointer border border-transparent hover:border-white/5 transition-all flex items-center gap-1.5"
-                title="Rename Project"
-              >
-                <span>{projectTitle}</span>
-              </div>
-            )}
-          </div>
+        <div className="flex-1 flex justify-center font-medium text-stone-900 text-sm w-1/3">
+          Untitled
         </div>
 
         {/* Center: Command Palette Trigger */}

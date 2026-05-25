@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
-import { FileCode, X, Minimize2, Text, Type, Sparkles, Cpu, Hammer, Code } from "lucide-react";
+import { FileCode, X, Minimize2, Text, Type, Sparkles, Cpu, Hammer, Code, Files, Loader2, CheckCircle2 } from "lucide-react";
 import { useProjectStore } from "../../stores/projectStore";
+import { useAgentEventStore } from "../../stores/agentEventStore";
 import { Orchestrator } from "../../agents/Orchestrator";
 
 interface EditorPanelProps {
@@ -14,6 +15,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
   setSelectedFileName,
 }) => {
   const { currentContent, setCurrentContent } = useProjectStore();
+  const { activeFiles, createdFiles } = useAgentEventStore();
   const [localValue, setLocalValue] = useState<string>("");
   const [openTabs, setOpenTabs] = useState<string[]>([]);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);

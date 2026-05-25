@@ -18,6 +18,8 @@ store.initializeData();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
+// Note: AI-specific rate limiting is handled inside aiGateway.js via rate-limiter-flexible.
+
 // Routes
 app.use('/api/files', fileRoutes);
 app.use('/api/chats', chatRoutes);
@@ -40,10 +42,10 @@ app.get('/', (req, res) => {
     res.send('AI Code Editor Backend Running');
 });
 
-// Error handling
+// Error handling - never expose stack traces to clients
 app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).send('Something broke!');
+    console.error('[Server Error]', err.message, err.stack);
+    res.status(500).json({ error: 'An internal server error occurred.' });
 });
 
 app.listen(PORT, () => {

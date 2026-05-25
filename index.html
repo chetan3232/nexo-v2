@@ -6,6 +6,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nexo v2 - Build Your Own Companion</title>
   <link rel="icon" type="image/png" href="/src/assets/NEXO-V2.png" />
+  <script>
+    // Suppress cdn.tailwindcss.com console warning
+    (function() {
+      const originalWarn = console.warn;
+      console.warn = function(...args) {
+        if (args[0] && typeof args[0] === 'string' && args[0].includes('should not be used in production')) {
+          return;
+        }
+        originalWarn.apply(console, args);
+      };
+    })();
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
@@ -25,7 +37,7 @@
 
     // Set the API key if not already present (User provided key)
     if (!window.process.env.API_KEY) {
-      window.process.env.API_KEY = 'AIzaSyBdwndziQV1EcJkzxjMkzq3HrL2u-YCQ7c';
+      window.process.env.API_KEY = '';
     }
 
     if (!window.process.env.NODE_ENV) {
@@ -106,6 +118,25 @@
 
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
       background: rgba(124, 58, 237, 0.35);
+    }
+
+    /* Premium custom scrollbar */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 99px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(124, 58, 237, 0.3);
     }
 
     /* Custom scrollbar for chat */

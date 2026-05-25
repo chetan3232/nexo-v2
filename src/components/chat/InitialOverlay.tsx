@@ -134,10 +134,11 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
     try {
       const zip = new JSZip();
       const files = chat.content?.files || {};
+      const projName = chat.name || chat.title || "Untitled Project";
       if (Object.keys(files).length === 0) {
         zip.file(
           "README.md",
-          `# ${chat.name || chat.title || "Nexo Project"}\n\nNo files were found in this project.`,
+          `# ${chat.title || "Nexo Project"}\n\nNo files were found in this project.`,
         );
       } else {
         Object.entries(files).forEach(([filePath, content]) => {
@@ -151,7 +152,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${(chat.name || chat.title || "nexo-project").replace(/\s+/g, "-").toLowerCase()}.zip`;
+      a.download = `${(chat.title || "nexo-project").replace(/\s+/g, "-").toLowerCase()}.zip`;
       a.click();
       URL.revokeObjectURL(url);
       setZipStatus((prev) => ({ ...prev, [chat.id]: "done" }));
@@ -173,6 +174,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
       return;
     }
     setDriveStatus((prev) => ({ ...prev, [chat.id]: "uploading" }));
+    const projName = chat.name || chat.title || "Untitled Project";
     try {
       const provider = new GoogleAuthProvider();
       provider.addScope("https://www.googleapis.com/auth/drive.file");
@@ -186,14 +188,14 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
       const zip = new JSZip();
       const files = chat.content?.files || {};
       if (Object.keys(files).length === 0) {
-        zip.file("README.md", `# ${chat.name || chat.title || "Nexo Project"}`);
+        zip.file("README.md", `# ${chat.title || "Nexo Project"}`);
       } else {
         Object.entries(files).forEach(([fp, content]) => {
           zip.file(fp.startsWith("/") ? fp.slice(1) : fp, content as string);
         });
       }
       const blob = await zip.generateAsync({ type: "blob" });
-      const fileName = `${(chat.name || chat.title || "nexo-project").replace(/\s+/g, "-").toLowerCase()}.zip`;
+      const fileName = `${(chat.title || "nexo-project").replace(/\s+/g, "-").toLowerCase()}.zip`;
 
       const metadata = {
         name: fileName,
@@ -252,6 +254,12 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
       name: "Gemini 2.0 Flash",
       provider: "Google",
       desc: "Balanced speed & quality, generous limits",
+    },
+    {
+      id: "stepfun-ai/step-3.5-flash",
+      name: "Step 3.5 Flash",
+      provider: "NVIDIA NIM",
+      desc: "StepFun Reasoning Model",
     },
     {
       id: "gemini-2.0-flash-lite",
@@ -336,9 +344,9 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
                 className="group relative flex items-center justify-between p-3.5 rounded-xl bg-studio-card/25 hover:bg-studio-card/65 border border-studio-border/60 hover:border-studio-accent/30 shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer"
               >
                 <div className="flex items-center gap-3 overflow-hidden pr-2">
-                  <MessageSquare className="w-4 h-4 text-studio-accent shrink-0 animate-pulse" />
-                  <div className="truncate text-xs font-semibold text-studio-text/95">
-                    {chat.name || chat.title || "Untitled Project"}
+                  <MessageSquare className="w-4 h-4 text-stone-400 shrink-0" />
+                  <div className="truncate text-[13px] font-medium text-stone-700">
+                    {chat.title}
                   </div>
                 </div>
 
@@ -486,8 +494,8 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
                   handleSubmit();
                 }
               }}
-              placeholder="Describe what you want to build (e.g. 'A beautiful futuristic SaaS landing page with particle effects')..."
-              className="relative w-full bg-studio-panel/50 backdrop-blur-2xl border border-studio-border/90 rounded-[2.5rem] p-10 text-xl md:text-2xl font-medium text-studio-text placeholder:text-studio-muted/30 focus:border-studio-accent/50 focus:ring-1 focus:ring-studio-accent/25 transition-all min-h-[220px] resize-none outline-none shadow-2xl"
+              placeholder="Describe what you want to build (e.g. 'A modern SaaS dashboard with dark mode')..."
+              className="relative w-full bg-white border border-stone-200 rounded-[2.5rem] p-10 text-2xl font-medium focus:border-indigo-500 transition-all min-h-[220px] resize-none outline-none shadow-xl"
               autoFocus
             />
             <div className="absolute bottom-6 right-6 flex items-center gap-4">
