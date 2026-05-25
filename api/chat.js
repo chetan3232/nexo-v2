@@ -70,13 +70,13 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { messages, model = 'gemini-2.5-flash', temperature = 1.0, top_p = 1.0, projectMode = 'frontend', techStack = 'Vanilla', agentRole = 'coder', stream = true } = req.body;
+        const { messages, model = 'gemini-2.5-flash', temperature = 1.0, top_p = 1.0, projectMode = 'frontend', techStack = 'Vanilla', agentRole = 'coder', stream = true, customApiKey } = req.body;
 
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
             return res.status(400).json({ error: 'Messages array is required' });
         }
 
-        const apiKey = process.env.GEMINI_API_KEY;
+        const apiKey = customApiKey || req.headers['x-api-key'] || process.env.GEMINI_API_KEY;
 
         if (!apiKey) {
             return res.status(401).json({ error: 'API Key (GEMINI_API_KEY) is missing.' });

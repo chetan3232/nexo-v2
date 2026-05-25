@@ -139,6 +139,9 @@ router.post('/chat', async (req, res) => {
         // Route: Groq API
         const isGroqModel = !isNvidiaModel && (model.startsWith('groq/') || model.includes('llama') || model.includes('mixtral'));
         
+        // Route: Gemini API
+        const isGeminiModel = !isNvidiaModel && !isGroqModel && model.includes('gemini');
+        
         if (isNvidiaModel) {
             invokeUrl = 'https://integrate.api.nvidia.com/v1/chat/completions';
             console.log(`[AI Route] Routing to NVIDIA NIM API with model: ${model}`);
@@ -153,17 +156,20 @@ router.post('/chat', async (req, res) => {
                 finalMessages = [systemMessage, ...history];
                 console.log(`[AI Direct Route] Compressed Groq context. Kept system prompt + last 2 messages. Count: ${finalMessages.length}`);
             }
+        } else if (isGeminiModel) {
+            invokeUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+            console.log(`[AI Route] Routing to Gemini OpenAI compatibility API with model: ${model}`);
         }
 
         const payload = {
-            model: isGroqModel ? (model.startsWith('groq/') ? model.replace('groq/', '') : model) : isNvidiaModel ? 'minimaxai/minimax-m2.7' : model,
+            model: isGroqModel ? (model.startsWith('groq/') ? model.replace('groq/', '') : model) : isNvidiaModel ? 'minimaxai/minimax-m2.7' : isGeminiModel ? (model.startsWith('google/') ? model.replace('google/', '') : model) : model,
             messages: finalMessages,
             max_tokens: isNvidiaModel ? 8192 : maxTokens,
             temperature: isNvidiaModel ? 1 : reqTemperature,
             top_p: isNvidiaModel ? 0.95 : reqTopP,
             stream: isNvidiaModel ? false : stream,  // NVIDIA doesn't support streaming for this model
-            ...(!isGroqModel && !isNvidiaModel ? { chat_template_kwargs: chatTemplateKwargs } : {}),
-            ...(stream && !isGroqModel && !isNvidiaModel ? { stream_options: { include_usage: true } } : {})
+            ...(!isGroqModel && !isNvidiaModel && !isGeminiModel ? { chat_template_kwargs: chatTemplateKwargs } : {}),
+            ...(stream && !isGroqModel && !isNvidiaModel && !isGeminiModel ? { stream_options: { include_usage: true } } : {})
         };
 
         let headers = {
@@ -186,6 +192,12 @@ router.post('/chat', async (req, res) => {
                 "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
             };
             console.log(`[AI Direct Route] Calling official Groq API directly with model: ${payload.model}`);
+        } else if (isGeminiModel && process.env.GEMINI_API_KEY) {
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${process.env.GEMINI_API_KEY}`
+            };
+            console.log(`[AI Route] Calling official Google Gemini API with model: ${payload.model}`);
         }
         
         const apiResponse = await fetch(invokeUrl, {

@@ -104,6 +104,9 @@ export class Orchestrator {
     ]);
 
     try {
+      // Background boot runtime to speed up streaming previews
+      WebContainerService.getInstance().boot().catch(() => {});
+
       const history = await ContextManager.getInstance().compress(
         chatStore.messages,
         options.model,
@@ -254,6 +257,13 @@ export class Orchestrator {
     const parsed = extractCodeFromText(text);
     if (parsed.website) {
       useProjectStore.getState().setCurrentContent(parsed.website);
+      // Real-time dynamic file write for instant preview update
+      const wc = WebContainerService.getInstance().getWebContainer();
+      if (wc) {
+        Object.entries(parsed.website.files).forEach(([path, contents]) => {
+          wc.fs.writeFile(path, contents as string).catch(() => {});
+        });
+      }
     }
   }
 
@@ -683,7 +693,7 @@ export class Orchestrator {
         `Initiating high-fidelity Firecrawl scraper for ${url}...`,
       );
 
-      const response = await fetch("http://localhost:5000/api/scrape", {
+      const response = await fetch("http://127.0.0.1:5000/api/scrape", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
@@ -740,6 +750,145 @@ export class Orchestrator {
     } catch (error) {
       console.error("Observe failed:", error);
       toast.error("Observe Mode failed.");
+    } finally {
+      projectStore.setBuildPhase("idle");
+    }
+  }
+
+  public async explainCode(filename: string, code: string) {
+    const chatStore = useChatStore.getState();
+    const projectStore = useProjectStore.getState();
+    
+    chatStore.setMessages((prev: Message[]) => [
+      ...prev,
+      { role: "user", text: `Explain this code in ${filename}:\n\`\`\`\n${code}\n\`\`\``, timestamp: Date.now() }
+    ]);
+    
+    projectStore.setBuildPhase("thinking");
+    projectStore.setSubStatus("Analyzing code block...");
+    
+    try {
+      const enhancer = new EnhancementAgent();
+      const resultText = await enhancer.enhance(
+        `EXPLAIN THE FOLLOWING CODE IN DETAIL:\nFile: ${filename}\n\`\`\`\n${code}\n\`\`\``,
+        chatStore.messages,
+        {
+          model: useAgentStore.getState().selectedModel,
+          projectMode: useAgentStore.getState().projectMode,
+          techStack: useAgentStore.getState().techStack,
+          selectedLanguage: useAgentStore.getState().selectedLanguage,
+          temperature: 0.5,
+          topP: 1,
+        }
+      );
+      
+      chatStore.setMessages((prev: Message[]) => [
+        ...prev,
+        { role: "assistant", text: resultText, timestamp: Date.now() }
+      ]);
+    } catch (e: any) {
+      toast.error("Explanation failed");
+    } finally {
+      projectStore.setBuildPhase("idle");
+    }
+  }
+
+  public async optimizeCode(filename: string, code: string) {
+    const chatStore = useChatStore.getState();
+    const projectStore = useProjectStore.getState();
+    
+    chatStore.setMessages((prev: Message[]) => [
+      ...prev,
+      { role: "user", text: `Optimize this code in ${filename}:\n\`\`\`\n${code}\n\`\`\``, timestamp: Date.now() }
+    ]);
+    
+    projectStore.setBuildPhase("building");
+    projectStore.setSubStatus("Optimizing code...");
+    
+    try {
+      const enhancer = new EnhancementAgent();
+      const resultText = await enhancer.enhance(
+        `OPTIMIZE THE FOLLOWING CODE. IMPROVE PERFORMANCE, ACCESSIBILITY, STYLING AND READABILITY. RETURN THE FULL MODIFIED CODE:\nFile: ${filename}\n\`\`\`\n${code}\n\`\`\``,
+        chatStore.messages,
+        {
+          model: useAgentStore.getState().selectedModel,
+          projectMode: useAgentStore.getState().projectMode,
+          techStack: useAgentStore.getState().techStack,
+          selectedLanguage: useAgentStore.getState().selectedLanguage,
+          temperature: 0.2,
+          topP: 1,
+        }
+      );
+      
+      const parsed = extractCodeFromText(resultText);
+      if (parsed.website) {
+        const wc = WebContainerService.getInstance().getWebContainer();
+        if (wc) {
+          for (const [path, contents] of Object.entries(parsed.website.files)) {
+            await wc.fs.writeFile(path, contents as string);
+          }
+        }
+        this.updateProjectStore(resultText);
+        toast.success("Code optimization applied!");
+      }
+      
+      chatStore.setMessages((prev: Message[]) => [
+        ...prev,
+        { role: "assistant", text: parsed.cleanText || "Optimization applied successfully!", timestamp: Date.now() }
+      ]);
+    } catch (e: any) {
+      toast.error("Optimization failed");
+    } finally {
+      projectStore.setBuildPhase("idle");
+    }
+  }
+
+  public async refactorSelection(filename: string, code: string, instruction: string) {
+    const chatStore = useChatStore.getState();
+    const projectStore = useProjectStore.getState();
+    
+    chatStore.setMessages((prev: Message[]) => [
+      ...prev,
+      { role: "user", text: `Refactor code in ${filename} based on: ${instruction}`, timestamp: Date.now() }
+    ]);
+    
+    projectStore.setBuildPhase("building");
+    projectStore.setSubStatus("Refactoring code block...");
+    
+    try {
+      const refactor = new RefactorAgent();
+      const resultText = await refactor.migrate(
+        `REFACTOR INSTRUCTION: ${instruction}\nTarget Code:\n\`\`\`\n${code}\n\`\`\``,
+        { [filename]: code },
+        chatStore.messages,
+        {
+          model: useAgentStore.getState().selectedModel,
+          projectMode: useAgentStore.getState().projectMode,
+          techStack: useAgentStore.getState().techStack,
+          selectedLanguage: useAgentStore.getState().selectedLanguage,
+          temperature: 0.3,
+          topP: 1,
+        }
+      );
+      
+      const parsed = extractCodeFromText(resultText);
+      if (parsed.website) {
+        const wc = WebContainerService.getInstance().getWebContainer();
+        if (wc) {
+          for (const [path, contents] of Object.entries(parsed.website.files)) {
+            await wc.fs.writeFile(path, contents as string);
+          }
+        }
+        this.updateProjectStore(resultText);
+        toast.success("Refactoring complete!");
+      }
+      
+      chatStore.setMessages((prev: Message[]) => [
+        ...prev,
+        { role: "assistant", text: parsed.cleanText || "Refactored successfully!", timestamp: Date.now() }
+      ]);
+    } catch (e: any) {
+      toast.error("Refactoring failed");
     } finally {
       projectStore.setBuildPhase("idle");
     }

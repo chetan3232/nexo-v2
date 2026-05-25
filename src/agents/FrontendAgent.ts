@@ -28,10 +28,11 @@ LANGUAGE: ${options.selectedLanguage}
 ${designContext}
 
 CRITICAL RULES & GUIDELINES:
-1. **DO EXACTLY WHAT IS ASKED - NOTHING MORE, NOTHING LESS**
+1. **MODULAR STRUCTURE**: ALWAYS structure applications modularly. Create multiple separate files under src/components/, src/pages/, src/hooks/, or src/styles/ rather than putting everything in a single HTML or JS/TSX file. Establish clean imports and exports.
+2. **DO EXACTLY WHAT IS ASKED - NOTHING MORE, NOTHING LESS**
    - Don't add features not requested
    - Don't improve things not mentioned
-2. **USE STANDARD TAILWIND CLASSES ONLY**:
+3. **USE STANDARD TAILWIND CLASSES ONLY**:
    - ✅ CORRECT: bg-white, text-black, bg-blue-500, bg-gray-100, text-gray-900
    - ❌ WRONG: bg-background, text-foreground, bg-primary, bg-muted, text-secondary
    - Use ONLY classes from the official Tailwind CSS documentation.

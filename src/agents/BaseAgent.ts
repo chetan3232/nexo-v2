@@ -13,6 +13,7 @@ export abstract class BaseAgent {
     onChunk?: (text: string) => void,
   ): Promise<string> {
     const API_URL = "/api/chat";
+    const customApiKey = localStorage.getItem("nexo_custom_api_key") || "";
 
     const response = await fetch(API_URL, {
       method: "POST",
@@ -21,6 +22,7 @@ export abstract class BaseAgent {
       },
       body: JSON.stringify({
         ...payload,
+        customApiKey,
         stream: true,
       }),
     });

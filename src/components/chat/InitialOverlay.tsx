@@ -59,14 +59,13 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
   const [driveStatus, setDriveStatus] = useState<
     Record<string, "idle" | "uploading" | "done">
   >({});
-  const menuRef = useRef<HTMLDivElement>(null);
-
   const [chatHistory, setChatHistory] = useState<any[]>([]);
 
   // Close menu on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".action-menu-container")) {
         setOpenMenuId(null);
       }
     };
@@ -124,11 +123,12 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
     try {
       const zip = new JSZip();
       const files = chat.content?.files || {};
+      const projName = chat.name || chat.title || "Untitled Project";
       if (Object.keys(files).length === 0) {
         // No files — just put a readme
         zip.file(
           "README.md",
-          `# ${chat.title || "Nexo Project"}\n\nNo files were found in this project.`,
+          `# ${projName}\n\nNo files were found in this project.`,
         );
       } else {
         Object.entries(files).forEach(([filePath, content]) => {
@@ -142,7 +142,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${(chat.title || "nexo-project").replace(/\s+/g, "-").toLowerCase()}.zip`;
+      a.download = `${projName.replace(/\s+/g, "-").toLowerCase()}.zip`;
       a.click();
       URL.revokeObjectURL(url);
       setZipStatus((prev) => ({ ...prev, [chat.id]: "done" }));
@@ -164,6 +164,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
       return;
     }
     setDriveStatus((prev) => ({ ...prev, [chat.id]: "uploading" }));
+    const projName = chat.name || chat.title || "Untitled Project";
     try {
       // Re-authenticate with Drive scope
       const provider = new GoogleAuthProvider();
@@ -179,14 +180,14 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
       const zip = new JSZip();
       const files = chat.content?.files || {};
       if (Object.keys(files).length === 0) {
-        zip.file("README.md", `# ${chat.title || "Nexo Project"}`);
+        zip.file("README.md", `# ${projName}`);
       } else {
         Object.entries(files).forEach(([fp, content]) => {
           zip.file(fp.startsWith("/") ? fp.slice(1) : fp, content as string);
         });
       }
       const blob = await zip.generateAsync({ type: "blob" });
-      const fileName = `${(chat.title || "nexo-project").replace(/\s+/g, "-").toLowerCase()}.zip`;
+      const fileName = `${projName.replace(/\s+/g, "-").toLowerCase()}.zip`;
 
       // Upload to Drive
       const metadata = {
@@ -313,14 +314,13 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
                 <div className="flex items-center gap-3 overflow-hidden pr-2">
                   <MessageSquare className="w-4 h-4 text-stone-400 shrink-0" />
                   <div className="truncate text-[13px] font-medium text-stone-700">
-                    {chat.title}
+                    {chat.name || chat.title || "Untitled Project"}
                   </div>
                 </div>
 
                 {/* 3-Dot Action Menu */}
                 <div
-                  ref={menuRef}
-                  className="relative"
+                  className="relative action-menu-container"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
@@ -457,7 +457,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
                 }
               }}
               placeholder="Describe what you want to build (e.g. 'A modern SaaS dashboard with dark mode')..."
-              className="relative w-full bg-white border border-stone-200 rounded-[2.5rem] p-10 text-2xl font-medium focus:border-indigo-500 transition-all min-h-[220px] resize-none outline-none shadow-xl"
+              className="relative w-full bg-white border border-stone-200 rounded-[2.5rem] p-10 text-2xl font-medium text-black focus:border-indigo-500 transition-all min-h-[220px] resize-none outline-none shadow-xl"
               autoFocus
             />
             <div className="absolute bottom-6 right-6 flex items-center gap-4">

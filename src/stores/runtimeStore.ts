@@ -7,6 +7,7 @@ interface RuntimeStore {
   setUrl: (url: string | null) => void;
   terminalLogs: string[];
   addLog: (log: string) => void;
+  addTerminalLog: (log: string) => void;
   consoleLogs: string[];
   addConsoleLog: (log: string) => void;
   networkLogs: string[];
@@ -23,6 +24,10 @@ export const useRuntimeStore = create<RuntimeStore>((set) => ({
   setUrl: (url) => set({ url }),
   terminalLogs: [],
   addLog: (log) =>
+    set((state) => ({
+      terminalLogs: [...state.terminalLogs, log].slice(-100),
+    })),
+  addTerminalLog: (log) =>
     set((state) => ({
       terminalLogs: [...state.terminalLogs, log].slice(-100),
     })),

@@ -11,6 +11,7 @@ export const invokeAI = async (
   enableThinking: boolean = true,
 ): Promise<string> => {
   const API_URL = "/api/chat";
+  const customApiKey = localStorage.getItem("nexo_custom_api_key") || "";
 
   const response = await fetch(API_URL, {
     method: "POST",
@@ -28,6 +29,7 @@ export const invokeAI = async (
       top_p: topP,
       stream: false,
       enableThinking,
+      customApiKey,
     }),
   });
 
