@@ -470,7 +470,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
               </span>
             </h2>
             <p className="text-studio-muted text-lg font-medium max-w-xl mx-auto">
-              A premium, dark-themed AI Operating System for creating complete application structures.
+              A premium AI Operating System for creating complete application structures.
             </p>
           </div>
 
