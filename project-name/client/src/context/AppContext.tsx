@@ -2,6 +2,58 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { ProjectFile, ChatSession, ChatMessage, FileCreationStatus } from '../types';
 import { api } from '../api';
 
+// Background preservation helper to prevent background tab CPU/Web Worker throttling
+let audioCtx: AudioContext | null = null;
+let bufferSource: AudioBufferSourceNode | null = null;
+let wakeLock: any = null;
+
+const activateBackgroundKeepAlive = async () => {
+    try {
+        if (!audioCtx) {
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            audioCtx = new AudioContextClass();
+        }
+        if (audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+        }
+        const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate);
+        bufferSource = audioCtx.createBufferSource();
+        bufferSource.buffer = buffer;
+        bufferSource.loop = true;
+        bufferSource.connect(audioCtx.destination);
+        bufferSource.start();
+        console.log("[BackgroundPreserver] Silent audio loop started.");
+    } catch (e) {
+        console.warn("Silent audio failed:", e);
+    }
+    try {
+        if ('wakeLock' in navigator) {
+            wakeLock = await (navigator as any).wakeLock.request('screen');
+            console.log("[BackgroundPreserver] Screen wake lock acquired.");
+        }
+    } catch (e) {
+        console.warn("Wake lock failed:", e);
+    }
+};
+
+const deactivateBackgroundKeepAlive = () => {
+    try {
+        if (bufferSource) {
+            bufferSource.stop();
+            bufferSource.disconnect();
+            bufferSource = null;
+            console.log("[BackgroundPreserver] Silent audio loop stopped.");
+        }
+    } catch (e) {}
+    try {
+        if (wakeLock) {
+            wakeLock.release();
+            wakeLock = null;
+            console.log("[BackgroundPreserver] Screen wake lock released.");
+        }
+    } catch (e) {}
+};
+
 type ViewMode = 'code' | 'preview' | 'split';
 
 interface AppContextType {
@@ -158,6 +210,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const baseMsgs = [...(currentChat.messages || []), userMsg];
         setCurrentChat(prev => prev ? { ...prev, messages: baseMsgs } : prev);
         setIsLoading(true);
+        activateBackgroundKeepAlive().catch(() => {});
 
         const steps = [
             "Initializing Nexo Intelligence v2...",
@@ -196,6 +249,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 files: fileStatuses.length > 0 ? fileStatuses : undefined
             };
 
+            deactivateBackgroundKeepAlive();
             setIsLoading(false);
             setGenerationStatus('');
             setCurrentChat(prev => prev ? { ...prev, messages: [...baseMsgs, aiMsg] } : prev);
@@ -225,6 +279,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             await saveChat(currentChat!.id, [...baseMsgs, { ...aiMsg, files: fileStatuses.length > 0 ? fileStatuses : undefined }]);
 
         } catch (error: any) {
+            deactivateBackgroundKeepAlive();
             clearInterval(stepInterval);
             setIsLoading(false);
             setGenerationStatus('');

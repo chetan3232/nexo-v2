@@ -34,6 +34,7 @@ import { BrainService } from "../services/brainService";
 import { VISUAL_EDITOR_SCRIPT } from "../utils/visualEditorScript";
 import { DepAnalyzer } from "../utils/depAnalyzer";
 import toast from "react-hot-toast";
+import { BackgroundPreserver } from "../utils/backgroundPreserver";
 
 export class Orchestrator {
   private static instance: Orchestrator;
@@ -77,6 +78,7 @@ export class Orchestrator {
     chatStore.setState(CompanionState.THINKING);
 
     projectStore.setBuildPhase("building");
+    BackgroundPreserver.activate().catch(() => {});
     projectStore.setReasoningSteps([]);
     projectStore.addReasoningStep(
       "Analyzing your prompt and project context...",
@@ -234,6 +236,7 @@ export class Orchestrator {
 
       await BrainService.getInstance().learnFromSession(prompt, null, false);
     } finally {
+      BackgroundPreserver.deactivate();
       projectStore.setBuildPhase("idle");
       chatStore.setState(CompanionState.IDLE);
       UsageManager.getInstance().stopRuntimeTracking();
