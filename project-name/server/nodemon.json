@@ -1,0 +1,10 @@
+{
+  "ignore": [
+    "data/**",
+    "**/data/**",
+    "**/*.json",
+    "**/*.md",
+    "data/jobs.json",
+    "data/usage.json"
+  ]
+}

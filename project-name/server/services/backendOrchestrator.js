@@ -21,48 +21,87 @@ class BackendOrchestrator {
 
         try {
             // ==========================================
-            // 1. PLANNER AGENT (STRATEGIC PHASE)
+            // 1. FAST PLANNER AGENT (FAST THINKER - Phase 1)
             // ==========================================
             job.addReasoningStep('Strategic planning: Analyzing requirements and generating UI architecture...');
             tasks[0].status = 'running';
             job.updateTasks(tasks);
-            job.updateProgress(15);
+            job.updateProgress(10);
 
-            const strategyPrompt = `Perform strategic planning for this project: "${prompt}".
-Generate a brief Product Requirements Document (PRD), outline the component structure, define design system color tokens, and state the backend API endpoints needed. Keep it concise.`;
-            
-            const strategyMessages = [
-                ...messages,
-                { role: 'user', content: strategyPrompt }
-            ];
+            // Determine fast planning model
+            const fastPlannerModel = (options.model && (options.model.includes('flash') || options.model.includes('8b')))
+                ? options.model
+                : 'gemini-2.5-flash';
 
-            const strategyOutput = await AIGateway.streamCompletion({
-                messages: strategyMessages,
-                model: options.model,
-                temperature: 0.5,
-                top_p: options.topP,
+            const fastPlanPrompt = `You are a fast AI architect.
+Analyze the user request: "${prompt}"
+You must respond with a JSON object. Return ONLY raw JSON, do not include markdown blocks or any text outside of it.
+The JSON must contain two keys:
+1. "plan": An array of 3-5 short steps describing the milestones (e.g. "Create responsive layout", "Generate hero section", "Implement theme toggler").
+2. "files": An array of relative file paths of the files that will be needed to implement the project. Include App.tsx, index.html, components, styling, config files, package.json etc. as appropriate.
+
+Example output:
+{
+  "plan": ["Setup Tailwind base design", "Build Landing Hero", "Add custom animation hooks"],
+  "files": ["package.json", "index.html", "src/App.tsx", "src/components/Hero.tsx", "src/components/Navbar.tsx"]
+}`;
+
+            const fastPlanOutput = await AIGateway.streamCompletion({
+                messages: [{ role: 'user', content: fastPlanPrompt }],
+                model: fastPlannerModel,
+                temperature: 0.1,
+                top_p: 1.0,
                 projectMode: options.projectMode,
                 techStack: options.techStack
-            }, (chunk) => {
-                job.log(chunk);
             });
 
-            job.addReasoningStep('Strategic planning completed successfully.');
+            let planData = { plan: [], files: [] };
+            try {
+                const cleanJson = fastPlanOutput.replace(/```json/gi, '').replace(/```/g, '').trim();
+                planData = JSON.parse(cleanJson);
+            } catch (e) {
+                console.error("Failed to parse fast plan JSON. Generating fallback plan.", e);
+                planData = {
+                    plan: ["Strategic layout setup", "Component generation", "QA build check"],
+                    files: ["package.json", "index.html", "src/App.tsx"]
+                };
+            }
+
+            // Instantly update the files in the workspace with empty skeletons
+            const initialFiles = {};
+            planData.files.forEach(filepath => {
+                initialFiles[filepath] = ""; 
+            });
+            job.updateFiles(initialFiles);
+
+            // Emit create_file event for each planned file to update UI immediately
+            planData.files.forEach(filepath => {
+                jobEvents.emit(job.id, { type: 'create_file', path: filepath });
+            });
+
+            const formattedPrd = `### 📋 Planned Features\n${planData.plan.map(step => `- ${step}`).join('\n')}\n\n### 📁 Planned File Structure\n${planData.files.map(file => `- \`${file}\``).join('\n')}`;
+
+            job.addReasoningStep('Fast planning completed successfully. Initializing workspace...');
             tasks[0].status = 'done';
             job.updateTasks(tasks);
-            job.updateProgress(30);
+            job.updateProgress(25);
 
             // ==========================================
-            // 2. UI & CODE AGENT (IMPLEMENTATION PHASE)
+            // 2. UI & CODE AGENT (DEEP THINKER - Phase 2)
             // ==========================================
-            job.updateStatus('generating', { prd: strategyOutput });
-            job.addReasoningStep('Application implementation: Generating components, application logic, and assets...');
+            job.updateStatus('generating', { prd: formattedPrd });
+            job.addReasoningStep('Deep coding started: Generating component details, styling, and application logic...');
             tasks[1].status = 'running';
             job.updateTasks(tasks);
-            job.updateProgress(45);
+            job.updateProgress(35);
 
-            const implementationPrompt = `Generate all application source files for this prompt: "${prompt}".
-Follow the Nexo Protocol: write complete files enclosed in ---FILE: path--- and ---END FILE--- markers. Do not truncate. Include package.json with dependencies.`;
+            const implementationPrompt = `You are a deep coding AI engineer.
+We have planned the following file structure for the user request: "${prompt}".
+Please generate the complete production-ready source code for these files:
+${planData.files.map(f => `- ${f}`).join('\n')}
+
+Follow the Nexo Protocol: write complete files enclosed in ---FILE: path--- and ---END FILE--- markers.
+Do not truncate or omit any files. Ensure package.json has all necessary dependencies.`;
 
             const implementationMessages = [
                 ...messages,
@@ -83,7 +122,7 @@ Follow the Nexo Protocol: write complete files enclosed in ---FILE: path--- and 
                 techStack: options.techStack
             }, (chunk) => {
                 streamedText += chunk;
-                job.log(chunk); // Streams to thinking window
+                job.log(chunk);
 
                 // Live event-based stream parsing
                 while (scanIndex < streamedText.length) {
@@ -100,7 +139,7 @@ Follow the Nexo Protocol: write complete files enclosed in ---FILE: path--- and 
                             currentFile = filename;
                             currentFileContent = "";
                             
-                            // Emit event: create_file
+                            // Emit event: create_file (safeguard, already done but good for consistency)
                             jobEvents.emit(job.id, { type: 'create_file', path: filename });
                             continue;
                         } else {
@@ -115,7 +154,6 @@ Follow the Nexo Protocol: write complete files enclosed in ---FILE: path--- and 
                             const codeChunk = remaining.substring(0, fileEndIdx);
                             currentFileContent += codeChunk;
                             
-                            // Emit last write chunk
                             if (codeChunk.length > 0) {
                                 jobEvents.emit(job.id, { 
                                     type: 'write_code', 
@@ -138,7 +176,6 @@ Follow the Nexo Protocol: write complete files enclosed in ---FILE: path--- and 
                             currentFileContent = "";
                             continue;
                         } else {
-                            // Leave 20 character safety margin to not split the marker itself
                             const safetyMargin = Math.max(0, remaining.length - 20);
                             if (safetyMargin > 0) {
                                 const codeChunk = remaining.substring(0, safetyMargin);
@@ -173,7 +210,7 @@ Follow the Nexo Protocol: write complete files enclosed in ---FILE: path--- and 
             // ==========================================
             // 3. BUILD & FIXER AGENT (VERIFICATION PHASE)
             // ==========================================
-            job.updateStatus('building');
+            job.updateStatus('fixing');
             job.addReasoningStep('Running automated unit testing and security compliance audits...');
             tasks[2].status = 'running';
             job.updateTasks(tasks);

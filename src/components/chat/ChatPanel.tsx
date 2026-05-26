@@ -95,6 +95,23 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
   const { messages, input, setInput } = useChatStore();
   const { buildPhase, subStatus, tasks } = useProjectStore();
   const { selectedModel, setSelectedModel } = useAgentStore();
+
+  const getLoaderTheme = () => {
+    switch (buildPhase) {
+      case "planning":
+        return { bg: "bg-blue-50 border-blue-200 text-blue-700", loader: "text-blue-500" };
+      case "generating":
+        return { bg: "bg-purple-50 border-purple-200 text-purple-700", loader: "text-purple-500" };
+      case "fixing":
+        return { bg: "bg-amber-50 border-amber-200 text-amber-700", loader: "text-amber-500" };
+      case "deploying":
+        return { bg: "bg-teal-50 border-teal-200 text-teal-700", loader: "text-teal-500" };
+      case "building":
+      default:
+        return { bg: "bg-[#f3f3f3] border-[#e8e8e8] text-[#555]", loader: "text-[#0ea5e9]" };
+    }
+  };
+  const loaderTheme = getLoaderTheme();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
@@ -262,15 +279,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
               )}
 
               {/* Build progress */}
-              {(buildPhase === "building" || buildPhase === "thinking") && (
+              {(buildPhase !== "idle" && buildPhase !== "done") && (
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="flex flex-col gap-3 max-w-[88%]"
                 >
-                  <div className="bg-[#f3f3f3] border border-[#e8e8e8] rounded-2xl px-4 py-3 flex items-center gap-2.5 w-fit select-none">
-                    <Loader2 className="w-3.5 h-3.5 text-[#0ea5e9] animate-spin" />
-                    <span className="text-[10px] font-semibold text-[#555] uppercase tracking-wide">
+                  <div className={`border rounded-2xl px-4 py-3 flex items-center gap-2.5 w-fit select-none transition-colors duration-300 ${loaderTheme.bg}`}>
+                    <Loader2 className={`w-3.5 h-3.5 animate-spin transition-colors duration-300 ${loaderTheme.loader}`} />
+                    <span className="text-[10px] font-semibold uppercase tracking-wide">
                       {subStatus || "Processing…"}
                     </span>
                   </div>
