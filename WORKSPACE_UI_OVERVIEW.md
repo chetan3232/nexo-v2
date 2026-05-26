@@ -1,8 +1,9 @@
 # 🧠 Nexo V2 — Complete Workspace & UI/Design Overview
 
-> **Generated:** 2026-05-25  
+> **Generated:** 2026-05-26  
+> **Version:** V2.3.0 (Dual AI Engine + Dynamic Color Loader)  
 > **Project:** Nexo V2 — AI-Powered App Builder  
-> **Stack:** React 19 + TypeScript + Vite + Tailwind CSS + Framer Motion + Firebase + Google Gemini AI  
+> **Stack:** React 19 + TypeScript + Vite + Tailwind CSS + Framer Motion + Firebase + Google Gemini AI (3 Gemini, 2 Nvidia, 1 Groq)  
 > **Routes:** `/` (Home) · `/demo` (Workspace) · `/build` (Hardware Guide)
 
 ---

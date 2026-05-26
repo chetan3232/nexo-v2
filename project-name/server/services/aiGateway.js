@@ -132,21 +132,54 @@ setInterval(() => {
   minuteStats.totalTokens = 0;
 }, 60 * 1000);
 
-const logUsage = (model, tokens = 0) => {
+const logUsage = (model, inputTokens = 0, outputTokens = 0, durationMs = 0) => {
   try {
     const logPath = path.join(__dirname, "../data/usage.json");
-    let usage = { calls: [], totalTokens: 0 };
+    let usage = { calls: [], totalTokens: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCost: 0 };
 
     if (fs.existsSync(logPath)) {
-      usage = JSON.parse(fs.readFileSync(logPath));
+      try {
+        usage = JSON.parse(fs.readFileSync(logPath));
+      } catch (e) {
+        // Fallback
+      }
     }
+
+    if (usage.totalInputTokens === undefined) usage.totalInputTokens = 0;
+    if (usage.totalOutputTokens === undefined) usage.totalOutputTokens = 0;
+    if (usage.totalCost === undefined) usage.totalCost = 0;
+
+    const rates = {
+      "gemini-2.5-flash": { input: 0.075, output: 0.30 },
+      "gemini-2.5-pro": { input: 1.25, output: 5.00 },
+      "gemini-2.0-flash": { input: 0.075, output: 0.30 },
+      "qwen/qwen3-coder-480b-a35b-instruct": { input: 0.30, output: 0.30 },
+      "stepfun-ai/step-3.5-flash": { input: 0.10, output: 0.20 },
+      "groq/llama-3.3-70b-versatile": { input: 0.59, output: 0.79 }
+    };
+
+    const modelKey = Object.keys(rates).find(k => model.includes(k)) || "default";
+    const rate = rates[modelKey] || { input: 0.10, output: 0.30 };
+
+    const cost = ((inputTokens * rate.input) + (outputTokens * rate.output)) / 1000000;
+    const tokens = inputTokens + outputTokens;
+    const speed = durationMs > 0 ? Math.round((outputTokens / durationMs) * 1000) : 0;
 
     usage.calls.push({
       timestamp: new Date().toISOString(),
       model: model,
+      inputTokens,
+      outputTokens,
       tokens: tokens,
+      cost: Number(cost.toFixed(6)),
+      speed,
+      durationMs
     });
+
     usage.totalTokens += tokens;
+    usage.totalInputTokens += inputTokens;
+    usage.totalOutputTokens += outputTokens;
+    usage.totalCost = Number((usage.totalCost + cost).toFixed(6));
 
     if (usage.calls.length > 1000) usage.calls.shift();
 
@@ -158,15 +191,15 @@ const logUsage = (model, tokens = 0) => {
     minuteStats.modelTokens[model] = (minuteStats.modelTokens[model] || 0) + tokens;
     minuteStats.totalTokens += tokens;
 
-    console.log(`\n\x1b[32m[AI Success]\x1b[0m Model: "${model}" | Tokens: ${tokens.toLocaleString()} | Time: ${new Date().toLocaleTimeString()}\n`);
+    console.log(`\n\x1b[32m[AI Success]\x1b[0m Model: "${model}" | Tokens: ${tokens.toLocaleString()} (In: ${inputTokens}, Out: ${outputTokens}) | Cost: $${cost.toFixed(6)} | Speed: ${speed} t/s | Time: ${new Date().toLocaleTimeString()}\n`);
 
     // Markdown Logging
     const mdPath = path.join(__dirname, "../data/USAGE.md");
     const timestamp = new Date().toLocaleString();
-    const mdEntry = `| ${timestamp} | ${model} | ${tokens.toLocaleString()} | ${usage.totalTokens.toLocaleString()} |\n`;
+    const mdEntry = `| ${timestamp} | ${model} | ${inputTokens.toLocaleString()} | ${outputTokens.toLocaleString()} | $${cost.toFixed(6)} | ${speed} t/s | ${usage.totalTokens.toLocaleString()} |\n`;
 
     if (!fs.existsSync(mdPath)) {
-      const header = "# 📊 NEXO AI Usage Log\n\n| Timestamp | Model | Tokens Used | Cumulative Tokens |\n| :--- | :--- | :--- | :--- |\n";
+      const header = "# 📊 NEXO AI Usage Log\n\n| Timestamp | Model | Input Tokens | Output Tokens | Cost ($) | Speed (t/s) | Cumulative Tokens |\n| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n";
       fs.writeFileSync(mdPath, header + mdEntry);
     } else {
       fs.appendFileSync(mdPath, mdEntry);
@@ -297,8 +330,9 @@ CRITICAL: Ensure your index.html contains a root element like <div id="app"></di
           throw new Error(`Provider ${provider} is not configured.`);
         }
 
-        const maxTokens = provider === "nvidia" ? 8192 : 16384;
+                const maxTokens = provider === "nvidia" ? 8192 : 16384;
         
+        const startTime = Date.now();
         // Always stream inside background orchestrator
         const responseStream = await client.chat.completions.create({
           model: targetModel,
@@ -315,10 +349,11 @@ CRITICAL: Ensure your index.html contains a root element like <div id="app"></di
           fullText += content;
           if (onChunk) onChunk(content);
         }
+        const durationMs = Date.now() - startTime;
 
         const promptEst = Math.ceil(JSON.stringify(messagesPayload).length / 4);
         const respEst = Math.ceil(fullText.length / 4);
-        logUsage(targetModel, promptEst + respEst);
+        logUsage(targetModel, promptEst, respEst, durationMs);
 
         return fullText;
       } catch (err) {
@@ -430,6 +465,7 @@ CRITICAL: Ensure your index.html contains a root element like <div id="app"></di
             res.write(`data: ${JSON.stringify(failoverNotice)}\n\n`);
           }
 
+          const startTime = Date.now();
           const responseStream = await client.chat.completions.create({
             model: targetModel,
             messages: messagesPayload,
@@ -445,14 +481,16 @@ CRITICAL: Ensure your index.html contains a root element like <div id="app"></di
             fullText += content;
             res.write(`data: ${JSON.stringify(chunk)}\n\n`);
           }
+          const durationMs = Date.now() - startTime;
 
           const promptEst = Math.ceil(JSON.stringify(messagesPayload).length / 4);
           const respEst = Math.ceil(fullText.length / 4);
-          logUsage(targetModel, promptEst + respEst);
+          logUsage(targetModel, promptEst, respEst, durationMs);
 
           res.write("data: [DONE]\n\n");
           res.end();
         } else {
+          const startTime = Date.now();
           // Non-streaming call (e.g. Minimax or direct response)
           const completion = await client.chat.completions.create({
             model: targetModel,
@@ -462,11 +500,12 @@ CRITICAL: Ensure your index.html contains a root element like <div id="app"></di
             stream: false,
             max_tokens: maxTokens,
           });
+          const durationMs = Date.now() - startTime;
 
           const promptEst = Math.ceil(JSON.stringify(messagesPayload).length / 4);
           const text = completion.choices?.[0]?.message?.content || "";
           const respEst = Math.ceil(text.length / 4);
-          logUsage(targetModel, promptEst + respEst);
+          logUsage(targetModel, promptEst, respEst, durationMs);
 
           if (stream) {
             if (!res.headersSent) {

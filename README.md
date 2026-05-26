@@ -9,9 +9,9 @@
 
   <p align="center">
     <img src="https://img.shields.io/badge/Status-Production--Ready-emerald?style=for-the-badge&logo=rocket" />
-    <img src="https://img.shields.io/badge/Version-2.2.0-indigo?style=for-the-badge&logo=git" />
+    <img src="https://img.shields.io/badge/Version-2.3.0-indigo?style=for-the-badge&logo=git" />
     <img src="https://img.shields.io/badge/License-MIT-orange?style=for-the-badge" />
-    <img src="https://img.shields.io/badge/Built%20With-Gemini%202.0-blue?style=for-the-badge&logo=google-gemini" />
+    <img src="https://img.shields.io/badge/Built%20With-Gemini%203.5-blue?style=for-the-badge&logo=google-gemini" />
   </p>
 </div>
 
@@ -21,6 +21,8 @@
 
 NEXO V2 is built on a **Multi-Agent Parallel Engine** designed to handle full-stack development autonomously.
 
+- **⚡ Dual AI Engine Architecture (V2.3.0)**: Split reasoning into a **Fast Thinker** (instant planning/file skeleton layout in < 1.5s) and a **Deep Thinker** (background deep coding and code chunk streaming).
+- **🎨 Dynamic Color-Coded State Machine**: Real-time progress loader that changes colors dynamically per phase (Planning 🔵, Generating 🟣, Fixing 🟡, Deploying 🟢).
 - **🧠 Autonomous Multi-Agent Parallel Engine**: Specialized agents (PM, Designer, Frontend, Backend, QA) work simultaneously to build your app layers in parallel.
 - **⚡ Virtual Browser Runtime**: Powered by **StackBlitz WebContainers**, NEXO runs your code in a secure, sandboxed environment directly in the browser. No local setup required.
 - **🔮 Observe Mode**: Point NEXO to any URL and it will scan the UI, extract fonts, colors, and layouts, and recreate it as editable high-fidelity React components.

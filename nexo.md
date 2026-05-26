@@ -123,20 +123,13 @@ NEXO V2 uses a **Structured Persistent Intelligence Layer** stored in `/project-
 2.  **Context Injection**: `memoryStore` merges brain data into agent prompts, ensuring every new feature (e.g., "add dashboard") follows existing patterns.
 3.  **Self-Correction**: Past bugs and fixes are logged to prevent repetitive errors.
 
-### 🧠 5.3 context Management
+### 🧠 5.3 Context Management
 *   **Long Context:** Purane messages ko summarize kiya jata hai `ContextManager.ts` mein taaki token limit cross na ho.
 
-### 🛡️ 5.2 The Self-Healing Loop
+### 🛡️ 5.4 The Self-Healing Loop
 1.  **Error Signal:** Terminal output mein `ERROR` keywords detect hote hain.
 2.  **Diagnosis:** `DebugAgent` ko error message aur active code context bheja jata hai.
-3.  **Patch Generation:** AI ek `PATCH` block generate karta hai:
-    ```
-    <<<< SEARCH
-    // Incorrect code
-    ==== REPLACE
-    // Corrected code
-    >>>>
-    ```
+3.  **Patch Generation:** AI ek `PATCH` block generate karta hai.
 4.  **Application:** `parser.ts` file overwrite karta hai aur hot-reload trigger hota hai.
 
 ---
@@ -236,6 +229,17 @@ NEXO V2 incorporates several "Killer Features" that set it apart:
 *   **One-Click GitHub Push:** Credentials (`githubToken`, `repoUrl`, `branchName`) are managed and persisted under Settings > Integrations. The main header button triggers an immediate one-click background push without confirmation popups.
 *   **Multi-Provider Routing:** Backend router `/api/chat` handles model prefix requests dynamically (routing Google Gemini to Generative Language API, Groq models to Groq, and Qwen models to OpenRouter).
 
+### ⚡ 11.7 Dual AI Engine Architecture & State Machine (V2.3.0)
+*   **Dual AI Engine:** Splits the code generation flow into a **Fast Thinker** model (Gemini 2.5 Flash / Groq) that outputs a plan and file structure in `< 1.5 seconds` and instantly spawns empty workspace file trees, and a **Deep Thinker** model (Gemini 2.5 Pro / Qwen 3 Coder) that generates deep background code logic.
+*   **State Machine UI:** Implemented dynamic color themes for active build states: Planning (Blue 🔵), Generating (Purple 🟣), Fixing (Orange 🟡), and Deploying (Teal 🟢).
+*   **Nodemon Configured:** Configured `nodemon.json` to ignore data updates, preventing server reboots during job state mutations.
+
+### 🎙️ 11.8 Voice-to-App & Enhanced Multi-Agent UI (V2.4.0)
+*   **Voice-to-App Generation:** Full Web Speech API integration on both the InitialOverlay landing page and in-chat ChatPanel. Users click the mic button to speak their app idea — live interim transcript shows in real-time as they speak, then finalizes to the prompt input automatically.
+*   **Enhanced Multi-Agent Build Progress:** The chat panel now shows a rich animated pipeline with color-coded phase badges (🧠 Planner Agent, ⚡ Code Agent, 🔧 Fix Agent, 🚀 Deploy Agent), animated bouncing dots for running tasks, green checkmarks for completed tasks, and smooth per-task entrance animations.
+*   **Dual Engine Sidebar Badges:** The InitialOverlay sidebar shows two dynamic badges: "⚡ Fast: Gemini Flash" (planner) and "🧠 Deep: [selected model]" (coder), always reflecting the user's active model selection.
+*   **Expanded Runtime Error Capture:** `errorCapture.ts` now covers 10 error patterns including `Cannot read properties`, `is not a function`, `SyntaxError`, and `Uncaught Error` — all trigger the self-healing loop automatically.
+
 ---
 
 ## 📝 12. Common Data Structures (Detailed)
@@ -266,9 +270,9 @@ interface BuildTask {
 ## 🚀 13. Roadmap: The Path to V3
 
 *   **Phase 7 — Multi-Agent Collaboration:** (COMPLETED) 4-5 agents simultaneously working.
-*   **Phase 8 — Native App Export:** (IN PROGRESS) Capacitor/Electron integration.
-*   **Phase 9 — Voice UI:** Purely voice commands se full app develop karna.
-*   **Phase 10 — Autonomous Maintenance:** AI monitors deployed apps and auto-patches security vulnerabilities.
+*   **Phase 8 — Native App Export:** (IN PROGRESS) Integration with Electron/Capacitor.
+*   **Phase 9 — Voice UI:** (COMPLETED V2.4.0) Voice commands to develop full applications via Web Speech API.
+*   **Phase 10 — Autonomous Maintenance:** AI monitors active deployments and auto-patches files.
 
 ---
 
@@ -279,7 +283,6 @@ interface BuildTask {
 3.  **File Naming:** Case-sensitive virtual FS hai. Consistency maintain karo.
 4.  **Package Bloat:** Unnecessary dependencies avoid karo runtime performance ke liye.
 
----6351
+---
 
-*Last updated: May 2026 | Project: NEXO V2 Studio | Status: Production Ready | Version: 2.2.0 | Features: Observe Mode, Team Sync, SaaS Export*
-
+*Last updated: May 2026 | Project: NEXO V2 Studio | Status: Production Ready | Version: 2.4.0 | Features: Observe Mode, Team Sync, Dual Engine, Voice-to-App, SaaS Export*

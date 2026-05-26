@@ -32,3 +32,6 @@ temp_deploy_static/
 claude-code-system-prompts-main/
 change.txt
 metadata.json
+nexo.md
+upgread.md
+WORKSPACE_UI_OVERVIEW.md

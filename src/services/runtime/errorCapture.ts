@@ -16,7 +16,8 @@ export class ErrorCaptureService {
     const runtimeStore = useRuntimeStore.getState();
     const errorMsg = error?.message || String(error);
 
-    runtimeStore.addConsoleLog(errorMsg, "error");
+    // Log with severity prefix (single argument)
+    runtimeStore.addConsoleLog(`[ERROR] ${errorMsg}`);
 
     // Trigger self-healing if it looks like a code error
     if (this.isHealableError(errorMsg)) {
@@ -31,6 +32,11 @@ export class ErrorCaptureService {
       "Module not found",
       "Unexpected token",
       "React is not defined",
+      "Cannot read properties",
+      "is not a function",
+      "is not defined",
+      "SyntaxError",
+      "Uncaught Error",
     ];
     return commonErrors.some((err) => msg.includes(err));
   }
