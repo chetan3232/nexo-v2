@@ -207,9 +207,12 @@ export const WorkspaceSidebar: React.FC = () => {
   };
 
   const models = [
-    { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", desc: "Recommended model" },
-    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", desc: "Heavy reasoning" },
-    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", desc: "Fast balanced" },
+    { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", desc: "Fast reasoning, high quota" },
+    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", desc: "Best quality, deep reasoning" },
+    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", desc: "Balanced speed & quality" },
+    { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B (Nvidia)", desc: "Deep coding capabilities" },
+    { id: "stepfun-ai/step-3.5-flash", name: "Step 3.5 Flash (Nvidia)", desc: "StepFun generation model" },
+    { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Groq)", desc: "Fast open source reasoning" },
   ];
 
   const languages = ["HTML", "TypeScript", "JavaScript", "Python"];

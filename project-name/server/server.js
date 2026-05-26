@@ -15,6 +15,16 @@ const PORT = 5000;
 // Initialize Storage (Create JSON files if missing)
 store.initializeData();
 
+// Import and Initialize Background Worker Queue
+const { initQueue } = require('./services/queueManager');
+const { startWorker } = require('./services/backgroundWorker');
+
+initQueue().then(() => {
+    startWorker();
+}).catch(err => {
+    console.error('Queue initialization failed:', err);
+});
+
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 

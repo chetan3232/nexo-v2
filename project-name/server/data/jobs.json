@@ -1,0 +1,156 @@
+{
+  "jobs": {
+    "build_2d0fc239-c472-4c11-ba02-7ae1eb68e67c": {
+      "id": "build_2d0fc239-c472-4c11-ba02-7ae1eb68e67c",
+      "chatId": "1361ac71-cbfd-4f45-b58a-065a3fd5f0ad",
+      "prompt": "Build a premium, high-fidelity AI Portfolio page with glowing cinematic design, responsive grid, dynamic charts, and clean animations...",
+      "status": "planning",
+      "progress": 15,
+      "tasks": [
+        {
+          "id": "strategy",
+          "label": "Strategic Planning (PM, Designer, DevOps)",
+          "status": "running"
+        },
+        {
+          "id": "implementation",
+          "label": "Application Implementation (Frontend, Backend)",
+          "status": "pending"
+        },
+        {
+          "id": "verification",
+          "label": "Verification (QA, Security Scan)",
+          "status": "pending"
+        },
+        {
+          "id": "runtime",
+          "label": "Virtual Runtime Deployment",
+          "status": "pending"
+        }
+      ],
+      "reasoningSteps": [
+        "Strategic planning: Analyzing requirements and generating UI architecture..."
+      ],
+      "files": {},
+      "logs": [
+        "Initializing Nexo V2 parallel engine..."
+      ],
+      "createdAt": 1779783926797,
+      "updatedAt": 1779783926832
+    },
+    "build_c157876c-232b-4a9a-a834-cdab1dc2cfe6": {
+      "id": "build_c157876c-232b-4a9a-a834-cdab1dc2cfe6",
+      "chatId": "12345678-1234-1234-1234-123456781234",
+      "prompt": "hello",
+      "status": "planning",
+      "progress": 15,
+      "tasks": [
+        {
+          "id": "planner",
+          "label": "Planner Agent (Strategy & Architecture)",
+          "status": "running"
+        },
+        {
+          "id": "ui_code",
+          "label": "UI & Code Agent (Generation & Implementation)",
+          "status": "pending"
+        },
+        {
+          "id": "build_fix",
+          "label": "Build & Fixer Agent (Auto-Healing Checks)",
+          "status": "pending"
+        },
+        {
+          "id": "preview",
+          "label": "Preview Agent (Sandbox Deployment)",
+          "status": "pending"
+        }
+      ],
+      "reasoningSteps": [
+        "Strategic planning: Analyzing requirements and generating UI architecture..."
+      ],
+      "files": {},
+      "logs": [
+        "Initializing Nexo V2 parallel engine..."
+      ],
+      "createdAt": 1779786512149,
+      "updatedAt": 1779786512170
+    },
+    "build_9e276101-60f1-4d9d-8768-a53ba31b3b82": {
+      "id": "build_9e276101-60f1-4d9d-8768-a53ba31b3b82",
+      "chatId": "test-chat-123",
+      "prompt": "build a simple counter component",
+      "status": "planning",
+      "progress": 15,
+      "tasks": [
+        {
+          "id": "planner",
+          "label": "Planner Agent (Strategy & Architecture)",
+          "status": "running"
+        },
+        {
+          "id": "ui_code",
+          "label": "UI & Code Agent (Generation & Implementation)",
+          "status": "pending"
+        },
+        {
+          "id": "build_fix",
+          "label": "Build & Fixer Agent (Auto-Healing Checks)",
+          "status": "pending"
+        },
+        {
+          "id": "preview",
+          "label": "Preview Agent (Sandbox Deployment)",
+          "status": "pending"
+        }
+      ],
+      "reasoningSteps": [
+        "Strategic planning: Analyzing requirements and generating UI architecture..."
+      ],
+      "files": {},
+      "logs": [
+        "Initializing Nexo V2 parallel engine..."
+      ],
+      "createdAt": 1779787336897,
+      "updatedAt": 1779787336909
+    },
+    "build_e6f65f19-2759-4db2-804d-512ed5fab31f": {
+      "id": "build_e6f65f19-2759-4db2-804d-512ed5fab31f",
+      "chatId": "test-chat-123",
+      "prompt": "build a simple counter component",
+      "status": "planning",
+      "progress": 15,
+      "tasks": [
+        {
+          "id": "planner",
+          "label": "Planner Agent (Strategy & Architecture)",
+          "status": "running"
+        },
+        {
+          "id": "ui_code",
+          "label": "UI & Code Agent (Generation & Implementation)",
+          "status": "pending"
+        },
+        {
+          "id": "build_fix",
+          "label": "Build & Fixer Agent (Auto-Healing Checks)",
+          "status": "pending"
+        },
+        {
+          "id": "preview",
+          "label": "Preview Agent (Sandbox Deployment)",
+          "status": "pending"
+        }
+      ],
+      "reasoningSteps": [
+        "Strategic planning: Analyzing requirements and generating UI architecture..."
+      ],
+      "files": {},
+      "logs": [
+        "Initializing Nexo V2 parallel engine..."
+      ],
+      "createdAt": 1779787361022,
+      "updatedAt": 1779787361034
+    }
+  }
+}

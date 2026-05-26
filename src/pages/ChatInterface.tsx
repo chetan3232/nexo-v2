@@ -54,6 +54,7 @@ const ChatInterface: React.FC = () => {
   const chatStore = useChatStore();
   const projectStore = useProjectStore();
   const { setSelectedElement } = useDesignStore();
+  const { selectedModel } = useAgentStore();
 
   const [workspaceTab, setWorkspaceTab] = useState<"preview" | "code">("preview");
   const [isVisualMode, setIsVisualMode] = useState(false);
@@ -66,6 +67,32 @@ const ChatInterface: React.FC = () => {
   useEffect(() => {
     if (selectedFileName) setWorkspaceTab("code");
   }, [selectedFileName]);
+
+  useEffect(() => {
+    const chatId = chatStore.currentChatId;
+    if (!chatId) return;
+
+    const activeJobId = localStorage.getItem(`nexo_active_job_${chatId}`);
+    if (activeJobId) {
+      console.log(`[ChatInterface] Found active job ${activeJobId} on mount. Resuming...`);
+      fetch(`/api/ai/job/${activeJobId}`)
+        .then(res => {
+          if (!res.ok) throw new Error("Job not found");
+          return res.json();
+        })
+        .then(job => {
+          if (job.status !== "completed" && job.status !== "failed") {
+            Orchestrator.getInstance().connectToJobStream(activeJobId, chatId);
+          } else {
+            localStorage.removeItem(`nexo_active_job_${chatId}`);
+          }
+        })
+        .catch(err => {
+          console.warn("[ChatInterface] Failed to resume job:", err);
+          localStorage.removeItem(`nexo_active_job_${chatId}`);
+        });
+    }
+  }, [chatStore.currentChatId]);
 
   useEffect(() => {
     if (!selectedFileName && projectStore.currentContent?.files) {
@@ -120,20 +147,21 @@ const ChatInterface: React.FC = () => {
         updatedAt: Date.now(),
         messages: chatStore.messages,
         content: projectStore.currentContent,
-        model: useAgentStore.getState().selectedModel,
+        model: selectedModel,
         projectMode: useAgentStore.getState().projectMode,
         messageCount: chatStore.messages.length,
         fileCount: Object.keys(projectStore.currentContent?.files || {}).length,
       });
     }, 2000);
     return () => clearTimeout(saveTimeout);
-  }, [chatStore.messages, projectStore.currentContent, projectTitle]);
+  }, [chatStore.messages, projectStore.currentContent, projectTitle, selectedModel]);
 
   const handleSend = async (prompt: string, attachments?: { name: string; content: string; type: string }[]) => {
     const userMsg: Message = {
       role: "user",
       text: prompt,
       timestamp: Date.now(),
+      model: selectedModel,
     };
     const images = attachments?.filter(a => a.type.startsWith("image/")) || [];
     if (images.length > 0) {

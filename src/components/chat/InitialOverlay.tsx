@@ -250,40 +250,34 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
       desc: "Fast reasoning, high free-tier quota (Recommended)",
     },
     {
+      id: "gemini-2.5-pro",
+      name: "Gemini 2.5 Pro",
+      provider: "Google",
+      desc: "Best quality, deep reasoning",
+    },
+    {
       id: "gemini-2.0-flash",
       name: "Gemini 2.0 Flash",
       provider: "Google",
       desc: "Balanced speed & quality, generous limits",
     },
     {
+      id: "qwen/qwen3-coder-480b-a35b-instruct",
+      name: "Qwen 3 Coder 480B",
+      provider: "NVIDIA NIM",
+      desc: "State-of-the-art coding and reasoning assistant",
+    },
+    {
       id: "stepfun-ai/step-3.5-flash",
       name: "Step 3.5 Flash",
       provider: "NVIDIA NIM",
-      desc: "StepFun Reasoning Model",
+      desc: "StepFun Reasoning and Generation Model",
     },
     {
-      id: "gemini-2.0-flash-lite",
-      name: "Gemini 2.0 Flash-Lite",
-      provider: "Google",
-      desc: "Fastest, highest free quota",
-    },
-    {
-      id: "gemini-1.5-flash",
-      name: "Gemini 1.5 Flash",
-      provider: "Google",
-      desc: "Stable & reliable fallback",
-    },
-    {
-      id: "gemini-1.5-pro",
-      name: "Gemini 1.5 Pro",
-      provider: "Google",
-      desc: "Deep reasoning, stable pro model",
-    },
-    {
-      id: "gemini-2.5-pro",
-      name: "Gemini 2.5 Pro",
-      provider: "Google",
-      desc: "Best quality (low free-tier quota)",
+      id: "groq/llama-3.3-70b-versatile",
+      name: "Llama 3.3 70B (Groq)",
+      provider: "Groq",
+      desc: "High performance open source reasoning",
     },
   ];
 

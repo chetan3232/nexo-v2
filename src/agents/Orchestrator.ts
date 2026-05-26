@@ -49,6 +49,7 @@ export class Orchestrator {
 
   private constructor() {}
 
+  private activeEventSource: EventSource | null = null;
   private autoFixAttempts = 0;
   private maxAutoFixAttempts = 3;
   private snapshots: Array<{
@@ -59,12 +60,10 @@ export class Orchestrator {
   }> = [];
 
   async executeFullFlow(prompt: string) {
-    const projectStore = useProjectStore.getState();
     const chatStore = useChatStore.getState();
     const agentStore = useAgentStore.getState();
-    const runtimeStore = useRuntimeStore.getState();
-    const teamStore = useTeamStore.getState();
-    const bus = AgentEventBus.getInstance();
+    const chatId = chatStore.currentChatId || crypto.randomUUID();
+    if (!chatStore.currentChatId) chatStore.setCurrentChatId(chatId);
 
     const options = {
       model: agentStore.selectedModel,
@@ -75,182 +74,362 @@ export class Orchestrator {
       topP: agentStore.topP,
     };
 
-    // Emit user message into the event timeline
-    bus.clear();
-    bus.setGenerating(true);
-    bus.userMessage(prompt);
-
-    UsageManager.getInstance().trackGeneration();
-    UsageManager.getInstance().startRuntimeTracking();
-    chatStore.setState(CompanionState.THINKING);
-
-    projectStore.setBuildPhase("building");
-    BackgroundPreserver.activate().catch(() => {});
-    projectStore.setReasoningSteps([]);
-    projectStore.setSubStatus("Initializing parallel engine...");
-
-    bus.thinking("Analyzing your prompt and project context...");
-
-    // Initialize Task List for Parallel Execution
-    projectStore.setTasks([
-      {
-        id: "strategy",
-        label: "Strategic Planning (PM, Designer, DevOps)",
-        status: "pending",
-      },
-      {
-        id: "implementation",
-        label: "Application Implementation (Frontend, Backend)",
-        status: "pending",
-      },
-      {
-        id: "verification",
-        label: "Verification (QA, Security Scan)",
-        status: "pending",
-      },
-      { id: "runtime", label: "Virtual Runtime Deployment", status: "pending" },
-    ]);
+    // Close any previous event source
+    if (this.activeEventSource) {
+      this.activeEventSource.close();
+      this.activeEventSource = null;
+    }
 
     try {
-      // Background boot runtime to speed up streaming previews
-      WebContainerService.getInstance().boot().catch(() => {});
+      chatStore.setState(CompanionState.THINKING);
+      useProjectStore.getState().setBuildPhase("thinking");
+      useProjectStore.getState().setSubStatus("Triggering background generation...");
+      
+      const response = await fetch("/api/ai/build", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, chatId, options })
+      });
 
-      const history = await ContextManager.getInstance().compress(
-        chatStore.messages,
-        options.model,
-      );
-
-      // 1. STRATEGIC PHASE (Parallel)
-      projectStore.setSubStatus("Strategic planning...");
-      projectStore.updateTask("strategy", { status: "running" });
-      bus.thinking("Creating product specification and design system (PM + Designer + DevOps)...");
-      teamStore.updateStatus("pm-agent", "thinking");
-      teamStore.updateStatus("designer-agent", "thinking");
-
-      const pm = new PMAgent();
-      const designer = new DesignerAgent();
-      const devops = new DevOpsAgent();
-
-      teamStore.updateStatus("pm-agent", "thinking");
-      teamStore.updateStatus("designer-agent", "thinking");
-      teamStore.updateStatus("devops-agent", "thinking");
-
-      const [prd, designSystem, envConfig] = await Promise.all([
-        pm.generatePRD(prompt, history, options),
-        designer.generateDesignTokens(prompt, options),
-        devops.configureEnvironment(prompt, options.techStack, options),
-      ]);
-
-      this.updateProjectStore(prd + designSystem + envConfig);
-      projectStore.updateTask("strategy", { status: "done" });
-      teamStore.updateStatus("pm-agent", "idle");
-      teamStore.updateStatus("designer-agent", "idle");
-      teamStore.updateStatus("devops-agent", "idle");
-
-      // 2. IMPLEMENTATION PHASE (Parallel & Collaborative)
-      projectStore.setSubStatus("Building application layers...");
-      projectStore.updateTask("implementation", { status: "running" });
-      bus.thinking("Generating full-stack implementation — writing all files now...");
-      teamStore.updateStatus("pm-agent", "idle");
-      teamStore.updateStatus("designer-agent", "idle");
-      teamStore.updateStatus("nexo-core", "coding");
-
-      const frontend = new FrontendAgent();
-      const backend = new BackendAgent();
-
-      teamStore.updateStatus("frontend-agent", "coding");
-      teamStore.updateStatus("backend-agent", "coding");
-
-      const implementationResults = await Promise.all([
-        frontend.generateUI(prompt, history, options, undefined, (text) =>
-          this.handleStream(text),
-        ),
-        backend.generateLogic(prompt, history, options),
-      ]);
-
-      this.updateProjectStore(implementationResults.join("\n"));
-      projectStore.updateTask("implementation", { status: "done" });
-      teamStore.updateStatus("frontend-agent", "idle");
-      teamStore.updateStatus("backend-agent", "idle");
-
-      // 3. VERIFICATION PHASE (Parallel)
-      projectStore.setSubStatus("Verifying security and quality...");
-      projectStore.updateTask("verification", { status: "running" });
-      bus.thinking("Running quality checks and security scan (QA + Security)...");
-
-      const qa = new QAAgent();
-      const security = new SecurityAgent();
-
-      teamStore.updateStatus("qa-agent", "thinking");
-      teamStore.updateStatus("nexo-core", "thinking");
-
-      const allCode = projectStore.currentContent?.files
-        ? Object.values(projectStore.currentContent.files).join("\n")
-        : "";
-
-      const [testSuite, securityReport] = await Promise.all([
-        qa.runTests(prompt, allCode, options),
-        security.scanVulnerabilities(allCode, options),
-      ]);
-
-      this.updateProjectStore(testSuite + securityReport);
-      projectStore.updateTask("verification", { status: "done" });
-      teamStore.updateStatus("qa-agent", "idle");
-
-      // 4. RUNTIME BOOT
-      projectStore.updateTask("runtime", { status: "running" });
-      bus.buildStart();
-      await this.bootRuntime();
-      projectStore.updateTask("runtime", { status: "done" });
-      bus.buildSuccess();
-
-      this.createSnapshot(prompt);
-
-      projectStore.setSubStatus("Build successful!");
-
-      // Run Dependency Analysis
-      const fileCount = projectStore.currentContent
-        ? Object.keys(projectStore.currentContent.files).length
-        : 0;
-
-      if (projectStore.currentContent) {
-        const nodes = DepAnalyzer.analyze(projectStore.currentContent.files);
-        projectStore.setDepNodes(nodes);
+      if (!response.ok) {
+        throw new Error(`Failed to start job: ${response.statusText}`);
       }
 
-      await BrainService.getInstance().learnFromSession(
-        prompt,
-        projectStore.currentContent,
-        true,
-      );
-
-      bus.done(`App generated successfully — ${fileCount} file${fileCount !== 1 ? "s" : ""} created! 🎉`, fileCount);
-      teamStore.updateStatus("nexo-core", "idle");
-    } catch (error: any) {
-      teamStore.updateStatus("nexo-core", "idle");
-      teamStore.updateStatus("pm-agent", "idle");
-      teamStore.updateStatus("designer-agent", "idle");
-      console.error("Parallel Flow failed:", error);
-      projectStore.setSubStatus("Build failed.");
-      bus.buildError(error.message || "An unexpected error occurred.");
-      toast.error(`Build Error: ${error.message}`);
-
-      // Update current running task to error
-      const runningTask = projectStore.tasks.find(
-        (t) => t.status === "running",
-      );
-      if (runningTask)
-        projectStore.updateTask(runningTask.id, { status: "error" });
-
-      await BrainService.getInstance().learnFromSession(prompt, null, false);
-    } finally {
-      BackgroundPreserver.deactivate();
-      projectStore.setBuildPhase("idle");
+      const { jobId } = await response.json();
+      localStorage.setItem(`nexo_active_job_${chatId}`, jobId);
+      
+      this.connectToJobStream(jobId, chatId);
+    } catch (err: any) {
+      console.error("[Orchestrator] Failed to start backend build:", err);
+      toast.error(`Failed to start generation: ${err.message}`);
+      useProjectStore.getState().setBuildPhase("idle");
       chatStore.setState(CompanionState.IDLE);
-      UsageManager.getInstance().stopRuntimeTracking();
-      AgentEventBus.getInstance().setGenerating(false);
     }
   }
+
+  public connectToJobStream(jobId: string, chatId: string) {
+    const projectStore = useProjectStore.getState();
+    const chatStore = useChatStore.getState();
+    const teamStore = useTeamStore.getState();
+    const bus = AgentEventBus.getInstance();
+
+    if (this.activeEventSource) {
+      this.activeEventSource.close();
+    }
+
+    // Set initial states
+    projectStore.setBuildPhase("building");
+    chatStore.setState(CompanionState.THINKING);
+    bus.clear();
+    bus.setGenerating(true);
+
+    // Instantiate dynamic planning message bubble
+    chatStore.setMessages((prev: any[]) => {
+      const hasPlan = prev.some(m => m.id === `plan_${jobId}`);
+      if (hasPlan) return prev;
+      return [
+        ...prev,
+        {
+          id: `plan_${jobId}`,
+          role: "assistant",
+          text: `🧠 **Strategic Planning Phase Initiated**\n\nAI is currently planning the layout, color palette, components, and backend requirements for your app. Please wait...`,
+          timestamp: Date.now(),
+          model: useAgentStore.getState().selectedModel
+        }
+      ];
+    });
+
+    console.log(`[Orchestrator] Connecting to SSE stream for jobId: ${jobId}`);
+    const source = new EventSource(`/api/ai/stream/${jobId}`);
+    this.activeEventSource = source;
+
+    source.addEventListener("message", async (event) => {
+      try {
+        const packet = JSON.parse(event.data);
+        console.log(`[Orchestrator] SSE Event:`, packet.type, packet);
+
+        switch (packet.type) {
+          case "history": {
+            const { job } = packet;
+            
+            // Sync overall tasks, steps, logs
+            if (job.tasks) projectStore.setTasks(job.tasks);
+            if (job.reasoningSteps) projectStore.setReasoningSteps(job.reasoningSteps);
+            if (job.status) {
+              projectStore.setBuildPhase(this.mapStatusToPhase(job.status));
+              if (job.status === "completed") {
+                chatStore.setState(CompanionState.IDLE);
+              }
+            }
+            if (job.subStatus) projectStore.setSubStatus(job.subStatus);
+            
+            // Sync strategic plan (PRD)
+            if (job.prd) {
+              chatStore.setMessages((prev: any[]) => {
+                const other = prev.filter(m => m.id !== `plan_${jobId}`);
+                return [
+                  ...other,
+                  {
+                    id: `plan_${jobId}`,
+                    role: "assistant",
+                    text: `🧠 **AI Generation Plan & System Specification**\n\n${job.prd}`,
+                    timestamp: Date.now(),
+                    model: useAgentStore.getState().selectedModel
+                  }
+                ];
+              });
+            }
+
+            // Sync files
+            if (job.files && Object.keys(job.files).length > 0) {
+              projectStore.setCurrentContent({
+                files: job.files,
+                patches: {},
+                mainFile: job.mainFile || "index.html",
+                template: job.template || "web"
+              });
+              
+              // Write files to WebContainer runtime in background
+              const wc = WebContainerService.getInstance().getWebContainer();
+              if (wc) {
+                for (const [path, contents] of Object.entries(job.files)) {
+                  try {
+                    // Create parent folders if nested path
+                    if (path.includes("/")) {
+                      const parts = path.split("/");
+                      parts.pop();
+                      await wc.fs.mkdir(parts.join("/"), { recursive: true });
+                    }
+                    await wc.fs.writeFile(path, contents as string);
+                  } catch (e) {
+                    console.error(`Failed to write file ${path} to runtime:`, e);
+                  }
+                }
+              }
+            }
+            break;
+          }
+          case "status_update": {
+            projectStore.setBuildPhase(this.mapStatusToPhase(packet.status));
+            if (packet.status === "completed") {
+              chatStore.setState(CompanionState.IDLE);
+            }
+            if (packet.prd) {
+              chatStore.setMessages((prev: any[]) => {
+                const other = prev.filter(m => m.id !== `plan_${jobId}`);
+                return [
+                  ...other,
+                  {
+                    id: `plan_${jobId}`,
+                    role: "assistant",
+                    text: `🧠 **AI Generation Plan & System Specification**\n\n${packet.prd}`,
+                    timestamp: Date.now(),
+                    model: useAgentStore.getState().selectedModel
+                  }
+                ];
+              });
+            }
+            break;
+          }
+          case "progress_update": {
+            // Optional: Handle progress update in UI
+            break;
+          }
+          case "tasks_update": {
+            projectStore.setTasks(packet.tasks);
+            break;
+          }
+          case "reasoning_update": {
+            projectStore.addReasoningStep(packet.step);
+            bus.thinking(packet.step);
+            break;
+          }
+          case "create_file": {
+            const { path } = packet;
+            projectStore.setCurrentContent((prev) => {
+              const currentFiles = prev ? { ...prev.files } : {};
+              if (!(path in currentFiles)) {
+                currentFiles[path] = "";
+              }
+              return {
+                files: currentFiles,
+                patches: {},
+                mainFile: prev?.mainFile || path,
+                template: prev?.template || "web"
+              };
+            });
+
+            const wc = WebContainerService.getInstance().getWebContainer();
+            if (wc) {
+              try {
+                if (path.includes("/")) {
+                  const parts = path.split("/");
+                  parts.pop();
+                  await wc.fs.mkdir(parts.join("/"), { recursive: true });
+                }
+                await wc.fs.writeFile(path, "");
+              } catch (e) {
+                console.error(`Failed to create file ${path} on WebContainer:`, e);
+              }
+            }
+            break;
+          }
+          case "write_code": {
+            const { path, chunk } = packet;
+            projectStore.setCurrentContent((prev) => {
+              const currentFiles = prev ? { ...prev.files } : {};
+              currentFiles[path] = (currentFiles[path] || "") + chunk;
+              return {
+                files: currentFiles,
+                patches: {},
+                mainFile: prev?.mainFile || path,
+                template: prev?.template || "web"
+              };
+            });
+
+            const wc = WebContainerService.getInstance().getWebContainer();
+            if (wc) {
+              try {
+                const currentVal = useProjectStore.getState().currentContent?.files[path] || "";
+                await wc.fs.writeFile(path, currentVal);
+              } catch (e) {
+                console.error(`Failed to stream code to WebContainer:`, e);
+              }
+            }
+            break;
+          }
+          case "update_file": {
+            const { path, content } = packet;
+            projectStore.setCurrentContent((prev) => {
+              const currentFiles = prev ? { ...prev.files } : {};
+              currentFiles[path] = content;
+              return {
+                files: currentFiles,
+                patches: {},
+                mainFile: prev?.mainFile || path,
+                template: prev?.template || "web"
+              };
+            });
+
+            const wc = WebContainerService.getInstance().getWebContainer();
+            if (wc) {
+              try {
+                if (path.includes("/")) {
+                  const parts = path.split("/");
+                  parts.pop();
+                  await wc.fs.mkdir(parts.join("/"), { recursive: true });
+                }
+                await wc.fs.writeFile(path, content);
+              } catch (e) {
+                console.error(`Failed to update WebContainer file:`, e);
+              }
+            }
+            break;
+          }
+          case "files_update": {
+            const files = packet.files;
+            projectStore.setCurrentContent((prev) => {
+              const currentFiles = prev ? prev.files : {};
+              return {
+                files: { ...currentFiles, ...files },
+                patches: {},
+                mainFile: prev?.mainFile || "index.html",
+                template: prev?.template || "web"
+              };
+            });
+
+            // Write files live to WebContainer
+            const wc = WebContainerService.getInstance().getWebContainer();
+            if (wc) {
+              for (const [path, contents] of Object.entries(files)) {
+                try {
+                  if (path.includes("/")) {
+                    const parts = path.split("/");
+                    parts.pop();
+                    await wc.fs.mkdir(parts.join("/"), { recursive: true });
+                  }
+                  await wc.fs.writeFile(path, contents as string);
+                } catch (e) {
+                  console.error(`Failed to write file ${path} dynamically:`, e);
+                }
+              }
+            }
+            break;
+          }
+          case "log": {
+            // Raw thinking output from LLM streaming
+            bus.thinking(packet.message);
+            break;
+          }
+          case "done": {
+            console.log("[Orchestrator] Generation done received. Booting runtime...");
+            localStorage.removeItem(`nexo_active_job_${chatId}`);
+            
+            projectStore.setBuildPhase("done");
+            chatStore.setState(CompanionState.IDLE);
+            bus.setGenerating(false);
+            
+            // Perform dependency compilation and boot local preview server
+            await this.bootRuntime();
+            toast.success("Build and preview ready! 🎉");
+            source.close();
+            this.activeEventSource = null;
+            break;
+          }
+          case "done_history": {
+            // Job was already complete, let's boot runtime
+            console.log("[Orchestrator] Historical job was complete. Booting runtime...");
+            localStorage.removeItem(`nexo_active_job_${chatId}`);
+            projectStore.setBuildPhase("done");
+            chatStore.setState(CompanionState.IDLE);
+            bus.setGenerating(false);
+            
+            await this.bootRuntime();
+            source.close();
+            this.activeEventSource = null;
+            break;
+          }
+          case "error": {
+            toast.error(`Generation error: ${packet.error}`);
+            projectStore.setBuildPhase("idle");
+            chatStore.setState(CompanionState.IDLE);
+            bus.setGenerating(false);
+            
+            localStorage.removeItem(`nexo_active_job_${chatId}`);
+            source.close();
+            this.activeEventSource = null;
+            break;
+          }
+        }
+      } catch (err) {
+        console.error("[Orchestrator] Error handling SSE message:", err);
+      }
+    });
+
+    source.onerror = (err) => {
+      console.warn("[Orchestrator] SSE stream connection encountered an error, keeping alive for reconnect...", err);
+    };
+  }
+
+  private mapStatusToPhase(status: string): "idle" | "thinking" | "building" | "done" {
+    switch (status) {
+      case "idle":
+        return "idle";
+      case "planning":
+        return "thinking";
+      case "generating":
+      case "building":
+      case "fixing":
+      case "deploying":
+        return "building";
+      case "completed":
+        return "done";
+      case "failed":
+      default:
+        return "idle";
+    }
+  }
+
 
   private updateProjectStore(text: string) {
     const parsed = extractCodeFromText(text);
@@ -718,7 +897,7 @@ export class Orchestrator {
         `Initiating high-fidelity Firecrawl scraper for ${url}...`,
       );
 
-      const response = await fetch("http://127.0.0.1:5000/api/scrape", {
+      const response = await fetch("/api/scrape", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
@@ -809,7 +988,7 @@ export class Orchestrator {
       
       chatStore.setMessages((prev: Message[]) => [
         ...prev,
-        { role: "assistant", text: resultText, timestamp: Date.now() }
+        { role: "assistant", text: resultText, timestamp: Date.now(), model: useAgentStore.getState().selectedModel }
       ]);
     } catch (e: any) {
       toast.error("Explanation failed");
@@ -859,7 +1038,7 @@ export class Orchestrator {
       
       chatStore.setMessages((prev: Message[]) => [
         ...prev,
-        { role: "assistant", text: parsed.cleanText || "Optimization applied successfully!", timestamp: Date.now() }
+        { role: "assistant", text: parsed.cleanText || "Optimization applied successfully!", timestamp: Date.now(), model: useAgentStore.getState().selectedModel }
       ]);
     } catch (e: any) {
       toast.error("Optimization failed");
@@ -910,7 +1089,7 @@ export class Orchestrator {
       
       chatStore.setMessages((prev: Message[]) => [
         ...prev,
-        { role: "assistant", text: parsed.cleanText || "Refactored successfully!", timestamp: Date.now() }
+        { role: "assistant", text: parsed.cleanText || "Refactored successfully!", timestamp: Date.now(), model: useAgentStore.getState().selectedModel }
       ]);
     } catch (e: any) {
       toast.error("Refactoring failed");
