@@ -8,6 +8,15 @@ import {
   Monitor,
 } from "lucide-react";
 
+const AVAILABLE_MODELS = [
+  { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
+  { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" },
+  { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash" },
+  { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B" },
+  { id: "stepfun-ai/step-3.5-flash", name: "Step 3.5 Flash" },
+  { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Groq)" },
+];
+
 interface LandingHeroProps {
   inputText: string;
   setInputText: (text: string) => void;

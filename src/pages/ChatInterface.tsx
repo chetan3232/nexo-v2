@@ -24,6 +24,7 @@ const PreviewPanel = React.lazy(() =>
 );
 
 import { SettingsModal } from "../components/ui/SettingsModal";
+import { TokenDashboard } from "../components/ui/TokenDashboard";
 
 // Stores & Services
 import { useProjectStore } from "../stores/projectStore";
@@ -46,6 +47,7 @@ import {
   GitBranch,
   X,
   ExternalLink,
+  Coins,
 } from "lucide-react";
 import JSZip from "jszip";
 
@@ -63,6 +65,7 @@ const ChatInterface: React.FC = () => {
   const [projectTitle, setProjectTitle] = useState("Untitled");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [ghPushing, setGhPushing] = useState(false);
+  const [isTokenDashboardOpen, setIsTokenDashboardOpen] = useState(false);
 
   useEffect(() => {
     if (selectedFileName) setWorkspaceTab("code");
@@ -360,6 +363,13 @@ const ChatInterface: React.FC = () => {
           >
             <Settings className="w-3.5 h-3.5" />
           </button>
+          <button
+            onClick={() => setIsTokenDashboardOpen(true)}
+            className="p-2 rounded-lg text-[#888] hover:text-[#111] hover:bg-[#f3f3f3] transition-colors flex items-center gap-1"
+            title="Token & Cost Dashboard"
+          >
+            <Coins className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+          </button>
         </div>
       </div>
 
@@ -501,6 +511,11 @@ const ChatInterface: React.FC = () => {
           setTopP={() => {}}
         />
       )}
+
+      <TokenDashboard
+        isOpen={isTokenDashboardOpen}
+        onClose={() => setIsTokenDashboardOpen(false)}
+      />
     </div>
   );
 };

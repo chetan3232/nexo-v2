@@ -82,7 +82,7 @@ export class Orchestrator {
 
     try {
       chatStore.setState(CompanionState.THINKING);
-      useProjectStore.getState().setBuildPhase("thinking");
+      useProjectStore.getState().setBuildPhase("planning");
       useProjectStore.getState().setSubStatus("Triggering background generation...");
       
       const response = await fetch("/api/ai/build", {
@@ -411,17 +411,20 @@ export class Orchestrator {
     };
   }
 
-  private mapStatusToPhase(status: string): "idle" | "thinking" | "building" | "done" {
+  private mapStatusToPhase(status: string): "idle" | "planning" | "generating" | "building" | "fixing" | "deploying" | "done" {
     switch (status) {
       case "idle":
         return "idle";
       case "planning":
-        return "thinking";
+        return "planning";
       case "generating":
+        return "generating";
       case "building":
-      case "fixing":
-      case "deploying":
         return "building";
+      case "fixing":
+        return "fixing";
+      case "deploying":
+        return "deploying";
       case "completed":
         return "done";
       case "failed":

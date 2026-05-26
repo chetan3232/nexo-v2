@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles,
@@ -20,6 +20,8 @@ import {
   Check,
   CloudUpload,
   User,
+  Mic,
+  Radio,
 } from "lucide-react";
 import { useAgentStore } from "../../stores/agentStore";
 import { useChatStore } from "../../stores/chatStore";
@@ -61,6 +63,9 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
     Record<string, "idle" | "uploading" | "done">
   >({});
   const [chatHistory, setChatHistory] = useState<any[]>([]);
+  const [isListening, setIsListening] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const recognitionRef = useRef<any>(null);
 
   // Close menu on outside click
   useEffect(() => {
@@ -241,6 +246,59 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
       onStart(prompt);
     }
   };
+
+  // Voice-to-App on landing screen
+  const toggleVoice = useCallback(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Voice input not supported in this browser.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      setLiveTranscript("");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+    recognitionRef.current = recognition;
+
+    recognition.onstart = () => setIsListening(true);
+
+    recognition.onresult = (event: any) => {
+      let interim = "";
+      let final = "";
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          final += event.results[i][0].transcript;
+        } else {
+          interim += event.results[i][0].transcript;
+        }
+      }
+      setLiveTranscript(interim);
+      if (final) {
+        setPrompt(prev => (prev + " " + final).trim());
+        setLiveTranscript("");
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      setIsListening(false);
+      setLiveTranscript("");
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      setLiveTranscript("");
+    };
+
+    recognition.start();
+  }, [isListening]);
 
   const models = [
     {
@@ -433,14 +491,22 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
         </div>
 
         {/* Status Indicator */}
-        <div className="p-8 pb-10 flex items-center gap-2 select-none opacity-60 shrink-0">
-          <div className="flex items-center gap-2">
+        <div className="p-8 pb-10 flex flex-col gap-2 select-none shrink-0">
+          <div className="flex items-center gap-2 opacity-60">
             <span className="relative flex h-1.5 w-1.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
             </span>
             <span className="text-[9px] font-black text-studio-muted uppercase tracking-[0.2em]">
-              Google Gemini Engine Active
+              Dual AI Engine Active
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[8px] font-bold text-studio-accent/70 bg-studio-accent/10 px-2 py-0.5 rounded-full border border-studio-accent/20">
+              ⚡ Fast: Gemini Flash
+            </span>
+            <span className="text-[8px] font-bold text-purple-500/70 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
+              🧠 Deep: {models.find(m => m.id === selectedModel)?.name?.split(" ").slice(0, 3).join(" ") || "Gemini Pro"}
             </span>
           </div>
         </div>
@@ -476,9 +542,17 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
             </p>
           </div>
 
-          {/* Main Action Bar */}
+            {/* Main Action Bar */}
           <form onSubmit={handleSubmit} className="relative group">
             <div className="absolute -inset-1.5 bg-gradient-to-r from-studio-accent to-studio-secondary rounded-[2.5rem] blur opacity-15 group-focus-within:opacity-35 transition duration-1000"></div>
+            
+            {/* Live transcript in textarea */}
+            {isListening && liveTranscript && (
+              <div className="absolute top-3 left-6 right-6 text-base text-indigo-400 italic opacity-80 pointer-events-none z-10">
+                🎙️ {liveTranscript}
+              </div>
+            )}
+            
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
@@ -488,11 +562,32 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
                   handleSubmit();
                 }
               }}
-              placeholder="Describe what you want to build (e.g. 'A modern SaaS dashboard with dark mode')..."
+              placeholder={isListening ? "🎙️ Listening... describe your app idea" : "Describe what you want to build (e.g. 'A modern SaaS dashboard with dark mode')..."}
               className="relative w-full bg-white border border-stone-200 rounded-[2.5rem] p-10 text-2xl font-medium focus:border-indigo-500 transition-all min-h-[220px] resize-none outline-none shadow-xl"
               autoFocus
             />
-            <div className="absolute bottom-6 right-6 flex items-center gap-4">
+            <div className="absolute bottom-6 right-6 flex items-center gap-3">
+              {/* Voice Button */}
+              <button
+                type="button"
+                onClick={toggleVoice}
+                className={`p-3.5 rounded-2xl font-bold transition-all flex items-center gap-2 relative ${
+                  isListening
+                    ? "bg-red-500 text-white shadow-xl shadow-red-200 scale-105"
+                    : "bg-stone-100 text-stone-500 hover:bg-stone-200 hover:scale-105"
+                }`}
+                title={isListening ? "Stop recording" : "Voice-to-App: Speak your idea"}
+              >
+                {isListening ? (
+                  <>
+                    <Radio className="w-5 h-5 animate-pulse" />
+                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full animate-ping" />
+                  </>
+                ) : (
+                  <Mic className="w-5 h-5" />
+                )}
+              </button>
+
               <button
                 type="submit"
                 disabled={!prompt.trim()}

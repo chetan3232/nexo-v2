@@ -7,18 +7,28 @@ import {
   Cpu,
   ChevronDown,
   Mic,
+  MicOff,
   Send,
   AlertTriangle,
   Plus,
   X,
   Paperclip,
   Image as ImageIcon,
-  Loader2
+  Loader2,
+  Radio
 } from "lucide-react";
 import { useChatStore } from "../../stores/chatStore";
 import { useProjectStore } from "../../stores/projectStore";
 import { useAgentStore } from "../../stores/agentStore";
 import toast from "react-hot-toast";
+
+// Web Speech API types
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
 
 interface ChatPanelProps {
   onSend: (text: string, attachments?: { name: string; content: string; type: string }[]) => void;
@@ -95,10 +105,30 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
   const { messages, input, setInput } = useChatStore();
   const { buildPhase, subStatus, tasks } = useProjectStore();
   const { selectedModel, setSelectedModel } = useAgentStore();
+
+  const getLoaderTheme = () => {
+    switch (buildPhase) {
+      case "planning":
+        return { bg: "bg-blue-50 border-blue-200 text-blue-700", loader: "text-blue-500" };
+      case "generating":
+        return { bg: "bg-purple-50 border-purple-200 text-purple-700", loader: "text-purple-500" };
+      case "fixing":
+        return { bg: "bg-amber-50 border-amber-200 text-amber-700", loader: "text-amber-500" };
+      case "deploying":
+        return { bg: "bg-teal-50 border-teal-200 text-teal-700", loader: "text-teal-500" };
+      case "building":
+      default:
+        return { bg: "bg-[#f3f3f3] border-[#e8e8e8] text-[#555]", loader: "text-[#0ea5e9]" };
+    }
+  };
+  const loaderTheme = getLoaderTheme();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const [attachments, setAttachments] = useState<{ name: string; content: string; type: string }[]>([]);
+  const [isListening, setIsListening] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -113,6 +143,67 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, []);
+
+  // Voice-to-App: Web Speech API
+  const toggleVoice = useCallback(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error("Voice input not supported in this browser.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      setLiveTranscript("");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+    recognitionRef.current = recognition;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      toast.success("🎙️ Listening... Speak your idea!", { duration: 2000 });
+    };
+
+    recognition.onresult = (event: any) => {
+      let interim = "";
+      let final = "";
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          final += event.results[i][0].transcript;
+        } else {
+          interim += event.results[i][0].transcript;
+        }
+      }
+      setLiveTranscript(interim);
+      if (final) {
+        const { input, setInput } = useChatStore.getState();
+        setInput((input + " " + final).trim());
+        setLiveTranscript("");
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error:", event.error);
+      setIsListening(false);
+      setLiveTranscript("");
+      if (event.error !== "no-speech") {
+        toast.error(`Voice error: ${event.error}`);
+      }
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      setLiveTranscript("");
+    };
+
+    recognition.start();
+  }, [isListening]);
 
   const handleSend = () => {
     if (!input.trim() && attachments.length === 0) return;
@@ -257,55 +348,76 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
               ))}
 
               {/* Skeleton loading bubble */}
-              {buildPhase === "thinking" && messages.length > 0 && messages[messages.length - 1].role === "user" && (
+              {buildPhase === "planning" && messages.length > 0 && messages[messages.length - 1].role === "user" && (
                 <SkeletonLoader />
               )}
 
-              {/* Build progress */}
-              {(buildPhase === "building" || buildPhase === "thinking") && (
+              {/* Multi-Agent Build Progress */}
+              {(buildPhase !== "idle" && buildPhase !== "done") && (
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex flex-col gap-3 max-w-[88%]"
+                  className="flex flex-col gap-2.5 max-w-[92%]"
                 >
-                  <div className="bg-[#f3f3f3] border border-[#e8e8e8] rounded-2xl px-4 py-3 flex items-center gap-2.5 w-fit select-none">
-                    <Loader2 className="w-3.5 h-3.5 text-[#0ea5e9] animate-spin" />
-                    <span className="text-[10px] font-semibold text-[#555] uppercase tracking-wide">
-                      {subStatus || "Processing…"}
-                    </span>
+                  {/* Phase Header */}
+                  <div className={`border rounded-2xl px-4 py-3 flex items-center gap-3 w-fit select-none transition-all duration-500 ${loaderTheme.bg}`}>
+                    <Loader2 className={`w-3.5 h-3.5 animate-spin shrink-0 ${loaderTheme.loader}`} />
+                    <div>
+                      <div className="text-[8px] font-black uppercase tracking-[0.2em] opacity-60 mb-0.5">
+                        {buildPhase === "planning" && "🧠 Planner Agent"}
+                        {buildPhase === "generating" && "⚡ Code Agent"}
+                        {buildPhase === "fixing" && "🔧 Fix Agent"}
+                        {buildPhase === "deploying" && "🚀 Deploy Agent"}
+                        {buildPhase === "building" && "🤖 AI Engine"}
+                      </div>
+                      <div className="text-[11px] font-semibold">{subStatus || "Processing…"}</div>
+                    </div>
                   </div>
 
+                  {/* Agent Task Pipeline */}
                   {tasks.length > 0 && (
-                    <div className="ml-4 flex flex-col gap-2 border-l border-[#e8e8e8] pl-3 py-1 select-none">
-                      {tasks.map((task) => (
-                        <div key={task.id} className="flex items-center gap-2">
-                          <div
-                            className={`w-1.5 h-1.5 rounded-full transition-all ${
-                              task.status === "done"
-                                ? "bg-emerald-500"
-                                : task.status === "running"
-                                ? "bg-[#0ea5e9] animate-pulse"
-                                : "bg-[#ddd]"
-                            }`}
-                          />
-                          <span
-                            className={`text-[10px] font-medium transition-all ${
-                              task.status === "done"
-                                ? "text-[#aaa] line-through"
-                                : task.status === "running"
-                                ? "text-[#0ea5e9]"
-                                : "text-[#bbb]"
-                            }`}
+                    <div className="flex flex-col gap-1.5 border-l-2 border-[#e8e8e8] ml-3 pl-4 py-1 select-none">
+                      {tasks.map((task, idx) => {
+                        const isRunning = task.status === "running";
+                        const isDone = task.status === "done";
+                        const isError = task.status === "error";
+                        return (
+                          <motion.div
+                            key={task.id}
+                            initial={{ opacity: 0, x: -4 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: idx * 0.05 }}
+                            className="flex items-center gap-2"
                           >
-                            {task.label}
-                          </span>
-                          {task.status === "done" && (
-                            <span className="text-[8px] font-bold text-emerald-600 uppercase tracking-wide bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                              Done
+                            <div className={`w-2 h-2 rounded-full shrink-0 transition-all duration-300 ${
+                              isDone ? "bg-emerald-500 shadow-sm shadow-emerald-300"
+                              : isRunning ? "bg-[#0ea5e9] animate-pulse shadow-sm shadow-sky-300"
+                              : isError ? "bg-red-400"
+                              : "bg-[#ddd]"
+                            }`} />
+                            <span className={`text-[10px] font-medium flex-1 leading-tight transition-all ${
+                              isDone ? "text-[#aaa] line-through"
+                              : isRunning ? "text-[#0ea5e9] font-semibold"
+                              : isError ? "text-red-500"
+                              : "text-[#ccc]"
+                            }`}>
+                              {task.label}
                             </span>
-                          )}
-                        </div>
-                      ))}
+                            {isDone && (
+                              <span className="text-[7px] font-black text-emerald-600 uppercase tracking-wider bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200 shrink-0">
+                                ✓
+                              </span>
+                            )}
+                            {isRunning && (
+                              <span className="flex gap-0.5 shrink-0">
+                                {[0,1,2].map(i => (
+                                  <span key={i} className="w-1 h-1 bg-[#0ea5e9] rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+                                ))}
+                              </span>
+                            )}
+                          </motion.div>
+                        );
+                      })}
                     </div>
                   )}
                 </motion.div>
@@ -345,6 +457,20 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
             </div>
           )}
 
+          {/* Live transcript overlay */}
+          <AnimatePresence>
+            {isListening && liveTranscript && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className="mx-3 mt-2.5 px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg text-[10px] text-red-600 font-medium italic"
+              >
+                🎙️ {liveTranscript}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Textarea */}
           <textarea
             value={input}
@@ -355,7 +481,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                 handleSend();
               }
             }}
-            placeholder="Make changes, add new features, ask for anything"
+            placeholder={isListening ? "🎙️ Listening... speak your idea" : "Make changes, add new features, ask for anything"}
             className="w-full bg-transparent py-3 px-4 text-xs text-[#111] placeholder:text-[#aaa] resize-none h-[58px] outline-none leading-relaxed"
           />
 
@@ -432,13 +558,25 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                 <Paperclip className="w-3.5 h-3.5" />
               </button>
 
-              {/* Mic */}
+              {/* Voice-to-App Mic */}
               <button
                 type="button"
-                className="p-1.5 rounded-lg text-[#aaa] hover:text-[#555] hover:bg-[#f3f3f3] transition-colors"
-                title="Voice input"
+                onClick={toggleVoice}
+                className={`relative p-1.5 rounded-lg transition-all ${
+                  isListening
+                    ? "text-red-500 bg-red-50 hover:bg-red-100 ring-2 ring-red-300"
+                    : "text-[#aaa] hover:text-[#555] hover:bg-[#f3f3f3]"
+                }`}
+                title={isListening ? "Stop voice input" : "Voice-to-App: Speak your idea"}
               >
-                <Mic className="w-3.5 h-3.5" />
+                {isListening ? (
+                  <>
+                    <Radio className="w-3.5 h-3.5 animate-pulse" />
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full animate-ping" />
+                  </>
+                ) : (
+                  <Mic className="w-3.5 h-3.5" />
+                )}
               </button>
             </div>
 

@@ -6,7 +6,8 @@ We actively provide security updates for the following versions of NEXO V2:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 2.2.x   | ✅ Yes              |
+| 2.3.x   | ✅ Yes              |
+| 2.2.x   | ❌ No               |
 | 2.1.x   | ❌ No               |
 | 1.x.x   | ❌ No               |
 
