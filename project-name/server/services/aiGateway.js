@@ -199,7 +199,7 @@ const getClient = (provider) => {
 
 // Define fallback list based on model requested
 const getFallbackChain = (requestedModel) => {
-  const isNvidia = requestedModel.startsWith("nvidia/") || requestedModel === "minimaxai/minimax-m2.7" || requestedModel.startsWith("stepfun-ai/");
+  const isNvidia = requestedModel.startsWith("nvidia/") || requestedModel === "minimaxai/minimax-m2.7" || requestedModel.startsWith("stepfun-ai/") || requestedModel === "qwen/qwen3-coder-480b-a35b-instruct";
   const isGroq = !isNvidia && (requestedModel.startsWith("groq/") || requestedModel.includes("llama") || requestedModel.includes("mixtral"));
 
   let possibleChain = [];
@@ -246,6 +246,92 @@ const getFallbackChain = (requestedModel) => {
 };
 
 class AIGateway {
+  static async streamCompletion({ messages, model, temperature, top_p, projectMode, techStack }, onChunk) {
+    const apiKey = process.env.OPENROUTER_API_KEY || process.env.NVIDIA_API_KEY || process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("API Credentials missing on server.");
+    }
+
+    let currentSystemPrompt = SYSTEM_PROMPT;
+
+    if (projectMode === "fullstack") {
+      currentSystemPrompt += `\n\n### FULL STACK ARCHITECTURE MANDATE
+You are a Full-Stack Architect. You are empowered with FULL STACK CAPABILITIES. You MUST generate the COMPLETE architecture (Frontend + Backend). No file limit applies, but use the Nexo Protocol markers.
+ALLOWED TECHNOLOGIES:
+- Modern Server-side languages (Node.js, Python, Go, etc.)
+- Databases (SQL, NoSQL)
+- Full Stack Frameworks (Next.js, Remix, etc.)`;
+    }
+
+    if (techStack !== "Vanilla") {
+      currentSystemPrompt += `\n\n### TECHNOLOGY STACK MANDATE
+You MUST build this project using the following specific stack: **${techStack}**. 
+Adjust your file structure accordingly. If this is a framework project (like React/Next.js), generate all necessary configuration files (package.json, tailwind.config.js, etc.) within the ---FILE--- markers.
+You should generate all files required for a professional **${techStack}** project. Use the Nexo Protocol markers for every file.`;
+    } else {
+      currentSystemPrompt += `\n\n### TECHNOLOGY STACK MANDATE
+You are building a Vanilla (HTML/CSS/JS) project. 
+You MUST generate EXACTLY THREE (3) separated files: index.html, style.css, and script.js.
+CRITICAL: Ensure your index.html contains a root element like <div id="app"></div> and your Javascript accurately targets it!`;
+    }
+
+    const messagesPayload = [
+      { role: "system", content: currentSystemPrompt },
+      ...messages.map((m) => ({
+        role: m.role === "model" || m.role === "assistant" ? "assistant" : "user",
+        content: m.content || m.text || "",
+      })),
+    ];
+
+    const fallbackChain = getFallbackChain(model || "inclusionai/ling-2.6-1t:free");
+    let errorLog = [];
+
+    for (let attempt = 0; attempt < fallbackChain.length; attempt++) {
+      const { provider, model: targetModel } = fallbackChain[attempt];
+
+      try {
+        console.log(`[AI Gateway Stream] Attempt ${attempt + 1}: Routing to ${provider} using "${targetModel}"`);
+
+        const client = getClient(provider);
+        if (!client) {
+          throw new Error(`Provider ${provider} is not configured.`);
+        }
+
+        const maxTokens = provider === "nvidia" ? 8192 : 16384;
+        
+        // Always stream inside background orchestrator
+        const responseStream = await client.chat.completions.create({
+          model: targetModel,
+          messages: messagesPayload,
+          temperature: temperature || 1.0,
+          top_p: top_p || 1.0,
+          stream: true,
+          max_tokens: maxTokens,
+        });
+
+        let fullText = "";
+        for await (const chunk of responseStream) {
+          const content = chunk.choices?.[0]?.delta?.content || "";
+          fullText += content;
+          if (onChunk) onChunk(content);
+        }
+
+        const promptEst = Math.ceil(JSON.stringify(messagesPayload).length / 4);
+        const respEst = Math.ceil(fullText.length / 4);
+        logUsage(targetModel, promptEst + respEst);
+
+        return fullText;
+      } catch (err) {
+        console.error(`[AI Gateway Stream] Attempt ${attempt + 1} (${provider}) failed:`, err.message);
+        errorLog.push(`${provider} (${targetModel}): ${err.message}`);
+
+        if (attempt === fallbackChain.length - 1) {
+          throw new Error(`All attempts failed: ${errorLog.join(", ")}`);
+        }
+      }
+    }
+  }
+
   static async handleRequest(req, res) {
     const ip = req.ip || req.headers["x-forwarded-for"] || req.socket.remoteAddress;
 

@@ -24,6 +24,7 @@ export interface Message {
   websiteContent?: WebsiteContent;
   isError?: boolean;
   content?: any;
+  model?: string;
 }
 
 export enum CompanionState {

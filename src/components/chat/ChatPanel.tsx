@@ -13,6 +13,7 @@ import {
   X,
   Paperclip,
   Image as ImageIcon,
+  Loader2
 } from "lucide-react";
 import { useChatStore } from "../../stores/chatStore";
 import { useProjectStore } from "../../stores/projectStore";
@@ -27,13 +28,68 @@ interface ChatPanelProps {
 const ALL_MODELS = [
   { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", badge: "Default" },
   { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", badge: "Pro" },
-  { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", badge: "" },
-  { id: "gemini-2.0-flash-lite", name: "Gemini 2.0 Flash-Lite", badge: "Fast" },
-  { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", badge: "" },
-  { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", badge: "" },
-  { id: "qwen/qwen-2.5-72b-instruct:free", name: "Qwen 2.5 72B", badge: "Free" },
-  { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B", badge: "Groq" },
+  { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", badge: "New" },
+  { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B", badge: "Nvidia" },
+  { id: "stepfun-ai/step-3.5-flash", name: "Step 3.5 Flash", badge: "Nvidia" },
+  { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Groq)", badge: "Groq" },
 ];
+
+const CollapsibleMessageContent: React.FC<{ text: string; role: string }> = ({ text, role }) => {
+  const [expanded, setExpanded] = React.useState(false);
+  const isLong = text.length > 350;
+
+  if (!isLong) {
+    return (
+      <div className="prose prose-xs max-w-none">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+      </div>
+    );
+  }
+
+  const fadeColor = role === "user" ? "from-[#111]" : "from-[#f3f3f3]";
+  const displayText = expanded ? text : text.substring(0, 250) + "...";
+
+  return (
+    <div className="relative">
+      <div className={`prose prose-xs max-w-none transition-all duration-300 ${!expanded ? "max-h-[140px] overflow-hidden select-none" : ""}`}>
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayText}</ReactMarkdown>
+        {!expanded && (
+          <div className={`absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t ${fadeColor} to-transparent pointer-events-none`} />
+        )}
+      </div>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className={`mt-1.5 text-[9px] font-bold uppercase tracking-wider hover:underline flex items-center gap-1 select-none ${
+          role === "user" ? "text-sky-300" : "text-[#0ea5e9]"
+        }`}
+      >
+        {expanded ? "Show Less" : "Read More"}
+      </button>
+    </div>
+  );
+};
+
+const SkeletonLoader: React.FC = () => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex justify-start max-w-[88%]"
+    >
+      <div className="bg-[#f3f3f3] border border-[#e8e8e8] text-[#111] rounded-2xl rounded-bl-sm px-4 py-3 w-64 space-y-2 select-none">
+        <div className="flex items-center gap-1.5 mb-2">
+          <Sparkles className="w-3 h-3 text-[#0ea5e9]" />
+          <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-[#0ea5e9]">
+            Nexo
+          </span>
+        </div>
+        <div className="h-2 bg-[#e2e2e2] rounded w-5/6 animate-pulse" />
+        <div className="h-2 bg-[#e2e2e2] rounded w-4/6 animate-pulse" />
+        <div className="h-2 bg-[#e2e2e2] rounded w-3/4 animate-pulse" />
+      </div>
+    </motion.div>
+  );
+};
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
   const { messages, input, setInput } = useChatStore();
@@ -188,36 +244,34 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                       <div className="flex items-center gap-1.5 mb-2 select-none">
                         <Sparkles className="w-3 h-3 text-[#0ea5e9]" />
                         <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-[#0ea5e9]">
-                          Nexo
+                          Nexo {msg.model ? `(${ALL_MODELS.find((m) => m.id === msg.model)?.name || msg.model})` : ""}
                         </span>
                       </div>
                     )}
                     {msg.isError && (
                       <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
                     )}
-                    <div className="prose prose-xs max-w-none">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {msg.text}
-                      </ReactMarkdown>
-                    </div>
+                    <CollapsibleMessageContent text={msg.text} role={msg.role} />
                   </div>
                 </motion.div>
               ))}
 
+              {/* Skeleton loading bubble */}
+              {buildPhase === "thinking" && messages.length > 0 && messages[messages.length - 1].role === "user" && (
+                <SkeletonLoader />
+              )}
+
               {/* Build progress */}
-              {buildPhase === "building" && (
+              {(buildPhase === "building" || buildPhase === "thinking") && (
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="flex flex-col gap-3 max-w-[88%]"
                 >
                   <div className="bg-[#f3f3f3] border border-[#e8e8e8] rounded-2xl px-4 py-3 flex items-center gap-2.5 w-fit select-none">
-                    <span className="relative flex h-1.5 w-1.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#0ea5e9] opacity-75" />
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#0ea5e9]" />
-                    </span>
+                    <Loader2 className="w-3.5 h-3.5 text-[#0ea5e9] animate-spin" />
                     <span className="text-[10px] font-semibold text-[#555] uppercase tracking-wide">
-                      {subStatus || "Building…"}
+                      {subStatus || "Processing…"}
                     </span>
                   </div>
 

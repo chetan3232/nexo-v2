@@ -30,7 +30,27 @@
       "timestamp": "2026-05-25T12:38:11.052Z",
       "model": "stepfun-ai/step-3.5-flash",
       "tokens": 2971
+    },
+    {
+      "timestamp": "2026-05-25T17:00:53.394Z",
+      "model": "stepfun-ai/step-3.5-flash",
+      "tokens": 8530
+    },
+    {
+      "timestamp": "2026-05-26T08:13:09.335Z",
+      "model": "stepfun-ai/step-3.5-flash",
+      "tokens": 7833
+    },
+    {
+      "timestamp": "2026-05-26T08:33:27.627Z",
+      "model": "gemini-2.5-flash",
+      "tokens": 3562
+    },
+    {
+      "timestamp": "2026-05-26T08:33:39.176Z",
+      "model": "gemini-2.5-flash",
+      "tokens": 2113
     }
   ],
-  "totalTokens": 46477
+  "totalTokens": 68515
 }

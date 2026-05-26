@@ -18,6 +18,10 @@ export default defineConfig(({ mode }) => {
           target: 'http://127.0.0.1:5000',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/chat/, '/api/ai/chat')
+        },
+        '/api': {
+          target: 'http://127.0.0.1:5000',
+          changeOrigin: true
         }
       }
     },
