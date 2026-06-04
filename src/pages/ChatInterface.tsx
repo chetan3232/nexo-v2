@@ -49,6 +49,8 @@ import {
   ExternalLink,
   Coins,
   Sliders,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { StudioControls } from "../components/ui/StudioControls";
 import JSZip from "jszip";
@@ -77,6 +79,25 @@ const ChatInterface: React.FC = () => {
   const [ghPushing, setGhPushing] = useState(false);
   const [isTokenDashboardOpen, setIsTokenDashboardOpen] = useState(false);
   const [showLanding, setShowLanding] = useState(chatStore.messages.length === 0);
+
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      return document.documentElement.classList.contains("dark") ? "dark" : "light";
+    }
+    return "light";
+  });
+
+  const toggleTheme = () => {
+    if (theme === "dark") {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+      setTheme("light");
+    } else {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+      setTheme("dark");
+    }
+  };
 
   useEffect(() => {
     if (chatStore.currentChatId) {
@@ -384,6 +405,14 @@ const ChatInterface: React.FC = () => {
             title="Rename"
           >
             <Pencil className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg text-[#888] hover:text-[#111] hover:bg-[#f3f3f3] transition-colors"
+            title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            {theme === "dark" ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5" />}
           </button>
 
           <button
