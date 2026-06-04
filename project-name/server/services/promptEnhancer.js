@@ -31,9 +31,10 @@ class PromptEnhancer {
      * @param {string} prompt - Raw user input
      * @param {string} projectMode - 'frontend' | 'fullstack'
      * @param {string} techStack - 'Vanilla' | 'React' | 'Next.js' etc
+     * @param {string} customApiKey - Optional custom API key
      * @returns {Promise<{enhanced: string, wasEnhanced: boolean}>}
      */
-    static async enhance(prompt, projectMode = 'frontend', techStack = 'React') {
+    static async enhance(prompt, projectMode = 'frontend', techStack = 'React', customApiKey) {
         // Don't enhance if already detailed (>80 chars with multiple words)
         if (prompt.length > 80 && prompt.split(' ').length > 10) {
             return { enhanced: prompt, wasEnhanced: false };
@@ -64,7 +65,8 @@ Write an enhanced, detailed prompt for this project:`;
                 temperature: 0.7,
                 top_p: 1.0,
                 projectMode,
-                techStack
+                techStack,
+                customApiKey
             });
 
             const cleanedEnhanced = enhanced

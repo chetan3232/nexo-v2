@@ -60,6 +60,7 @@ class BackendOrchestrator {
     static async runWorkflow(job) {
         const { prompt, messages = [], options = {}, existingFiles = {} } = job.data;
         const chatId = job.data.chatId || `job_${job.id}`;
+        const userId = job.data.userId || "anonymous";
         const isRefactor = options.isRefactor || isRefactorRequest(prompt);
         const hasImage = options.hasImage || false;
 
@@ -100,7 +101,8 @@ class BackendOrchestrator {
                 const enhancement = await PromptEnhancer.enhance(
                     prompt,
                     options.projectMode || 'frontend',
-                    options.techStack || 'React'
+                    options.techStack || 'React',
+                    options.customApiKey
                 );
 
                 finalPrompt = enhancement.enhanced;
@@ -177,7 +179,11 @@ Example output:
                 temperature: 0.1,
                 top_p: 1.0,
                 projectMode: options.projectMode,
-                techStack: options.techStack
+                techStack: options.techStack,
+                systemPrompt: options.systemPrompt,
+                enabledTools: options.enabledTools,
+                customApiKey: options.customApiKey,
+                userId
             });
 
             let planData = { plan: [], files: [] };
@@ -289,7 +295,11 @@ Do not truncate or omit any files. Ensure package.json has all necessary depende
                 temperature: options.temperature || 0.8,
                 top_p: options.topP || 1.0,
                 projectMode: options.projectMode,
-                techStack: options.techStack
+                techStack: options.techStack,
+                systemPrompt: options.systemPrompt,
+                enabledTools: options.enabledTools,
+                customApiKey: options.customApiKey,
+                userId
             }, (chunk) => {
                 streamedText += chunk;
                 job.log(chunk);

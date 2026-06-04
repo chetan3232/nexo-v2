@@ -16,7 +16,10 @@ const buildRequestSchema = z.object({
         techStack: z.string().optional(),
         selectedLanguage: z.string().optional(),
         temperature: z.number().min(0).max(2).optional(),
-        topP: z.number().min(0).max(1).optional()
+        topP: z.number().min(0).max(1).optional(),
+        systemPrompt: z.string().optional(),
+        enabledTools: z.array(z.string()).optional(),
+        customApiKey: z.string().optional()
     }).optional()
 });
 
@@ -50,12 +53,29 @@ router.post("/build", async (req, res) => {
         }
 
         const { prompt, chatId, options } = parsed.data;
+        
+        const userId = req.headers["x-user-id"] || "anonymous";
+        const email = req.headers["x-user-email"] || "";
+
+        // Check allowance balance before building
+        const allowanceManager = require("../services/allowanceManager");
+        const userAllowance = allowanceManager.checkAllowance(userId, email);
+        if (userAllowance.balance <= 0) {
+            const isAnonymous = !userId || userId === 'anonymous';
+            const limitMsg = isAnonymous
+                ? "You have exceeded your anonymous free allowance ($0.50). Please sign in to get a $5.00 free allowance."
+                : "You have exceeded your free allowance ($5.00). Allowance resets every 2 days.";
+            return res.status(403).json({ error: limitMsg });
+        }
+
         const jobId = `build_${uuidv4()}`;
-        console.log(`[Routes AI] Queueing job ${jobId} for chatId ${chatId}...`);
+        console.log(`[Routes AI] Queueing job ${jobId} for chatId ${chatId} (user: ${userId})...`);
         
         await addJob("build-app", {
             prompt,
             chatId,
+            userId,
+            email,
             options: options || {}
         }, jobId);
 

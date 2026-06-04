@@ -34,6 +34,7 @@
   </script>
   <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
           fontFamily: {
@@ -87,6 +88,74 @@
     body {
       background-color: #FFFFFF;
       color: #0F172A;
+    }
+
+    /* Dark Mode variables & overrides */
+    html.dark body {
+      background-color: #0c0c0e !important;
+      color: #f1f5f9 !important;
+    }
+    
+    html.dark .bg-white {
+      background-color: #121214 !important;
+    }
+    
+    html.dark .bg-\[\#f8fafc\] {
+      background-color: #0c0c0e !important;
+    }
+    
+    html.dark .bg-\[\#f7f7f7\] {
+      background-color: #0c0c0e !important;
+    }
+    
+    html.dark .border-\[\#e8e8e8\] {
+      border-color: #222226 !important;
+    }
+    
+    html.dark .text-\[\#111\] {
+      color: #ffffff !important;
+    }
+    
+    html.dark .text-\[\#333\] {
+      color: #f1f5f9 !important;
+    }
+    
+    html.dark .text-\[\#555\] {
+      color: #94a3b8 !important;
+    }
+    
+    html.dark .text-\[\#888\] {
+      color: #64748b !important;
+    }
+    
+    html.dark .hover\:text-\[\#111\]:hover {
+      color: #ffffff !important;
+    }
+    
+    html.dark .hover\:bg-\[\#f3f3f3\]:hover {
+      background-color: #1c1c20 !important;
+    }
+    
+    html.dark .bg-\[\#f3f3f3\] {
+      background-color: #1c1c20 !important;
+    }
+    
+    html.dark input, html.dark textarea, html.dark select {
+      background-color: #161619 !important;
+      color: #ffffff !important;
+      border-color: #282830 !important;
+    }
+    
+    html.dark .shadow-sm {
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.4) !important;
+    }
+    
+    html.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.12) !important;
+    }
+    
+    html.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(14, 165, 233, 0.4) !important;
     }
 
     /* Premium custom scrollbar */

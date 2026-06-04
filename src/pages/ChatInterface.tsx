@@ -48,7 +48,11 @@ import {
   X,
   ExternalLink,
   Coins,
+  Sliders,
+  Sun,
+  Moon,
 } from "lucide-react";
+import { StudioControls } from "../components/ui/StudioControls";
 import JSZip from "jszip";
 
 const ChatInterface: React.FC = () => {
@@ -56,7 +60,15 @@ const ChatInterface: React.FC = () => {
   const chatStore = useChatStore();
   const projectStore = useProjectStore();
   const { setSelectedElement } = useDesignStore();
-  const { selectedModel } = useAgentStore();
+  const {
+    selectedModel,
+    temperature,
+    setTemperature,
+    topP,
+    setTopP,
+    showStudioPanel,
+    setShowStudioPanel
+  } = useAgentStore();
 
   const [workspaceTab, setWorkspaceTab] = useState<"preview" | "code">("preview");
   const [isVisualMode, setIsVisualMode] = useState(false);
@@ -66,6 +78,38 @@ const ChatInterface: React.FC = () => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [ghPushing, setGhPushing] = useState(false);
   const [isTokenDashboardOpen, setIsTokenDashboardOpen] = useState(false);
+  const [showLanding, setShowLanding] = useState(chatStore.messages.length === 0);
+
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      return document.documentElement.classList.contains("dark") ? "dark" : "light";
+    }
+    return "light";
+  });
+
+  const toggleTheme = () => {
+    if (theme === "dark") {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+      setTheme("light");
+    } else {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+      setTheme("dark");
+    }
+  };
+
+  useEffect(() => {
+    if (chatStore.currentChatId) {
+      setShowLanding(false);
+    }
+  }, [chatStore.currentChatId]);
+
+  useEffect(() => {
+    if (chatStore.messages.length === 0) {
+      setShowLanding(true);
+    }
+  }, [chatStore.messages.length]);
 
   useEffect(() => {
     if (selectedFileName) setWorkspaceTab("code");
@@ -138,11 +182,12 @@ const ChatInterface: React.FC = () => {
   }, [setSelectedElement]);
 
   useEffect(() => {
-    if (!auth.currentUser || chatStore.messages.length === 0) return;
+    const user = auth.currentUser;
+    if (!user || chatStore.messages.length === 0) return;
     const saveTimeout = setTimeout(() => {
       const chatId = chatStore.currentChatId || crypto.randomUUID();
       if (!chatStore.currentChatId) chatStore.setCurrentChatId(chatId);
-      saveChatToFirebase(auth.currentUser.uid, {
+      saveChatToFirebase(user.uid, {
         id: chatId,
         name: projectTitle,
         title: projectTitle,
@@ -160,6 +205,12 @@ const ChatInterface: React.FC = () => {
   }, [chatStore.messages, projectStore.currentContent, projectTitle, selectedModel]);
 
   const handleSend = async (prompt: string, attachments?: { name: string; content: string; type: string }[]) => {
+    if (showLanding && chatStore.messages.length > 0) {
+      chatStore.resetChat();
+      projectStore.setCurrentContent(null);
+    }
+    setShowLanding(false);
+
     const userMsg: Message = {
       role: "user",
       text: prompt,
@@ -185,8 +236,7 @@ const ChatInterface: React.FC = () => {
   };
 
   const handleBackToStart = () => {
-    useChatStore.getState().resetChat();
-    useProjectStore.getState().setCurrentContent(null);
+    setShowLanding(true);
   };
 
   const handleDownloadZip = async () => {
@@ -283,8 +333,8 @@ const ChatInterface: React.FC = () => {
 
   return (
     <div className="h-full w-full flex flex-col overflow-hidden font-sans bg-[#f7f7f7]">
-      {chatStore.messages.length === 0 && (
-        <InitialOverlay onStart={handleSend} />
+      {showLanding && (
+        <InitialOverlay onStart={handleSend} onResume={() => setShowLanding(false)} />
       )}
 
       {/* ── Workspace Inner Header (Back + Title) ── */}
@@ -356,6 +406,15 @@ const ChatInterface: React.FC = () => {
           >
             <Pencil className="w-3.5 h-3.5" />
           </button>
+
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg text-[#888] hover:text-[#111] hover:bg-[#f3f3f3] transition-colors"
+            title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            {theme === "dark" ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5" />}
+          </button>
+
           <button
             onClick={() => setSettingsTab("Chat")}
             className="p-2 rounded-lg text-[#888] hover:text-[#111] hover:bg-[#f3f3f3] transition-colors"
@@ -385,21 +444,19 @@ const ChatInterface: React.FC = () => {
               <div className="flex items-center gap-0.5 bg-[#f3f3f3] rounded-lg p-0.5">
                 <button
                   onClick={() => setWorkspaceTab("preview")}
-                  className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                    workspaceTab === "preview"
+                  className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${workspaceTab === "preview"
                       ? "bg-white text-[#111] shadow-sm"
                       : "text-[#888] hover:text-[#333]"
-                  }`}
+                    }`}
                 >
                   Preview
                 </button>
                 <button
                   onClick={() => setWorkspaceTab("code")}
-                  className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                    workspaceTab === "code"
+                  className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${workspaceTab === "code"
                       ? "bg-white text-[#111] shadow-sm"
                       : "text-[#888] hover:text-[#333]"
-                  }`}
+                    }`}
                 >
                   Code
                 </button>
@@ -417,11 +474,10 @@ const ChatInterface: React.FC = () => {
                     </button>
                     <button
                       onClick={() => setIsVisualMode(!isVisualMode)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
-                        isVisualMode
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${isVisualMode
                           ? "bg-[#0ea5e9]/10 text-[#0ea5e9] border-[#0ea5e9]/25"
                           : "text-[#888] border-[#e8e8e8] hover:text-[#111] hover:bg-[#f3f3f3]"
-                      }`}
+                        }`}
                     >
                       <Monitor className="w-3 h-3" />
                       Visual Mode
@@ -436,7 +492,7 @@ const ChatInterface: React.FC = () => {
             </div>
 
             {/* Canvas */}
-            <div className="flex-1 overflow-hidden bg-white rounded-xl border border-[#e8e8e8] shadow-sm">
+            <div className="flex-1 overflow-hidden bg-white rounded-xl border border-[#e8e8e8] shadow-sm relative">
               <React.Suspense
                 fallback={
                   <div className="h-full w-full flex flex-col items-center justify-center gap-4 bg-white">
@@ -447,17 +503,18 @@ const ChatInterface: React.FC = () => {
                   </div>
                 }
               >
-                {workspaceTab === "preview" ? (
+                <div className={workspaceTab === "preview" ? "h-full w-full block" : "h-full w-full hidden"}>
                   <PreviewPanel
                     isVisualMode={isVisualMode}
                     setIsVisualMode={setIsVisualMode}
                   />
-                ) : (
+                </div>
+                <div className={workspaceTab === "code" ? "h-full w-full block" : "h-full w-full hidden"}>
                   <EditorPanel
                     selectedFileName={selectedFileName}
                     setSelectedFileName={setSelectedFileName}
                   />
-                )}
+                </div>
               </React.Suspense>
             </div>
           </Panel>
@@ -466,7 +523,7 @@ const ChatInterface: React.FC = () => {
           <PanelResizeHandle className="w-1.5 bg-transparent hover:bg-[#0ea5e9]/20 transition-colors cursor-col-resize" />
 
           {/* RIGHT: Chat sidebar */}
-          <Panel defaultSize={35} minSize={22} maxSize={50} className="flex flex-col overflow-hidden p-3 pl-1.5">
+          <Panel defaultSize={showStudioPanel ? 25 : 35} minSize={20} maxSize={50} className="flex flex-col overflow-hidden p-3 pl-1.5 pr-1">
             <div className="flex-1 overflow-hidden rounded-xl border border-[#e8e8e8] shadow-sm bg-white">
               <React.Suspense
                 fallback={
@@ -480,6 +537,18 @@ const ChatInterface: React.FC = () => {
             </div>
           </Panel>
 
+          {showStudioPanel && (
+            <>
+              {/* Resize handle */}
+              <PanelResizeHandle className="w-1.5 bg-transparent hover:bg-[#0ea5e9]/20 transition-colors cursor-col-resize" />
+              {/* STUDIO: Studio controls sidebar */}
+              <Panel defaultSize={20} minSize={15} maxSize={35} className="flex flex-col overflow-hidden p-3 pl-1">
+                <div className="flex-1 overflow-hidden rounded-xl border border-[#e8e8e8] shadow-sm bg-white">
+                  <StudioControls />
+                </div>
+              </Panel>
+            </>
+          )}
         </PanelGroup>
       </main>
 
@@ -505,10 +574,10 @@ const ChatInterface: React.FC = () => {
           onDeploy={() => toast.success("Deploying...")}
           onLoadHistory={() => toast.success("Loading history...")}
           onDownloadZip={handleDownloadZip}
-          temperature={0.7}
-          setTemperature={() => {}}
-          topP={1}
-          setTopP={() => {}}
+          temperature={temperature}
+          setTemperature={setTemperature}
+          topP={topP}
+          setTopP={setTopP}
         />
       )}
 

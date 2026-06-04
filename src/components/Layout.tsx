@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Download, Share2, Sparkles, User, LogOut } from "lucide-react";
+import { Download, Share2, Sparkles, User, LogOut, Sun, Moon } from "lucide-react";
 import logoV2 from "../assets/NEXO-V2.png";
 import { auth, signInWithGoogle, logout } from "../services/firebase";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
@@ -12,6 +12,25 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({
   const location = useLocation();
   const isDemo = location.pathname === "/demo";
   const [user, setUser] = useState<FirebaseUser | null>(null);
+
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      return document.documentElement.classList.contains("dark") ? "dark" : "light";
+    }
+    return "light";
+  });
+
+  const toggleTheme = () => {
+    if (theme === "dark") {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+      setTheme("light");
+    } else {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+      setTheme("dark");
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -69,6 +88,18 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({
 
           {/* Right: Actions + User */}
           <div className="flex items-center gap-2 shrink-0">
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-full text-[#666] hover:text-[#111] hover:bg-[#f3f3f3] transition-colors border border-transparent hover:border-[#e8e8e8] flex items-center justify-center shrink-0"
+              title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              {theme === "dark" ? (
+                <Sun className="w-4 h-4 text-amber-500" />
+              ) : (
+                <Moon className="w-4 h-4" />
+              )}
+            </button>
 
             {/* User area */}
             {user ? (

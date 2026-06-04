@@ -8,6 +8,20 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ error: 'URL is required' });
         }
 
+        const userId = req.headers["x-user-id"] || "anonymous";
+        const email = req.headers["x-user-email"] || "";
+
+        // Check allowance balance before scraping
+        const allowanceManager = require('../services/allowanceManager');
+        const userAllowance = allowanceManager.checkAllowance(userId, email);
+        if (userAllowance.balance <= 0) {
+            const isAnonymous = !userId || userId === 'anonymous';
+            const limitMsg = isAnonymous
+                ? "You have exceeded your anonymous free allowance ($0.50). Please sign in to get a $5.00 free allowance."
+                : "You have exceeded your free allowance ($5.00). Allowance resets every 2 days.";
+            return res.status(403).json({ error: limitMsg });
+        }
+
         const apiKey = process.env.FIRECRAWL_API_KEY;
         if (!apiKey) {
             return res.status(401).json({ error: 'Firecrawl API key is missing in backend (.env.local).' });

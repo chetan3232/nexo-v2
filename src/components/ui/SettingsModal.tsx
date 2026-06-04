@@ -6,10 +6,25 @@ import {
   Download,
   MessageCircle,
   Rocket,
+  Sliders,
+  Cpu,
+  Brain,
+  FileCode,
+  Search,
+  Key,
+  Database,
+  RotateCcw,
+  Eye,
+  EyeOff,
+  User,
+  Trash2,
+  Sparkles,
+  Globe,
 } from "lucide-react";
 import { GithubIcon as Github } from "./GithubIcon";
 import { useAgentStore } from "../../stores/agentStore";
 import { useProjectStore } from "../../stores/projectStore";
+import { useMemoryStore } from "../../stores/memoryStore";
 import toast from "react-hot-toast";
 
 interface SettingsModalProps {
@@ -36,8 +51,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   initialTab,
 }) => {
   const [activeTab, setActiveTab] = useState(initialTab === "Chat" ? "Models" : (initialTab || "Models"));
-  const tabs = ["Models", "Share", "Publish", "Versions", "Integrations"];
-  const { selectedModel, setSelectedModel } = useAgentStore();
+  const tabs = ["Models", "Studio", "Share", "Publish", "Versions", "Integrations"];
+  const {
+    selectedModel,
+    setSelectedModel,
+    systemPrompt,
+    setSystemPrompt,
+    enabledTools,
+    setEnabledTools,
+    customApiKey,
+    setCustomApiKey,
+  } = useAgentStore();
+  const { preferences, history, setPreference } = useMemoryStore();
 
   const [githubToken, setGithubToken] = useState(() => localStorage.getItem("nexo_gh_token") || "");
   const [repoUrl, setRepoUrl] = useState(() => localStorage.getItem("nexo_gh_repo") || "");
@@ -55,6 +80,119 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   React.useEffect(() => {
     localStorage.setItem("nexo_gh_branch", branchName);
   }, [branchName]);
+
+  const [showKey, setShowKey] = useState(false);
+
+  const handleResetPrompt = () => {
+    const storeDefault = `You are NEXO Brain, an elite AI software engineering agent.
+
+Your mission is to help users design, build, improve, debug, and deploy modern software applications.
+
+CORE BEHAVIOR
+- Think step-by-step before acting.
+- Understand the full objective before generating code.
+- Analyze project structure before making changes.
+- Prefer production-ready solutions.
+- Write maintainable and scalable code.
+- Follow existing architecture patterns.
+- Avoid unnecessary modifications.
+- Always consider security, performance, and UX.
+
+PROJECT ANALYSIS
+Before generating code:
+1. Identify framework.
+2. Identify dependencies.
+3. Identify styling system.
+4. Identify backend architecture.
+5. Identify database.
+6. Identify authentication provider.
+7. Identify deployment target.
+Then create a plan.
+
+IMPLEMENTATION RULES
+- Prefer TypeScript.
+- Prefer reusable components.
+- Prefer responsive layouts.
+- Use clean folder structures.
+- Avoid duplicated logic.
+- Use modern best practices.
+
+UI RULES
+Generate premium quality UI.
+Design requirements:
+- Modern SaaS style
+- Clean spacing
+- Professional typography
+- Mobile responsive
+- Accessible
+- Beautiful animations
+- Consistent color system
+Never generate outdated UI.
+
+ERROR HANDLING
+When an error is detected:
+1. Analyze root cause.
+2. Propose fix.
+3. Apply minimal change.
+4. Revalidate.
+Do not guess.
+
+FILE EDITING
+Before modifying files:
+- Understand file purpose.
+- Check related imports.
+- Check dependencies.
+- Preserve existing functionality.
+
+DEPLOYMENT
+When preparing deployment:
+- Optimize assets
+- Remove unused code
+- Verify environment variables
+- Check build success
+
+OUTPUT FORMAT
+Always provide:
+1. Analysis
+2. Plan
+3. Changes
+4. Code
+5. Next Steps
+
+Think like a senior software engineer, product designer, architect, and QA engineer combined.
+
+You are NEXO Brain.`;
+    setSystemPrompt(storeDefault);
+    toast.success("System prompt reset to default!");
+  };
+
+  const handlePresetPrompt = (type: "coder" | "ux" | "minimalist") => {
+    let preset = "";
+    if (type === "coder") {
+      preset = `You are NEXO Coder, an advanced programming agent focusing purely on clean architectural patterns, robust error handling, and highly efficient algorithms. Prefer TypeScript, absolute type-safety, and modular imports.`;
+    } else if (type === "ux") {
+      preset = `You are NEXO UX Architect, a design-system agent specialized in Tailwind gradients, beautiful animations, Apple-like glassmorphic controls, and responsive visual flow. Keep layouts sleek and gorgeous.`;
+    } else if (type === "minimalist") {
+      preset = `You are NEXO Minimalist. Avoid bloated code or excess libraries. Write clean, vanilla scripts, standard layouts, fast load times, and simple structures.`;
+    }
+    setSystemPrompt(preset);
+    toast.success(`Preset applied: ${type.toUpperCase()}`);
+  };
+
+  const toggleTool = (toolId: string) => {
+    if (enabledTools.includes(toolId)) {
+      setEnabledTools(enabledTools.filter((t) => t !== toolId));
+      toast.success(`Disabled tool: ${toolId}`);
+    } else {
+      setEnabledTools([...enabledTools, toolId]);
+      toast.success(`Enabled tool: ${toolId}`);
+    }
+  };
+
+  const handleClearHistory = () => {
+    useMemoryStore.setState({ history: [] });
+    toast.success("Memory history cleared.");
+  };
 
   const [newRepoName, setNewRepoName] = useState("");
   const [isPrivateRepo, setIsPrivateRepo] = useState(true);
@@ -521,6 +659,226 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     onChange={(e) => setTopP(parseFloat(e.target.value))}
                     className="w-full h-1 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-stone-800"
                   />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "Studio" && (
+            <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div>
+                <h2 className="text-xl font-bold text-stone-800 mb-1 flex items-center gap-2">
+                  <Sliders className="w-4 h-4 text-stone-700" />
+                  Studio Configuration
+                </h2>
+                <p className="text-xs text-stone-500">
+                  Tune system prompt, agent reasoning constraints, and tool permissions.
+                </p>
+              </div>
+
+              {/* System Prompt Section */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-stone-600 uppercase tracking-wider flex items-center gap-1.5">
+                    <Brain className="w-3.5 h-3.5 text-stone-500" />
+                    System Instructions
+                  </label>
+                  <button
+                    onClick={handleResetPrompt}
+                    className="flex items-center gap-1 text-[10px] font-bold text-stone-500 hover:text-stone-800 transition-colors bg-stone-100 hover:bg-stone-200 px-2 py-1 rounded-lg border border-stone-200"
+                    title="Reset to default"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    Reset Default
+                  </button>
+                </div>
+
+                <div className="relative border border-stone-200 rounded-2xl overflow-hidden bg-stone-50">
+                  <textarea
+                    value={systemPrompt}
+                    onChange={(e) => setSystemPrompt(e.target.value)}
+                    placeholder="Enter system level instructions..."
+                    className="w-full bg-transparent px-4 py-3 text-xs text-stone-800 outline-none font-mono resize-none leading-relaxed transition-all h-36 focus:bg-white"
+                  />
+                  <div className="border-t border-stone-150 px-4 py-2 flex items-center justify-between bg-white text-[10px] text-stone-450 select-none">
+                    <span>{systemPrompt.length.toLocaleString()} characters</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handlePresetPrompt("coder")}
+                        className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors font-bold uppercase text-[9px]"
+                      >
+                        Coder Preset
+                      </button>
+                      <button
+                        onClick={() => handlePresetPrompt("ux")}
+                        className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors font-bold uppercase text-[9px]"
+                      >
+                        UX Preset
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Two Column Layout */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Left Column: LLM Settings, Keys & Memory */}
+                <div className="space-y-6">
+                  {/* Temperature Slider & Presets */}
+                  <div className="space-y-3 bg-stone-50/50 p-5 rounded-2xl border border-stone-200">
+                    <label className="text-xs font-bold text-stone-600 uppercase tracking-wider flex items-center gap-1.5">
+                      <Settings className="w-3.5 h-3.5 text-stone-500" />
+                      Temperature presets
+                    </label>
+                    <div className="grid grid-cols-3 gap-1 bg-stone-100 p-0.5 rounded-lg text-[10px] font-bold text-stone-600">
+                      {[
+                        { label: "Precise", value: 0.2 },
+                        { label: "Balanced", value: 0.7 },
+                        { label: "Creative", value: 1.2 },
+                      ].map((preset) => (
+                        <button
+                          key={preset.label}
+                          onClick={() => setTemperature(preset.value)}
+                          className={`py-1 rounded-md transition-all ${
+                            Math.abs(temperature - preset.value) < 0.1
+                              ? "bg-white text-stone-900 shadow-sm"
+                              : "hover:text-stone-800"
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] font-bold text-stone-500">
+                      <span>Slider Value</span>
+                      <span className="font-mono text-stone-800">{temperature.toFixed(1)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.1"
+                      max="1.5"
+                      step="0.1"
+                      value={temperature}
+                      onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                      className="w-full h-1 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-stone-850"
+                    />
+                  </div>
+
+                  {/* Custom API Key */}
+                  <div className="space-y-3 bg-stone-50/50 p-5 rounded-2xl border border-stone-200">
+                    <label className="text-xs font-bold text-stone-600 uppercase tracking-wider flex items-center gap-1.5">
+                      <Key className="w-3.5 h-3.5 text-stone-500" />
+                      Encapsulated API Key
+                    </label>
+                    <div className="relative flex items-center gap-2 bg-white border border-stone-200 rounded-xl px-3 py-2.5 shadow-sm">
+                      <input
+                        type={showKey ? "text" : "password"}
+                        value={customApiKey}
+                        onChange={(e) => setCustomApiKey(e.target.value)}
+                        placeholder="Enter OpenRouter / OpenAI Key..."
+                        className="w-full bg-transparent outline-none text-xs text-stone-800 placeholder:text-stone-300 font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowKey(!showKey)}
+                        className="text-stone-400 hover:text-stone-700 transition-colors"
+                      >
+                        {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-stone-450 leading-relaxed">
+                      Custom keys remain encrypted inside your client browser space.
+                    </p>
+                  </div>
+
+                  {/* Memory Preferences */}
+                  <div className="space-y-3 bg-stone-50/50 p-5 rounded-2xl border border-stone-200">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-stone-600 uppercase tracking-wider flex items-center gap-1.5">
+                        <Database className="w-3.5 h-3.5 text-stone-500" />
+                        Memory preferences
+                      </label>
+                      <button
+                        onClick={handleClearHistory}
+                        className="p-1 hover:bg-stone-100 rounded text-stone-450 hover:text-red-650 transition-colors"
+                        title="Clear build snapshots"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-[10px]">
+                      <div>
+                        <span className="text-stone-450 block mb-1 font-semibold">Design UI Style</span>
+                        <select
+                          value={preferences.designStyle}
+                          onChange={(e: any) => setPreference({ designStyle: e.target.value })}
+                          className="w-full bg-white border border-stone-200 rounded-lg px-2 py-1.5 outline-none text-stone-805 font-bold cursor-pointer"
+                        >
+                          <option value="minimal">Minimal</option>
+                          <option value="glassmorphism">Glassmorphism</option>
+                          <option value="brutalism">Brutalism</option>
+                          <option value="corporate">Corporate</option>
+                        </select>
+                      </div>
+                      <div>
+                        <span className="text-stone-450 block mb-1 font-semibold">Stack Preference</span>
+                        <select
+                          value={preferences.techStack}
+                          onChange={(e: any) => setPreference({ techStack: e.target.value })}
+                          className="w-full bg-white border border-stone-200 rounded-lg px-2 py-1.5 outline-none text-stone-805 font-bold cursor-pointer"
+                        >
+                          <option value="React + Vite + Tailwind">React/Tailwind</option>
+                          <option value="HTML + Vanilla CSS">Vanilla JS</option>
+                          <option value="Next.js + Tailwind">Next.js</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column: Tool Calling toggles */}
+                <div className="space-y-4 bg-stone-50/50 p-5 rounded-2xl border border-stone-200 h-full flex flex-col justify-between">
+                  <div>
+                    <label className="text-xs font-bold text-stone-600 uppercase tracking-wider flex items-center gap-1.5 mb-4">
+                      <FileCode className="w-3.5 h-3.5 text-stone-500" />
+                      AI Tool Call Authorization
+                    </label>
+                    <div className="space-y-3.5 text-xs text-stone-750">
+                      {[
+                        { id: "read_file", label: "Read File", desc: "Allow AI to analyze local workspace files", icon: FileCode },
+                        { id: "write_file", label: "Write File", desc: "Allow AI to create and patch files", icon: Sliders },
+                        { id: "deploy", label: "Vercel Deploy", desc: "Automate live endpoints generation", icon: Globe },
+                        { id: "preview", label: "Sandbox Live Preview", desc: "Boot WebContainer sandbox live updates", icon: Sparkles },
+                        { id: "search", label: "Firecrawl Web Scraper", desc: "Query exterior documentation", icon: Search },
+                      ].map((t) => {
+                        const ToolIcon = t.icon;
+                        const enabled = enabledTools.includes(t.id);
+                        return (
+                          <div key={t.id} className="flex items-start justify-between gap-3 pt-3 first:pt-0 border-t border-stone-200/60 first:border-0">
+                            <div className="flex items-start gap-2">
+                              <ToolIcon className="w-4 h-4 text-stone-500 shrink-0 mt-0.5" />
+                              <div>
+                                <h4 className="font-bold text-stone-800 tracking-tight leading-none">{t.label}</h4>
+                                <p className="text-[10px] text-stone-450 mt-1 leading-normal">{t.desc}</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => toggleTool(t.id)}
+                              className={`w-8 h-4.5 rounded-full p-0.5 transition-colors shrink-0 outline-none ${
+                                enabled ? "bg-stone-900" : "bg-stone-200"
+                              }`}
+                            >
+                              <div
+                                className={`bg-white w-3.5 h-3.5 rounded-full shadow transition-transform ${
+                                  enabled ? "translate-x-3.5" : "translate-x-0"
+                                }`}
+                              />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
