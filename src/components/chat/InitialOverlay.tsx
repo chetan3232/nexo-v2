@@ -40,9 +40,10 @@ import JSZip from "jszip";
 
 interface InitialOverlayProps {
   onStart: (prompt: string) => void;
+  onResume?: () => void;
 }
 
-export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
+export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResume }) => {
   const {
     selectedModel,
     setSelectedModel,
@@ -348,8 +349,27 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
     "Rust",
   ];
 
+  const chatStore = useChatStore();
+  const activePromptText = chatStore.messages.find((m) => m.role === "user")?.text || "Active Project";
+  const cleanTitle = activePromptText.length > 28 ? activePromptText.slice(0, 28) + "..." : activePromptText;
+
   return (
     <div className="fixed inset-0 z-[100] bg-studio-bg flex font-sans text-studio-text overflow-hidden">
+      {chatStore.messages.length > 0 && onResume && (
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-3.5 px-6 py-3 bg-[#111111]/90 border border-stone-800 rounded-full text-xs font-semibold text-stone-200 shadow-2xl backdrop-blur-md select-none">
+
+          <span className="text-[11px] font-medium tracking-tight">
+            Workspace <strong className="text-white">"{cleanTitle}"</strong> is active in the background
+          </span>
+          <button
+            onClick={onResume}
+            className="px-3.5 py-1.5 bg-[#f3f3f3] hover:bg-white text-black rounded-full font-bold transition-all active:scale-95 text-[10px] uppercase tracking-wide border border-transparent shadow-sm flex items-center gap-1"
+          >
+            <Sparkles className="w-3 h-3 text-[#0ea5e9]" />
+            Resume Workspace
+          </button>
+        </div>
+      )}
       {/* Background cinematic blur radial gradients */}
       <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-studio-accent/5 blur-[120px] pointer-events-none animate-glow" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-studio-secondary/5 blur-[120px] pointer-events-none animate-glow" />
@@ -493,21 +513,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
         {/* Status Indicator */}
         <div className="p-8 pb-10 flex flex-col gap-2 select-none shrink-0">
           <div className="flex items-center gap-2 opacity-60">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-            </span>
-            <span className="text-[9px] font-black text-studio-muted uppercase tracking-[0.2em]">
-              Dual AI Engine Active
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[8px] font-bold text-studio-accent/70 bg-studio-accent/10 px-2 py-0.5 rounded-full border border-studio-accent/20">
-              ⚡ Fast: Gemini Flash
-            </span>
-            <span className="text-[8px] font-bold text-purple-500/70 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
-              🧠 Deep: {models.find(m => m.id === selectedModel)?.name?.split(" ").slice(0, 3).join(" ") || "Gemini Pro"}
-            </span>
+
           </div>
         </div>
       </div>
@@ -542,17 +548,17 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
             </p>
           </div>
 
-            {/* Main Action Bar */}
+          {/* Main Action Bar */}
           <form onSubmit={handleSubmit} className="relative group">
             <div className="absolute -inset-1.5 bg-gradient-to-r from-studio-accent to-studio-secondary rounded-[2.5rem] blur opacity-15 group-focus-within:opacity-35 transition duration-1000"></div>
-            
+
             {/* Live transcript in textarea */}
             {isListening && liveTranscript && (
               <div className="absolute top-3 left-6 right-6 text-base text-indigo-400 italic opacity-80 pointer-events-none z-10">
                 🎙️ {liveTranscript}
               </div>
             )}
-            
+
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
@@ -571,11 +577,10 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
               <button
                 type="button"
                 onClick={toggleVoice}
-                className={`p-3.5 rounded-2xl font-bold transition-all flex items-center gap-2 relative ${
-                  isListening
-                    ? "bg-red-500 text-white shadow-xl shadow-red-200 scale-105"
-                    : "bg-stone-100 text-stone-500 hover:bg-stone-200 hover:scale-105"
-                }`}
+                className={`p-3.5 rounded-2xl font-bold transition-all flex items-center gap-2 relative ${isListening
+                  ? "bg-red-500 text-white shadow-xl shadow-red-200 scale-105"
+                  : "bg-stone-100 text-stone-500 hover:bg-stone-200 hover:scale-105"
+                  }`}
                 title={isListening ? "Stop recording" : "Voice-to-App: Speak your idea"}
               >
                 {isListening ? (

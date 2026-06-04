@@ -235,10 +235,30 @@ const registerWorker = (workerFn) => {
     }
 };
 
+const closeQueue = async () => {
+    if (bullWorker) {
+        try {
+            await bullWorker.close();
+            console.log('[QueueManager] BullMQ worker closed.');
+        } catch (e) {
+            console.error('[QueueManager] Failed to close worker:', e);
+        }
+    }
+    if (redisConnection) {
+        try {
+            await redisConnection.quit();
+            console.log('[QueueManager] Redis connection closed.');
+        } catch (e) {
+            console.error('[QueueManager] Failed to quit Redis connection:', e);
+        }
+    }
+};
+
 module.exports = {
     initQueue,
     addJob,
     registerWorker,
     jobEvents,
-    getJob
+    getJob,
+    closeQueue
 };

@@ -1,5 +1,7 @@
 import { Message } from "../types";
 
+import { auth } from "./firebase";
+
 /**
  * Low-level AI invocation via the Nexo backend (Google Gemini).
  */
@@ -17,6 +19,10 @@ export const invokeAI = async (
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...(auth.currentUser ? {
+        "x-user-id": auth.currentUser.uid,
+        "x-user-email": auth.currentUser.email || "",
+      } : {}),
     },
     body: JSON.stringify({
       model,

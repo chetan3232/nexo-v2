@@ -1,3 +1,4 @@
+import { auth } from "../services/firebase";
 import { Message } from "../types";
 
 export interface AgentResponse {
@@ -19,6 +20,10 @@ export abstract class BaseAgent {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...(auth.currentUser ? {
+          "x-user-id": auth.currentUser.uid,
+          "x-user-email": auth.currentUser.email || "",
+        } : {}),
       },
       body: JSON.stringify({
         ...payload,

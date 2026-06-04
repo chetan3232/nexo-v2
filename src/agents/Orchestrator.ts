@@ -36,6 +36,7 @@ import { DepAnalyzer } from "../utils/depAnalyzer";
 import toast from "react-hot-toast";
 import { BackgroundPreserver } from "../utils/backgroundPreserver";
 import { AgentEventBus } from "../utils/agentEventBus";
+import { auth } from "../services/firebase";
 
 export class Orchestrator {
   private static instance: Orchestrator;
@@ -72,6 +73,9 @@ export class Orchestrator {
       selectedLanguage: agentStore.selectedLanguage,
       temperature: agentStore.temperature,
       topP: agentStore.topP,
+      systemPrompt: agentStore.systemPrompt,
+      enabledTools: agentStore.enabledTools,
+      customApiKey: agentStore.customApiKey,
     };
 
     // Close any previous event source
@@ -87,7 +91,13 @@ export class Orchestrator {
       
       const response = await fetch("/api/ai/build", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(auth.currentUser ? {
+            "x-user-id": auth.currentUser.uid,
+            "x-user-email": auth.currentUser.email || ""
+          } : {})
+        },
         body: JSON.stringify({ prompt, chatId, options })
       });
 
@@ -902,7 +912,13 @@ export class Orchestrator {
 
       const response = await fetch("/api/scrape", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(auth.currentUser ? {
+            "x-user-id": auth.currentUser.uid,
+            "x-user-email": auth.currentUser.email || ""
+          } : {})
+        },
         body: JSON.stringify({ url }),
       });
 
@@ -971,7 +987,7 @@ export class Orchestrator {
       { role: "user", text: `Explain this code in ${filename}:\n\`\`\`\n${code}\n\`\`\``, timestamp: Date.now() }
     ]);
     
-    projectStore.setBuildPhase("thinking");
+    projectStore.setBuildPhase("planning");
     projectStore.setSubStatus("Analyzing code block...");
     
     try {

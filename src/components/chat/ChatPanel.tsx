@@ -39,6 +39,8 @@ const ALL_MODELS = [
   { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", badge: "Default" },
   { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", badge: "Pro" },
   { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", badge: "New" },
+  { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet", badge: "Premium" },
+  { id: "openai/gpt-4o", name: "GPT-4o", badge: "Premium" },
   { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B", badge: "Nvidia" },
   { id: "stepfun-ai/step-3.5-flash", name: "Step 3.5 Flash", badge: "Nvidia" },
   { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Groq)", badge: "Groq" },

@@ -12,6 +12,9 @@ const scrapeRoutes = require('./routes/scrape');
 const app = express();
 const PORT = 5000;
 
+const compression = require('compression');
+app.use(compression());
+
 // Initialize Storage (Create JSON files if missing)
 store.initializeData();
 
@@ -48,6 +51,14 @@ app.get('/api/usage', (req, res) => {
     }
 });
 
+app.get('/api/allowance', (req, res) => {
+    const userId = req.headers["x-user-id"] || "anonymous";
+    const email = req.headers["x-user-email"] || "";
+    const allowanceManager = require('./services/allowanceManager');
+    const userAllowance = allowanceManager.checkAllowance(userId, email);
+    res.json(userAllowance);
+});
+
 app.get('/', (req, res) => {
     res.send('AI Code Editor Backend Running');
 });
@@ -58,6 +69,29 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'An internal server error occurred.' });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
+
+const { flushSync } = require('./data/jobStore');
+const { closeQueue } = require('./services/queueManager');
+
+const gracefulShutdown = () => {
+    console.log('\n[Server] Shutdown signal received. Starting graceful shutdown...');
+    server.close(async () => {
+        console.log('[Server] HTTP server closed.');
+        flushSync();
+        await closeQueue();
+        console.log('[Server] Graceful shutdown completed. Exiting process.');
+        process.exit(0);
+    });
+
+    setTimeout(() => {
+        console.error('[Server] Graceful shutdown timed out. Force exiting.');
+        flushSync();
+        process.exit(1);
+    }, 10000);
+};
+
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);

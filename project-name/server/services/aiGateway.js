@@ -3,6 +3,7 @@ const { z } = require("zod");
 const { RateLimiterMemory } = require("rate-limiter-flexible");
 const fs = require("fs");
 const path = require("path");
+const allowanceManager = require("./allowanceManager");
 
 // 1. Zod Request validation schema
 const chatRequestSchema = z.object({
@@ -19,6 +20,9 @@ const chatRequestSchema = z.object({
   techStack: z.string().optional().default("Vanilla"),
   stream: z.boolean().optional().default(true),
   enableThinking: z.boolean().optional().default(true),
+  systemPrompt: z.string().optional(),
+  enabledTools: z.array(z.string()).optional(),
+  customApiKey: z.string().optional(),
 });
 
 // 2. Rate Limiting setup (Max 200 requests per 15 minutes per IP)
@@ -100,6 +104,68 @@ Your output is successful when:
 
 Build with the soul of an architect, the speed of a compiler, and the precision of a senior engineer.`;
 
+const buildSystemPrompt = (basePrompt, enabledTools, projectMode, techStack) => {
+  let prompt = basePrompt || SYSTEM_PROMPT;
+
+  if (projectMode === "fullstack") {
+    prompt += `\n\n### FULL STACK ARCHITECTURE MANDATE
+You are a Full-Stack Architect. You are empowered with FULL STACK CAPABILITIES. You MUST generate the COMPLETE architecture (Frontend + Backend). No file limit applies, but use the Nexo Protocol markers.
+ALLOWED TECHNOLOGIES:
+- Modern Server-side languages (Node.js, Python, Go, etc.)
+- Databases (SQL, NoSQL)
+- Full Stack Frameworks (Next.js, Remix, etc.)`;
+  }
+
+  if (techStack !== "Vanilla") {
+    prompt += `\n\n### TECHNOLOGY STACK MANDATE
+You MUST build this project using the following specific stack: **${techStack}**. 
+Adjust your file structure accordingly. If this is a framework project (like React/Next.js), generate all necessary configuration files (package.json, tailwind.config.js, etc.) within the ---FILE--- markers.
+You should generate all files required for a professional **${techStack}** project. Use the Nexo Protocol markers for every file.`;
+  } else {
+    prompt += `\n\n### TECHNOLOGY STACK MANDATE
+You are building a Vanilla (HTML/CSS/JS) project. 
+You MUST generate EXACTLY THREE (3) separated files: index.html, style.css, and script.js.
+CRITICAL: Ensure your index.html contains a root element like <div id="app"></div> and your Javascript accurately targets it!`;
+  }
+
+  // Filter tools list dynamically
+  if (enabledTools && Array.isArray(enabledTools)) {
+    let capabilities = `\n\n### ⚡ AUTONOMOUS CAPABILITIES\n\nYou have these virtual tools available. Narrate when using them:`;
+    if (enabledTools.includes("read_file")) {
+      capabilities += `\n- readFile(path) — reading existing code`;
+    }
+    if (enabledTools.includes("write_file")) {
+      capabilities += `\n- writeFile(path, content) — creating/updating files\n- createComponent(name) — building a UI component\n- installPackage(name) — adding a dependency`;
+    }
+    if (enabledTools.includes("deploy")) {
+      capabilities += `\n- deploy() — deploying live on production (Vercel)`;
+    }
+    if (enabledTools.includes("preview")) {
+      capabilities += `\n- runBuild() — verifying the project builds and runs in preview sandbox`;
+    }
+    if (enabledTools.includes("search")) {
+      capabilities += `\n- search(query) — scraping external web content/documentation via Firecrawl`;
+    }
+    prompt += capabilities;
+  }
+
+  // Append Nexo file wrap protocol if not already explicitly present
+  if (!prompt.includes("---FILE:")) {
+    prompt += `\n\n### 📁 NEXO PROTOCOL — FILE FORMAT (MANDATORY)
+Every single file MUST use this exact format. Never use markdown code blocks inside:
+---FILE: path/to/filename.ext---
+[COMPLETE FILE CONTENTS HERE]
+---END FILE---
+Rules:
+- NEVER use backticks inside ---FILE--- markers
+- ALWAYS write COMPLETE file contents (never truncate)
+- Include ALL necessary files for the project to run
+- Path must be relative (no leading slash)`;
+  }
+
+  return prompt;
+};
+
 // In-memory metrics tracking for the 1-minute recap
 let minuteStats = {
   totalCalls: 0,
@@ -132,7 +198,7 @@ setInterval(() => {
   minuteStats.totalTokens = 0;
 }, 60 * 1000);
 
-const logUsage = (model, inputTokens = 0, outputTokens = 0, durationMs = 0) => {
+const logUsage = (model, inputTokens = 0, outputTokens = 0, durationMs = 0, userId = "anonymous") => {
   try {
     const logPath = path.join(__dirname, "../data/usage.json");
     let usage = { calls: [], totalTokens: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCost: 0 };
@@ -153,17 +219,20 @@ const logUsage = (model, inputTokens = 0, outputTokens = 0, durationMs = 0) => {
       "gemini-2.5-flash": { input: 0.075, output: 0.30 },
       "gemini-2.5-pro": { input: 1.25, output: 5.00 },
       "gemini-2.0-flash": { input: 0.075, output: 0.30 },
-      "qwen/qwen3-coder-480b-a35b-instruct": { input: 0.30, output: 0.30 },
-      "stepfun-ai/step-3.5-flash": { input: 0.10, output: 0.20 },
+      "qwen/qwen3-coder-480b-a35b-instruct": { input: 0.00, output: 0.00 },
+      "stepfun-ai/step-3.5-flash": { input: 0.00, output: 0.00 },
       "groq/llama-3.3-70b-versatile": { input: 0.59, output: 0.79 }
     };
 
-    const modelKey = Object.keys(rates).find(k => model.includes(k)) || "default";
-    const rate = rates[modelKey] || { input: 0.10, output: 0.30 };
+    const isNvidiaModel = model.includes("nvidia") || model.includes("stepfun") || model.includes("qwen/qwen3-coder-480b-a35b-instruct");
+    const rate = isNvidiaModel ? { input: 0.00, output: 0.00 } : (rates[Object.keys(rates).find(k => model.includes(k)) || "default"] || { input: 0.10, output: 0.30 });
 
     const cost = ((inputTokens * rate.input) + (outputTokens * rate.output)) / 1000000;
     const tokens = inputTokens + outputTokens;
     const speed = durationMs > 0 ? Math.round((outputTokens / durationMs) * 1000) : 0;
+
+    // Deduct cost from User Allowance balance
+    allowanceManager.deductAllowance(userId, cost);
 
     usage.calls.push({
       timestamp: new Date().toISOString(),
@@ -209,22 +278,71 @@ const logUsage = (model, inputTokens = 0, outputTokens = 0, durationMs = 0) => {
   }
 };
 
+const callWithRetry = async (fn, maxRetries = 3, initialDelay = 1000) => {
+  let delay = initialDelay;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const status = err.status || err.statusCode;
+      const msg = (err.message || "").toLowerCase();
+      const isTransient = !status || 
+                          [429, 500, 502, 503, 504].includes(status) || 
+                          msg.includes("timeout") || 
+                          msg.includes("network") || 
+                          msg.includes("rate limit") || 
+                          msg.includes("too many requests") || 
+                          msg.includes("429") || 
+                          msg.includes("503");
+      
+      if (!isTransient || attempt === maxRetries) {
+        throw err;
+      }
+      
+      console.warn(`[AI Gateway] Attempt ${attempt} failed with transient error (${err.message}). Retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2;
+    }
+  }
+};
+
 // 3. Provider setup helper
-const getClient = (provider) => {
+const getClient = (provider, customApiKey) => {
+  const apiKey = customApiKey || (
+    provider === "nvidia" ? process.env.NVIDIA_API_KEY :
+    provider === "groq" ? process.env.GROQ_API_KEY :
+    provider === "openai" ? (process.env.OPENAI_API_KEY || customApiKey) :
+    provider === "openrouter" ? (process.env.OPENROUTER_API_KEY || customApiKey || process.env.GEMINI_API_KEY) :
+    process.env.GEMINI_API_KEY
+  );
+
   if (provider === "nvidia") {
     return new OpenAI({
-      apiKey: process.env.NVIDIA_API_KEY,
+      apiKey: apiKey,
       baseURL: "https://integrate.api.nvidia.com/v1",
     });
   } else if (provider === "groq") {
     return new OpenAI({
-      apiKey: process.env.GROQ_API_KEY,
+      apiKey: apiKey,
       baseURL: "https://api.groq.com/openai/v1",
     });
   } else if (provider === "gemini") {
     return new OpenAI({
-      apiKey: process.env.GEMINI_API_KEY,
+      apiKey: apiKey,
       baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+    });
+  } else if (provider === "openai") {
+    return new OpenAI({
+      apiKey: apiKey,
+    });
+  } else if (provider === "openrouter") {
+    return new OpenAI({
+      apiKey: apiKey,
+      baseURL: "https://openrouter.ai/api/v1",
+      defaultHeaders: {
+        "HTTP-Referer": "https://nexo.ai",
+        "X-Title": "Nexo AI Workspace",
+      }
     });
   }
   return null;
@@ -234,10 +352,23 @@ const getClient = (provider) => {
 const getFallbackChain = (requestedModel) => {
   const isNvidia = requestedModel.startsWith("nvidia/") || requestedModel === "minimaxai/minimax-m2.7" || requestedModel.startsWith("stepfun-ai/") || requestedModel === "qwen/qwen3-coder-480b-a35b-instruct";
   const isGroq = !isNvidia && (requestedModel.startsWith("groq/") || requestedModel.includes("llama") || requestedModel.includes("mixtral"));
+  const isOpenAI = requestedModel.startsWith("openai/") || requestedModel.startsWith("gpt-");
+  const isAnthropic = requestedModel.startsWith("anthropic/") || requestedModel.startsWith("claude-");
+  const isOpenRouter = requestedModel.includes("/");
 
   let possibleChain = [];
 
-  if (isNvidia) {
+  if (isOpenAI) {
+    possibleChain = [
+      { provider: "openai", model: requestedModel.replace("openai/", "") },
+      { provider: "gemini", model: "gemini-2.5-flash" }
+    ];
+  } else if (isAnthropic || isOpenRouter) {
+    possibleChain = [
+      { provider: "openrouter", model: requestedModel },
+      { provider: "gemini", model: "gemini-2.5-flash" }
+    ];
+  } else if (isNvidia) {
     const actualModel = requestedModel === "nvidia/minimax-m2.7" || requestedModel === "minimaxai/minimax-m2.7"
       ? "minimaxai/minimax-m2.7"
       : (requestedModel.startsWith("nvidia/") ? requestedModel.replace("nvidia/", "") : requestedModel);
@@ -266,11 +397,13 @@ const getFallbackChain = (requestedModel) => {
   // Filter possible steps by environment variable presence
   const finalChain = [];
   for (const step of possibleChain) {
-    if (step.provider === "nvidia" && process.env.NVIDIA_API_KEY) {
+    if (step.provider === "nvidia" && (process.env.NVIDIA_API_KEY || process.env.GEMINI_API_KEY)) {
       finalChain.push(step);
-    } else if (step.provider === "groq" && process.env.GROQ_API_KEY) {
+    } else if (step.provider === "groq" && (process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY)) {
       finalChain.push(step);
     } else if (step.provider === "gemini" && process.env.GEMINI_API_KEY) {
+      finalChain.push(step);
+    } else if (step.provider === "openai" || step.provider === "openrouter") {
       finalChain.push(step);
     }
   }
@@ -279,34 +412,13 @@ const getFallbackChain = (requestedModel) => {
 };
 
 class AIGateway {
-  static async streamCompletion({ messages, model, temperature, top_p, projectMode, techStack }, onChunk) {
-    const apiKey = process.env.OPENROUTER_API_KEY || process.env.NVIDIA_API_KEY || process.env.GEMINI_API_KEY;
+  static async streamCompletion({ messages, model, temperature, top_p, projectMode, techStack, systemPrompt, enabledTools, customApiKey, userId }, onChunk) {
+    const apiKey = customApiKey || process.env.OPENROUTER_API_KEY || process.env.NVIDIA_API_KEY || process.env.GEMINI_API_KEY;
     if (!apiKey) {
       throw new Error("API Credentials missing on server.");
     }
 
-    let currentSystemPrompt = SYSTEM_PROMPT;
-
-    if (projectMode === "fullstack") {
-      currentSystemPrompt += `\n\n### FULL STACK ARCHITECTURE MANDATE
-You are a Full-Stack Architect. You are empowered with FULL STACK CAPABILITIES. You MUST generate the COMPLETE architecture (Frontend + Backend). No file limit applies, but use the Nexo Protocol markers.
-ALLOWED TECHNOLOGIES:
-- Modern Server-side languages (Node.js, Python, Go, etc.)
-- Databases (SQL, NoSQL)
-- Full Stack Frameworks (Next.js, Remix, etc.)`;
-    }
-
-    if (techStack !== "Vanilla") {
-      currentSystemPrompt += `\n\n### TECHNOLOGY STACK MANDATE
-You MUST build this project using the following specific stack: **${techStack}**. 
-Adjust your file structure accordingly. If this is a framework project (like React/Next.js), generate all necessary configuration files (package.json, tailwind.config.js, etc.) within the ---FILE--- markers.
-You should generate all files required for a professional **${techStack}** project. Use the Nexo Protocol markers for every file.`;
-    } else {
-      currentSystemPrompt += `\n\n### TECHNOLOGY STACK MANDATE
-You are building a Vanilla (HTML/CSS/JS) project. 
-You MUST generate EXACTLY THREE (3) separated files: index.html, style.css, and script.js.
-CRITICAL: Ensure your index.html contains a root element like <div id="app"></div> and your Javascript accurately targets it!`;
-    }
+    const currentSystemPrompt = buildSystemPrompt(systemPrompt, enabledTools, projectMode, techStack);
 
     const messagesPayload = [
       { role: "system", content: currentSystemPrompt },
@@ -325,7 +437,7 @@ CRITICAL: Ensure your index.html contains a root element like <div id="app"></di
       try {
         console.log(`[AI Gateway Stream] Attempt ${attempt + 1}: Routing to ${provider} using "${targetModel}"`);
 
-        const client = getClient(provider);
+        const client = getClient(provider, customApiKey);
         if (!client) {
           throw new Error(`Provider ${provider} is not configured.`);
         }
@@ -333,15 +445,14 @@ CRITICAL: Ensure your index.html contains a root element like <div id="app"></di
                 const maxTokens = provider === "nvidia" ? 8192 : 16384;
         
         const startTime = Date.now();
-        // Always stream inside background orchestrator
-        const responseStream = await client.chat.completions.create({
+        const responseStream = await callWithRetry(() => client.chat.completions.create({
           model: targetModel,
           messages: messagesPayload,
           temperature: temperature || 1.0,
           top_p: top_p || 1.0,
           stream: true,
           max_tokens: maxTokens,
-        });
+        }));
 
         let fullText = "";
         for await (const chunk of responseStream) {
@@ -353,7 +464,7 @@ CRITICAL: Ensure your index.html contains a root element like <div id="app"></di
 
         const promptEst = Math.ceil(JSON.stringify(messagesPayload).length / 4);
         const respEst = Math.ceil(fullText.length / 4);
-        logUsage(targetModel, promptEst, respEst, durationMs);
+        logUsage(targetModel, promptEst, respEst, durationMs, userId);
 
         return fullText;
       } catch (err) {
@@ -383,38 +494,51 @@ CRITICAL: Ensure your index.html contains a root element like <div id="app"></di
       return res.status(400).json({ error: "Invalid request payload", details: parsed.error.format() });
     }
 
-    const { messages, model, temperature, top_p, projectMode, techStack, stream, enableThinking } = parsed.data;
+    const { messages, model, temperature, top_p, projectMode, techStack, stream, enableThinking, systemPrompt, enabledTools, customApiKey } = parsed.data;
 
-    const apiKey = process.env.OPENROUTER_API_KEY || process.env.NVIDIA_API_KEY || process.env.GEMINI_API_KEY;
+    const apiKey = customApiKey || process.env.OPENROUTER_API_KEY || process.env.NVIDIA_API_KEY || process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return res.status(401).json({ error: "API Credentials missing on server." });
+    }
+
+    const userId = req.headers["x-user-id"] || "anonymous";
+    const email = req.headers["x-user-email"] || "";
+
+    const userAllowance = allowanceManager.checkAllowance(userId, email);
+    if (userAllowance.balance <= 0) {
+      const isAnonymous = !userId || userId === 'anonymous';
+      const limitMsg = isAnonymous
+        ? "You have exceeded your anonymous free allowance ($0.50). Please sign in to get a $5.00 free allowance."
+        : "You have exceeded your free allowance ($5.00). Allowance resets every 2 days.";
+      
+      if (stream) {
+        if (!res.headersSent) {
+          res.setHeader("Content-Type", "text/event-stream");
+          res.setHeader("Cache-Control", "no-cache");
+          res.setHeader("Connection", "keep-alive");
+        }
+        const errChunk = {
+          choices: [
+            {
+              delta: {
+                content: `\n\n❌ **Error:** ${limitMsg}\n\n`,
+              },
+            },
+          ],
+        };
+        res.write(`data: ${JSON.stringify(errChunk)}\n\n`);
+        res.write("data: [DONE]\n\n");
+        res.end();
+        return;
+      } else {
+        return res.status(403).json({ error: limitMsg });
+      }
     }
 
     console.log(`\n\x1b[33m[AI Request]\x1b[0m Model: "${model}" | Mode: ${projectMode} | Stack: ${techStack} | Stream: ${stream} | Time: ${new Date().toLocaleTimeString()}`);
 
     // Prompt engineering - system prompt assembly
-    let currentSystemPrompt = SYSTEM_PROMPT;
-
-    if (projectMode === "fullstack") {
-      currentSystemPrompt += `\n\n### FULL STACK ARCHITECTURE MANDATE
-You are a Full-Stack Architect. You are empowered with FULL STACK CAPABILITIES. You MUST generate the COMPLETE architecture (Frontend + Backend). No file limit applies, but use the Nexo Protocol markers.
-ALLOWED TECHNOLOGIES:
-- Modern Server-side languages (Node.js, Python, Go, etc.)
-- Databases (SQL, NoSQL)
-- Full Stack Frameworks (Next.js, Remix, etc.)`;
-    }
-
-    if (techStack !== "Vanilla") {
-      currentSystemPrompt += `\n\n### TECHNOLOGY STACK MANDATE
-You MUST build this project using the following specific stack: **${techStack}**. 
-Adjust your file structure accordingly. If this is a framework project (like React/Next.js), generate all necessary configuration files (package.json, tailwind.config.js, etc.) within the ---FILE--- markers.
-You should generate all files required for a professional **${techStack}** project. Use the Nexo Protocol markers for every file.`;
-    } else {
-      currentSystemPrompt += `\n\n### TECHNOLOGY STACK MANDATE
-You are building a Vanilla (HTML/CSS/JS) project. 
-You MUST generate EXACTLY THREE (3) separated files: index.html, style.css, and script.js.
-CRITICAL: Ensure your index.html contains a root element like <div id="app"></div> and your Javascript accurately targets it!`;
-    }
+    const currentSystemPrompt = buildSystemPrompt(systemPrompt, enabledTools, projectMode, techStack);
 
     const messagesPayload = [
       { role: "system", content: currentSystemPrompt },
@@ -435,7 +559,7 @@ CRITICAL: Ensure your index.html contains a root element like <div id="app"></di
       try {
         console.log(`[AI Gateway] Attempt ${attempt + 1}: Routing to ${provider} using "${targetModel}"`);
 
-        const client = getClient(provider);
+        const client = getClient(provider, customApiKey);
         if (!client) {
           throw new Error(`Provider ${provider} is not configured.`);
         }
@@ -466,14 +590,14 @@ CRITICAL: Ensure your index.html contains a root element like <div id="app"></di
           }
 
           const startTime = Date.now();
-          const responseStream = await client.chat.completions.create({
+          const responseStream = await callWithRetry(() => client.chat.completions.create({
             model: targetModel,
             messages: messagesPayload,
             temperature: temperature,
             top_p: top_p,
             stream: true,
             max_tokens: maxTokens,
-          });
+          }));
 
           let fullText = "";
           for await (const chunk of responseStream) {
@@ -485,27 +609,26 @@ CRITICAL: Ensure your index.html contains a root element like <div id="app"></di
 
           const promptEst = Math.ceil(JSON.stringify(messagesPayload).length / 4);
           const respEst = Math.ceil(fullText.length / 4);
-          logUsage(targetModel, promptEst, respEst, durationMs);
+          logUsage(targetModel, promptEst, respEst, durationMs, userId);
 
           res.write("data: [DONE]\n\n");
           res.end();
         } else {
           const startTime = Date.now();
-          // Non-streaming call (e.g. Minimax or direct response)
-          const completion = await client.chat.completions.create({
+          const completion = await callWithRetry(() => client.chat.completions.create({
             model: targetModel,
             messages: messagesPayload,
             temperature: temperature,
             top_p: top_p,
             stream: false,
             max_tokens: maxTokens,
-          });
+          }));
           const durationMs = Date.now() - startTime;
 
           const promptEst = Math.ceil(JSON.stringify(messagesPayload).length / 4);
           const text = completion.choices?.[0]?.message?.content || "";
           const respEst = Math.ceil(text.length / 4);
-          logUsage(targetModel, promptEst, respEst, durationMs);
+          logUsage(targetModel, promptEst, respEst, durationMs, userId);
 
           if (stream) {
             if (!res.headersSent) {

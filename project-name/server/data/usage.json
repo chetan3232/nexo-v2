@@ -60,7 +60,40 @@
       "timestamp": "2026-05-26T10:49:32.368Z",
       "model": "stepfun-ai/step-3.5-flash",
       "tokens": 4379
+    },
+    {
+      "timestamp": "2026-06-04T14:55:26.702Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1018,
+      "outputTokens": 230,
+      "tokens": 1248,
+      "cost": 0.000145,
+      "speed": 45,
+      "durationMs": 5116
+    },
+    {
+      "timestamp": "2026-06-04T14:56:19.302Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 938,
+      "outputTokens": 8295,
+      "tokens": 9233,
+      "cost": 0.002559,
+      "speed": 158,
+      "durationMs": 52342
+    },
+    {
+      "timestamp": "2026-06-04T15:57:11.685Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1018,
+      "outputTokens": 110,
+      "tokens": 1128,
+      "cost": 0.000109,
+      "speed": 36,
+      "durationMs": 3031
     }
   ],
-  "totalTokens": 74136
+  "totalTokens": 85745,
+  "totalInputTokens": 2974,
+  "totalOutputTokens": 8635,
+  "totalCost": 0.002813
 }
