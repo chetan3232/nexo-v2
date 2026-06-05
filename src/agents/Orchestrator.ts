@@ -37,6 +37,7 @@ import toast from "react-hot-toast";
 import { BackgroundPreserver } from "../utils/backgroundPreserver";
 import { AgentEventBus } from "../utils/agentEventBus";
 import { auth } from "../services/firebase";
+import { saveCurrentProject } from "../services/saveService";
 
 export class Orchestrator {
   private static instance: Orchestrator;
@@ -382,6 +383,14 @@ export class Orchestrator {
             // Perform dependency compilation and boot local preview server
             await this.bootRuntime();
             toast.success("Build and preview ready! 🎉");
+            
+            // Save project immediately
+            try {
+              await saveCurrentProject();
+            } catch (e) {
+              console.error("Failed to save project on completion:", e);
+            }
+
             source.close();
             this.activeEventSource = null;
             break;
@@ -395,6 +404,14 @@ export class Orchestrator {
             bus.setGenerating(false);
             
             await this.bootRuntime();
+            
+            // Save project immediately
+            try {
+              await saveCurrentProject();
+            } catch (e) {
+              console.error("Failed to save project on completion:", e);
+            }
+
             source.close();
             this.activeEventSource = null;
             break;
@@ -471,7 +488,7 @@ export class Orchestrator {
     }
   }
 
-  private async bootRuntime() {
+  public async bootRuntime() {
     const projectStore = useProjectStore.getState();
     const wc = WebContainerService.getInstance();
     const devServer = DevServerService.getInstance();

@@ -149,4 +149,81 @@ router.get("/job/:jobId", (req, res) => {
     res.json(job);
 });
 
+// 4. Speech to Text (STT) Transcription API
+router.post("/transcribe", async (req, res) => {
+    try {
+        const { audio } = req.body;
+        if (!audio) {
+            return res.status(400).json({ error: "Missing audio data" });
+        }
+
+        // 1. Try Groq Whisper API (primary, extremely fast and multilingual)
+        if (process.env.GROQ_API_KEY) {
+            try {
+                console.log("[STT] Attempting Groq Whisper transcription...");
+                const formData = new FormData();
+                const buffer = Buffer.from(audio, "base64");
+                const file = new Blob([buffer], { type: "audio/webm" });
+                formData.append("file", file, "audio.webm");
+                formData.append("model", "whisper-large-v3");
+
+                const response = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
+                    },
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.text) {
+                        console.log("[STT] Groq transcription successful:", data.text);
+                        return res.json({ text: data.text });
+                    }
+                } else {
+                    const errText = await response.text();
+                    console.error("[STT] Groq transcription failed with response:", errText);
+                }
+            } catch (groqErr) {
+                console.error("[STT] Groq transcription error, falling back to Gemini:", groqErr.message);
+            }
+        }
+
+        // 2. Try Gemini 2.5 Flash API (fallback, natively processes audio)
+        if (process.env.GEMINI_API_KEY) {
+            try {
+                console.log("[STT] Attempting Gemini fallback transcription...");
+                const { GoogleGenerativeAI } = require("@google/generative-ai");
+                const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+                const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+                const result = await model.generateContent([
+                    {
+                        inlineData: {
+                            data: audio,
+                            mimeType: "audio/webm"
+                        }
+                    },
+                    "Provide a clean transcription of this audio. Output only the transcription text, nothing else."
+                ]);
+
+                const text = result.response.text();
+                if (text) {
+                    console.log("[STT] Gemini transcription successful:", text);
+                    return res.json({ text: text.trim() });
+                }
+            } catch (geminiErr) {
+                console.error("[STT] Gemini transcription error:", geminiErr.message);
+            }
+        }
+
+        res.status(500).json({ error: "Failed to transcribe audio. No available STT providers." });
+    } catch (err) {
+        console.error("[STT] General transcription error:", err);
+        res.status(500).json({ error: err.message || "Failed to transcribe audio" });
+    }
+});
+
 module.exports = router;
+

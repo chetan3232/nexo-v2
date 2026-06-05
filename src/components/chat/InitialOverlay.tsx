@@ -22,6 +22,7 @@ import {
   User,
   Mic,
   Radio,
+  Loader2,
 } from "lucide-react";
 import { useAgentStore } from "../../stores/agentStore";
 import { useChatStore } from "../../stores/chatStore";
@@ -66,7 +67,14 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
   const [chatHistory, setChatHistory] = useState<any[]>([]);
   const [isListening, setIsListening] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState("");
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [micVolume, setMicVolume] = useState<number>(0);
   const recognitionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<any>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const initialTextRef = useRef<string>("");
 
   // Close menu on outside click
   useEffect(() => {
@@ -87,7 +95,15 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
           setChatHistory(chats);
         });
       } else {
-        setChatHistory([]);
+        fetch("/api/chats/list")
+          .then((res) => res.json())
+          .then((chats) => {
+            setChatHistory(chats || []);
+          })
+          .catch((err) => {
+            console.error("Failed to load local chats in overlay:", err);
+            setChatHistory([]);
+          });
       }
     });
     return () => unsubscribe();
@@ -248,58 +264,183 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
     }
   };
 
-  // Voice-to-App on landing screen
-  const toggleVoice = useCallback(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("Voice input not supported in this browser.");
-      return;
-    }
+  // Voice-to-App on landing screen using Web Audio Recording & Speech API
+  const toggleVoice = useCallback(async () => {
+    if (isTranscribing) return;
 
     if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-      setLiveTranscript("");
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          console.error("Error stopping SpeechRecognition:", e);
+        }
+      }
+
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      } else {
+        setIsListening(false);
+      }
+
+      // Cleanup visualizer
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      if (audioContextRef.current) {
+        try {
+          audioContextRef.current.close();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      setMicVolume(0);
       return;
     }
 
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-    recognitionRef.current = recognition;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunksRef.current = [];
 
-    recognition.onstart = () => setIsListening(true);
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      mediaRecorderRef.current = mediaRecorder;
 
-    recognition.onresult = (event: any) => {
-      let interim = "";
-      let final = "";
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          final += event.results[i][0].transcript;
-        } else {
-          interim += event.results[i][0].transcript;
+      // Track initial text to append to it
+      initialTextRef.current = prompt;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
         }
+      };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(track => track.stop());
+
+        if (audioChunksRef.current.length === 0) {
+          alert("No audio captured.");
+          return;
+        }
+
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        setIsTranscribing(true);
+
+        try {
+          const reader = new FileReader();
+          reader.readAsDataURL(audioBlob);
+          reader.onloadend = async () => {
+            const base64Data = (reader.result as string).split(",")[1];
+
+            try {
+              const res = await fetch("/api/ai/transcribe", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ audio: base64Data })
+              });
+
+              if (!res.ok) {
+                throw new Error("STT server error");
+              }
+
+              const data = await res.json();
+              if (data.text) {
+                // Overwrite the real-time preview with the high-quality final transcript
+                setPrompt((initialTextRef.current + " " + data.text).trim());
+              } else {
+                alert("Could not transcribe audio.");
+              }
+            } catch (err) {
+              console.error("STT transcription fetch failed:", err);
+              alert("Transcription failed.");
+            } finally {
+              setIsTranscribing(false);
+              setIsListening(false);
+              setLiveTranscript("");
+              setMicVolume(0);
+            }
+          };
+        } catch (err) {
+          console.error("Failed to read audio blob:", err);
+          alert("Failed to process audio.");
+          setIsTranscribing(false);
+          setIsListening(false);
+          setMicVolume(0);
+        }
+      };
+
+      // Set up AudioContext volume analyser
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioContextRef.current = audioContext;
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 64;
+      source.connect(analyser);
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      
+      const updateVolume = () => {
+        if (mediaRecorder.state === "inactive") return;
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / bufferLength;
+        setMicVolume(average);
+        animationFrameRef.current = requestAnimationFrame(updateVolume);
+      };
+
+      mediaRecorder.start();
+      setIsListening(true);
+      updateVolume();
+
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        
+        // Auto fallback user's browser language if not en-US
+        recognition.lang = navigator.language || "en-US";
+        recognitionRef.current = recognition;
+
+        recognition.onresult = (event: any) => {
+          let interim = "";
+          let final = "";
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              final += event.results[i][0].transcript;
+            } else {
+              interim += event.results[i][0].transcript;
+            }
+          }
+          setLiveTranscript(interim || final || "Listening...");
+          
+          // Append text in real-time to the text area
+          const textToAdd = (final + " " + interim).trim();
+          if (textToAdd) {
+            setPrompt((initialTextRef.current + " " + textToAdd).trim());
+          }
+        };
+
+        recognition.onerror = (event: any) => {
+          console.warn("SpeechRecognition interim error:", event.error);
+        };
+
+        recognition.start();
+      } else {
+        setLiveTranscript("Recording...");
       }
-      setLiveTranscript(interim);
-      if (final) {
-        setPrompt(prev => (prev + " " + final).trim());
-        setLiveTranscript("");
-      }
-    };
 
-    recognition.onerror = (event: any) => {
+    } catch (err: any) {
+      console.error("Failed to access microphone:", err);
+      alert("Could not access microphone. Check browser permissions.");
       setIsListening(false);
-      setLiveTranscript("");
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-      setLiveTranscript("");
-    };
-
-    recognition.start();
-  }, [isListening]);
+      setIsTranscribing(false);
+      setMicVolume(0);
+    }
+  }, [isListening, isTranscribing, prompt]);
 
   const models = [
     {
@@ -553,9 +694,31 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
             <div className="absolute -inset-1.5 bg-gradient-to-r from-studio-accent to-studio-secondary rounded-[2.5rem] blur opacity-15 group-focus-within:opacity-35 transition duration-1000"></div>
 
             {/* Live transcript in textarea */}
-            {isListening && liveTranscript && (
-              <div className="absolute top-3 left-6 right-6 text-base text-indigo-400 italic opacity-80 pointer-events-none z-10">
-                🎙️ {liveTranscript}
+            {isListening && (
+              <div className="absolute top-4 left-8 right-8 flex items-center justify-between text-base text-indigo-400 font-medium italic pointer-events-none z-10 select-none">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                  </span>
+                  <span className="truncate">
+                    {liveTranscript || "Listening..."}
+                  </span>
+                </div>
+                {/* Dancing voice bars */}
+                <div className="flex items-end gap-0.5 h-5 pl-4 shrink-0">
+                  {[1, 2, 3, 4, 5].map((i) => {
+                    const factor = 0.4 + Math.sin((i * Math.PI) / 6) * 0.6;
+                    const height = Math.max(4, Math.min(20, (micVolume / 15) * factor));
+                    return (
+                      <div
+                        key={i}
+                        className="w-0.75 bg-indigo-500 rounded-full transition-all duration-75"
+                        style={{ height: `${height}px` }}
+                      />
+                    );
+                  })}
+                </div>
               </div>
             )}
 
@@ -568,8 +731,15 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
                   handleSubmit();
                 }
               }}
-              placeholder={isListening ? "🎙️ Listening... describe your app idea" : "Describe what you want to build (e.g. 'A modern SaaS dashboard with dark mode')..."}
-              className="relative w-full bg-white border border-stone-200 rounded-[2.5rem] p-10 text-2xl font-medium focus:border-indigo-500 transition-all min-h-[220px] resize-none outline-none shadow-xl"
+              placeholder={
+                isTranscribing
+                  ? "🤖 Transcribing voice..."
+                  : isListening
+                    ? "🎙️ Listening... describe your app idea"
+                    : "Describe what you want to build (e.g. 'A modern SaaS dashboard with dark mode')..."
+              }
+              disabled={isTranscribing}
+              className="relative w-full bg-white border border-stone-200 rounded-[2.5rem] p-10 text-2xl font-medium focus:border-indigo-500 transition-all min-h-[220px] resize-none outline-none shadow-xl disabled:opacity-50"
               autoFocus
             />
             <div className="absolute bottom-6 right-6 flex items-center gap-3">
@@ -577,13 +747,19 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
               <button
                 type="button"
                 onClick={toggleVoice}
-                className={`p-3.5 rounded-2xl font-bold transition-all flex items-center gap-2 relative ${isListening
-                  ? "bg-red-500 text-white shadow-xl shadow-red-200 scale-105"
-                  : "bg-stone-100 text-stone-500 hover:bg-stone-200 hover:scale-105"
-                  }`}
-                title={isListening ? "Stop recording" : "Voice-to-App: Speak your idea"}
+                disabled={isTranscribing}
+                className={`p-3.5 rounded-2xl font-bold transition-all flex items-center gap-2 relative ${
+                  isTranscribing
+                    ? "bg-sky-500 text-white shadow-xl shadow-sky-200 scale-105 animate-pulse"
+                    : isListening
+                      ? "bg-red-500 text-white shadow-xl shadow-red-200 scale-105"
+                      : "bg-stone-100 text-stone-500 hover:bg-stone-200 hover:scale-105"
+                }`}
+                title={isTranscribing ? "Transcribing..." : isListening ? "Stop recording" : "Voice-to-App: Speak your idea"}
               >
-                {isListening ? (
+                {isTranscribing ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : isListening ? (
                   <>
                     <Radio className="w-5 h-5 animate-pulse" />
                     <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full animate-ping" />

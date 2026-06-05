@@ -68,7 +68,7 @@ export const WorkspaceSidebar: React.FC = () => {
   const [isDeploying, setIsDeploying] = useState(false);
   const [hoveredTab, setHoveredTab] = useState<string | null>(null);
 
-  // Auth monitoring
+  // Auth monitoring & local fallback list
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -77,7 +77,15 @@ export const WorkspaceSidebar: React.FC = () => {
           setChatHistory(chats);
         });
       } else {
-        setChatHistory([]);
+        fetch("/api/chats/list")
+          .then((res) => res.json())
+          .then((chats) => {
+            setChatHistory(chats || []);
+          })
+          .catch((err) => {
+            console.error("Failed to load local chats:", err);
+            setChatHistory([]);
+          });
       }
     });
     return () => unsubscribe();
@@ -247,7 +255,7 @@ export const WorkspaceSidebar: React.FC = () => {
 
           {/* Floating Create Button */}
           <button
-            onClick={() => {
+            onClick={async () => {
               const name = prompt("Enter new filename:");
               if (name) {
                 useProjectStore.getState().setCurrentContent((prev) => {
@@ -259,6 +267,23 @@ export const WorkspaceSidebar: React.FC = () => {
                   };
                 });
                 setSelectedFileName(name);
+
+                // Write new file to WebContainer dynamically
+                try {
+                  const { WebContainerService } = await import("../../services/runtime/webcontainer");
+                  const wc = WebContainerService.getInstance().getWebContainer();
+                  if (wc) {
+                    if (name.includes("/")) {
+                      const parts = name.split("/");
+                      parts.pop();
+                      await wc.fs.mkdir(parts.join("/"), { recursive: true });
+                    }
+                    await wc.fs.writeFile(name, `// New file ${name}`);
+                    toast.success(`File ${name} created in runtime!`);
+                  }
+                } catch (e) {
+                  console.error("[WorkspaceSidebar] Failed to write new file to WebContainer:", e);
+                }
               }
             }}
             className="w-10 h-10 rounded-xl bg-studio-panel border border-studio-border hover:border-studio-accent text-studio-muted hover:text-studio-text flex items-center justify-center transition-all duration-300 shadow-md group hover:bg-studio-panel/80 hover:shadow-studio-accent/5"

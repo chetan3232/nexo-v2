@@ -31,6 +31,8 @@ import { useProjectStore } from "../stores/projectStore";
 import { useChatStore } from "../stores/chatStore";
 import { useAgentStore } from "../stores/agentStore";
 import { useDesignStore } from "../stores/designStore";
+import { useRuntimeStore } from "../stores/runtimeStore";
+import { saveCurrentProject } from "../services/saveService";
 import { Orchestrator } from "../agents/Orchestrator";
 import { Message } from "../types";
 
@@ -51,6 +53,7 @@ import {
   Sliders,
   Sun,
   Moon,
+  Save,
 } from "lucide-react";
 import { StudioControls } from "../components/ui/StudioControls";
 import JSZip from "jszip";
@@ -60,6 +63,7 @@ const ChatInterface: React.FC = () => {
   const chatStore = useChatStore();
   const projectStore = useProjectStore();
   const { setSelectedElement } = useDesignStore();
+  const isBooted = useRuntimeStore((state) => state.isBooted);
   const {
     selectedModel,
     temperature,
@@ -181,33 +185,43 @@ const ChatInterface: React.FC = () => {
     return () => window.removeEventListener("message", handleMessage);
   }, [setSelectedElement]);
 
+  // Auto-save chat and code changes after a 2-second debounce
   useEffect(() => {
-    const user = auth.currentUser;
-    if (!user || chatStore.messages.length === 0) return;
+    if (chatStore.messages.length === 0) return;
     const saveTimeout = setTimeout(() => {
-      const chatId = chatStore.currentChatId || crypto.randomUUID();
-      if (!chatStore.currentChatId) chatStore.setCurrentChatId(chatId);
-      saveChatToFirebase(user.uid, {
-        id: chatId,
-        name: projectTitle,
-        title: projectTitle,
-        date: new Date().toLocaleDateString(),
-        updatedAt: Date.now(),
-        messages: chatStore.messages,
-        content: projectStore.currentContent,
-        model: selectedModel,
-        projectMode: useAgentStore.getState().projectMode,
-        messageCount: chatStore.messages.length,
-        fileCount: Object.keys(projectStore.currentContent?.files || {}).length,
-      });
+      saveCurrentProject().catch((err) => console.error("Auto-save failed:", err));
     }, 2000);
     return () => clearTimeout(saveTimeout);
   }, [chatStore.messages, projectStore.currentContent, projectTitle, selectedModel]);
 
+  // Save before unload (tab close / refresh)
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      saveCurrentProject();
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
+
+  // Boot runtime automatically if currentContent exists but runtime is not booted
+  useEffect(() => {
+    if (projectStore.currentContent && !isBooted && projectStore.buildPhase === "idle") {
+      console.log("[ChatInterface] Code exists but runtime is not booted. Auto-booting virtual environment...");
+      Orchestrator.getInstance().bootRuntime().catch(err => {
+        console.error("Failed to auto-boot runtime on content load:", err);
+      });
+    }
+  }, [projectStore.currentContent, isBooted, projectStore.buildPhase]);
+
   const handleSend = async (prompt: string, attachments?: { name: string; content: string; type: string }[]) => {
     if (showLanding && chatStore.messages.length > 0) {
+      // Save current project first before starting a new one
+      await saveCurrentProject();
       chatStore.resetChat();
       projectStore.setCurrentContent(null);
+      // Reset booted status for new project
+      useRuntimeStore.getState().setIsBooted(false);
+      useRuntimeStore.getState().setUrl(null);
     }
     setShowLanding(false);
 
@@ -235,7 +249,9 @@ const ChatInterface: React.FC = () => {
     }
   };
 
-  const handleBackToStart = () => {
+  const handleBackToStart = async () => {
+    // Save project state first when going back to start
+    await saveCurrentProject();
     setShowLanding(true);
   };
 
@@ -371,8 +387,24 @@ const ChatInterface: React.FC = () => {
           )}
         </div>
 
-        {/* Right: GitHub + Remix / Share / Publish + icon buttons */}
+        {/* Right: Save + GitHub + Remix / Share / Publish + icon buttons */}
         <div className="flex items-center gap-2">
+          {/* Manual Save Button */}
+          <button
+            onClick={async () => {
+              const savePromise = saveCurrentProject();
+              toast.promise(savePromise, {
+                loading: "Saving project...",
+                success: "Project saved successfully! 💾",
+                error: "Failed to save project.",
+              });
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#555] hover:text-[#111] hover:bg-[#f3f3f3] border border-[#e8e8e8] transition-all"
+            title="Save Project & Code"
+          >
+            <Save className="w-3.5 h-3.5 text-indigo-500" />
+            Save
+          </button>
           {/* GitHub one-click */}
           <button
             onClick={handleOneClickGithubPush}

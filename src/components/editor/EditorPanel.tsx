@@ -39,12 +39,13 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
     }
   }, [selectedFileName, currentContent?.files]);
 
-  // Debounced update to global store
+  // Debounced update to global store and WebContainer filesystem
   useEffect(() => {
     if (!selectedFileName || !currentContent) return;
 
-    const timeout = setTimeout(() => {
+    const timeout = setTimeout(async () => {
       if (localValue !== currentContent.files[selectedFileName]) {
+        // 1. Update React store
         setCurrentContent((prev) => {
           if (!prev) return prev;
           return {
@@ -52,8 +53,20 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
             files: { ...prev.files, [selectedFileName]: localValue },
           };
         });
+
+        // 2. Write to WebContainer filesystem for instant HMR / preview sync
+        try {
+          const { WebContainerService } = await import("../../services/runtime/webcontainer");
+          const wc = WebContainerService.getInstance().getWebContainer();
+          if (wc) {
+            console.log(`[EditorPanel] Syncing ${selectedFileName} with WebContainer virtual filesystem...`);
+            await wc.fs.writeFile(selectedFileName, localValue);
+          }
+        } catch (e) {
+          console.error("[EditorPanel] Failed to write changes to WebContainer:", e);
+        }
       }
-    }, 1000);
+    }, 500);
 
     return () => clearTimeout(timeout);
   }, [localValue, selectedFileName]);
