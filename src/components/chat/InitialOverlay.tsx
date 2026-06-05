@@ -739,7 +739,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
                     : "Describe what you want to build (e.g. 'A modern SaaS dashboard with dark mode')..."
               }
               disabled={isTranscribing}
-              className="relative w-full bg-white border border-stone-200 rounded-[2.5rem] p-10 text-2xl font-medium focus:border-indigo-500 transition-all min-h-[220px] resize-none outline-none shadow-xl disabled:opacity-50"
+              className="relative w-full bg-white dark:bg-[#1a1a1a] border border-stone-200 dark:border-stone-800 text-stone-900 dark:text-stone-100 rounded-[2.5rem] p-10 text-2xl font-medium focus:border-indigo-500 transition-all min-h-[220px] resize-none outline-none shadow-xl disabled:opacity-50"
               autoFocus
             />
             <div className="absolute bottom-6 right-6 flex items-center gap-3">
