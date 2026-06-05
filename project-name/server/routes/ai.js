@@ -225,5 +225,70 @@ router.post("/transcribe", async (req, res) => {
     }
 });
 
+// 5. Intent and Design Exploration API
+router.post("/explore", async (req, res) => {
+    try {
+        const { prompt } = req.body;
+        if (!prompt) return res.status(400).json({ error: "Missing prompt" });
+        
+        console.log("[Routes AI] Starting Intent & Design Exploration for:", prompt);
+        if (!process.env.GEMINI_API_KEY) {
+             return res.status(500).json({ error: "API Key missing" });
+        }
+        const { GoogleGenerativeAI } = require("@google/generative-ai");
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+        const systemPrompt = `You are an AI Product Architect. Given a user prompt, extract the intent and generate TWO distinct UI/UX design concepts.
+Return ONLY valid JSON in the exact following format, without any markdown formatting or code blocks:
+{
+  "intent": {
+    "appType": "String",
+    "targetUsers": "String",
+    "platform": "String",
+    "features": ["Feature 1", "Feature 2", "Feature 3", "Feature 4"]
+  },
+  "concepts": [
+    {
+      "id": "A",
+      "title": "String (e.g. Modern SaaS Style)",
+      "description": "Short description of the concept",
+      "styles": {
+        "primaryColor": "Hex code e.g. #0ea5e9",
+        "borderRadius": "px value e.g. 12px",
+        "typography": "Font name e.g. Inter",
+        "animation": "Normal or Premium"
+      }
+    },
+    {
+      "id": "B",
+      "title": "String (e.g. Bold Startup Style)",
+      "description": "Short description of the concept",
+      "styles": {
+        "primaryColor": "Hex code e.g. #ff4b3a",
+        "borderRadius": "px value e.g. 24px",
+        "typography": "Font name e.g. Outfit",
+        "animation": "Normal or Premium"
+      }
+    }
+  ]
+}`;
+
+        const result = await model.generateContent([
+            { text: systemPrompt },
+            { text: `User Prompt: ${prompt}` }
+        ]);
+
+        const text = result.response.text();
+        const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const json = JSON.parse(cleanedText);
+        
+        res.json(json);
+    } catch (err) {
+        console.error("[Routes AI] Explore API failed:", err);
+        res.status(500).json({ error: "Failed to generate design concepts" });
+    }
+});
+
 module.exports = router;
 

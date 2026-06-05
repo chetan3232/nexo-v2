@@ -22,6 +22,8 @@ import { useProjectStore } from "../../stores/projectStore";
 import { useAgentStore } from "../../stores/agentStore";
 import toast from "react-hot-toast";
 
+import { DesignExploration } from "./DesignExploration";
+
 // Web Speech API types
 declare global {
   interface Window {
@@ -133,6 +135,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [micVolume, setMicVolume] = useState<number>(0);
 
+  // Design Exploration State
+  const [exploringPrompt, setExploringPrompt] = useState<string | null>(null);
+
   const recognitionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<any>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -142,7 +147,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, buildPhase]);
+  }, [messages, buildPhase, exploringPrompt]);
 
   // Close model menu on outside click
   useEffect(() => {
@@ -354,9 +359,29 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
       finalText = finalText ? `${finalText}${attachText}` : attachText.trim();
     }
 
-    onSend(finalText, attachments);
+    // Intercept generation flow and start design exploration
+    setExploringPrompt(finalText);
+    
+    // Add user message to chat UI immediately
+    const userMsg = {
+      role: "user",
+      text: finalText,
+      timestamp: Date.now(),
+      model: selectedModel,
+    };
+    useChatStore.getState().setMessages((prev: any) => [...prev, userMsg]);
+    
     setInput("");
     setAttachments([]);
+  };
+
+  const handleExplorationConfirm = (enrichedPrompt: string) => {
+    setExploringPrompt(null);
+    onSend(enrichedPrompt); // Now it passes the enriched prompt back to ChatInterface's handleSend
+  };
+
+  const handleExplorationCancel = () => {
+    setExploringPrompt(null);
   };
 
   // Handle file/image upload
@@ -553,6 +578,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                     </div>
                   )}
                 </motion.div>
+              )}
+              
+              {/* Intent & Design Exploration UI */}
+              {exploringPrompt && (
+                <DesignExploration 
+                  prompt={exploringPrompt} 
+                  onConfirm={handleExplorationConfirm} 
+                  onCancel={handleExplorationCancel} 
+                />
               )}
             </AnimatePresence>
           </div>
