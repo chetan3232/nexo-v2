@@ -12,6 +12,7 @@ import { ChatPanel } from "../components/chat/ChatPanel";
 import { InitialOverlay } from "../components/chat/InitialOverlay";
 import { AgentWorkflowOverlay } from "../components/chat/AgentWorkflowOverlay";
 import { QualityReviewOverlay } from "../components/chat/QualityReviewOverlay";
+import { PreviewTransferOverlay } from "../components/chat/PreviewTransferOverlay";
 import { auth, saveChatToFirebase } from "../services/firebase";
 
 // Lazy load heavy components
@@ -87,6 +88,7 @@ const ChatInterface: React.FC = () => {
   const [isTokenDashboardOpen, setIsTokenDashboardOpen] = useState(false);
   const [showLanding, setShowLanding] = useState(chatStore.messages.length === 0);
   const [showQualityReview, setShowQualityReview] = useState(false);
+  const [showPreviewTransfer, setShowPreviewTransfer] = useState(false);
   const prevBuildPhase = useRef(projectStore.buildPhase);
 
   useEffect(() => {
@@ -480,8 +482,26 @@ const ChatInterface: React.FC = () => {
       <main className="flex-1 flex overflow-hidden min-h-0">
         <PanelGroup orientation="horizontal">
 
-          {/* LEFT: Preview / Code panel */}
-          <Panel defaultSize={65} minSize={40} maxSize={82} className="flex flex-col overflow-hidden p-3 pr-1.5 gap-2">
+          {/* LEFT: Chat sidebar */}
+          <Panel defaultSize={showStudioPanel ? 25 : 35} minSize={20} maxSize={50} className="flex flex-col overflow-hidden p-3 pr-1.5">
+            <div className="flex-1 overflow-hidden rounded-xl border border-[#e8e8e8] shadow-sm bg-white">
+              <React.Suspense
+                fallback={
+                  <div className="h-full w-full flex items-center justify-center bg-white rounded-xl">
+                    <div className="w-6 h-6 border-2 border-[#e8e8e8] border-t-[#0ea5e9] rounded-full animate-spin" />
+                  </div>
+                }
+              >
+                <ChatPanel onSend={handleSend} />
+              </React.Suspense>
+            </div>
+          </Panel>
+
+          {/* Resize handle */}
+          <PanelResizeHandle className="w-1.5 bg-transparent hover:bg-[#0ea5e9]/20 transition-colors cursor-col-resize" />
+
+          {/* RIGHT: Preview / Code panel */}
+          <Panel defaultSize={65} minSize={40} maxSize={82} className="flex flex-col overflow-hidden p-3 pl-1.5 pr-1 gap-2">
 
             {/* Secondary toolbar: Preview | Code toggle */}
             <div className="bg-white rounded-xl border border-[#e8e8e8] h-11 flex items-center justify-between px-3 shrink-0 shadow-sm">
@@ -543,7 +563,13 @@ const ChatInterface: React.FC = () => {
                   <AgentWorkflowOverlay />
                 )}
                 {showQualityReview && (
-                  <QualityReviewOverlay onComplete={() => setShowQualityReview(false)} />
+                  <QualityReviewOverlay onComplete={() => {
+                    setShowQualityReview(false);
+                    setShowPreviewTransfer(true);
+                  }} />
+                )}
+                {showPreviewTransfer && (
+                  <PreviewTransferOverlay onComplete={() => setShowPreviewTransfer(false)} />
                 )}
               </AnimatePresence>
 
@@ -569,24 +595,6 @@ const ChatInterface: React.FC = () => {
                     setSelectedFileName={setSelectedFileName}
                   />
                 </div>
-              </React.Suspense>
-            </div>
-          </Panel>
-
-          {/* Resize handle */}
-          <PanelResizeHandle className="w-1.5 bg-transparent hover:bg-[#0ea5e9]/20 transition-colors cursor-col-resize" />
-
-          {/* RIGHT: Chat sidebar */}
-          <Panel defaultSize={showStudioPanel ? 25 : 35} minSize={20} maxSize={50} className="flex flex-col overflow-hidden p-3 pl-1.5 pr-1">
-            <div className="flex-1 overflow-hidden rounded-xl border border-[#e8e8e8] shadow-sm bg-white">
-              <React.Suspense
-                fallback={
-                  <div className="h-full w-full flex items-center justify-center bg-white rounded-xl">
-                    <div className="w-6 h-6 border-2 border-[#e8e8e8] border-t-[#0ea5e9] rounded-full animate-spin" />
-                  </div>
-                }
-              >
-                <ChatPanel onSend={handleSend} />
               </React.Suspense>
             </div>
           </Panel>

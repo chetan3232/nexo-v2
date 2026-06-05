@@ -15,7 +15,11 @@ import {
   Paperclip,
   Image as ImageIcon,
   Loader2,
-  Radio
+  Radio,
+  Zap,
+  Lock,
+  Smartphone,
+  Rocket
 } from "lucide-react";
 import { useChatStore } from "../../stores/chatStore";
 import { useProjectStore } from "../../stores/projectStore";
@@ -619,6 +623,28 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                     <X className="w-2.5 h-2.5" />
                   </button>
                 </div>
+              ))}
+            </div>
+          )}
+
+          {/* Post Build AI Quick Actions */}
+          {buildPhase === "done" && (
+            <div className="flex flex-wrap gap-2 px-3 mt-3 mb-1">
+              {[
+                { label: "Improve UI", icon: <Sparkles className="w-3 h-3 text-purple-500" /> },
+                { label: "Improve Performance", icon: <Zap className="w-3 h-3 text-amber-500" /> },
+                { label: "Improve Security", icon: <Lock className="w-3 h-3 text-emerald-500" /> },
+                { label: "Mobile Optimization", icon: <Smartphone className="w-3 h-3 text-blue-500" /> },
+                { label: "Deploy", icon: <Rocket className="w-3 h-3 text-indigo-500" /> }
+              ].map((action, i) => (
+                <button
+                  key={i}
+                  onClick={() => onSend(action.label)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-[#e8e8e8] rounded-lg text-[10px] font-bold text-[#555] hover:text-[#111] hover:bg-[#f3f3f3] transition-colors whitespace-nowrap shadow-sm"
+                >
+                  {action.icon}
+                  {action.label}
+                </button>
               ))}
             </div>
           )}

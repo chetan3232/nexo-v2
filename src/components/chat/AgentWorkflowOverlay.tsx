@@ -6,7 +6,29 @@ import { useProjectStore } from "../../stores/projectStore";
 export const AgentWorkflowOverlay: React.FC = () => {
   const { buildPhase, subStatus, tasks } = useProjectStore();
   const [logs, setLogs] = useState<{ id: string; text: string; type: "info" | "success" | "error" }[]>([]);
+  const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   const logsEndRef = useRef<HTMLDivElement>(null);
+
+  const realisticMessages = [
+    "Understanding requirements...",
+    "Designing application architecture...",
+    "Creating component hierarchy...",
+    "Planning database schema...",
+    "Generating responsive layouts...",
+    "Building authentication system...",
+    "Optimizing application performance...",
+    "Fixing detected issues...",
+    "Running validation checks...",
+    "Preparing preview..."
+  ];
+
+  useEffect(() => {
+    if (buildPhase === "idle" || buildPhase === "done") return;
+    const interval = setInterval(() => {
+      setCurrentMessageIndex(Math.floor(Math.random() * realisticMessages.length));
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [buildPhase]);
 
   // Auto-scroll logs
   useEffect(() => {
@@ -140,10 +162,18 @@ export const AgentWorkflowOverlay: React.FC = () => {
                 <div className="text-indigo-400 mt-2 flex items-center gap-2"><Loader2 className="w-3 h-3 animate-spin" /> Applying fixes and retrying...</div>
               </div>
             ) : (
-              <div className="text-sm font-mono text-stone-300 whitespace-pre-wrap leading-relaxed flex items-center gap-2">
-                <ChevronRight className="w-4 h-4 text-indigo-500" />
-                {subStatus || "Initializing system architecture..."}
-                <span className="w-2 h-4 bg-indigo-500 inline-block ml-1 animate-pulse" />
+              <div className="text-sm font-mono text-stone-300 whitespace-pre-wrap leading-relaxed flex flex-col gap-2">
+                {subStatus && (
+                  <div className="flex items-center gap-2 text-stone-400">
+                    <ChevronRight className="w-4 h-4" />
+                    {subStatus}
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <ChevronRight className="w-4 h-4 text-indigo-500" />
+                  {realisticMessages[currentMessageIndex]}
+                  <span className="w-2 h-4 bg-indigo-500 inline-block ml-1 animate-pulse" />
+                </div>
               </div>
             )}
           </div>
