@@ -10,7 +10,7 @@ interface DesignExplorationProps {
 }
 
 export const DesignExploration: React.FC<DesignExplorationProps> = ({ prompt, onConfirm, onCancel }) => {
-  const [phase, setPhase] = useState<"intent" | "concepts" | "editor" | "blueprint">("intent");
+  const [phase, setPhase] = useState<"intent" | "concepts" | "editor" | "blueprint" | "final_approval">("intent");
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedConcept, setSelectedConcept] = useState<any>(null);
@@ -106,7 +106,11 @@ export const DesignExploration: React.FC<DesignExplorationProps> = ({ prompt, on
     }
   };
 
-  const handleConfirm = () => {
+  const handleGoToFinalApproval = () => {
+    setPhase("final_approval");
+  };
+
+  const handleFinalize = () => {
     const enrichedPrompt = `${prompt}
     
 === DESIGN CONSTRAINTS ===
@@ -430,12 +434,60 @@ Integrations: ${blueprintData?.integrations?.join(", ") || "Default"}
 
             <div className="flex justify-end pt-2 border-t border-[#e8e8e8] mt-2">
               <button 
-                onClick={handleConfirm}
+                onClick={handleGoToFinalApproval}
                 disabled={blueprintLoading || !blueprintData}
                 className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:active:scale-100"
               >
                 <Play className="w-4 h-4 fill-white" />
                 Confirm & Build Code
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* PHASE 7: FINAL APPROVAL */}
+        {phase === "final_approval" && (
+          <motion.div
+            key="final_approval"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col gap-4 bg-white border border-[#e8e8e8] rounded-2xl p-5 shadow-sm items-center text-center"
+          >
+            <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mb-2">
+              <Sparkles className="w-6 h-6 text-indigo-600" />
+            </div>
+            
+            <h3 className="text-lg font-bold text-[#111]">Final Approval</h3>
+            <p className="text-xs text-[#666] mb-4">You are about to generate a full application.</p>
+            
+            <div className="flex flex-col gap-3 w-full max-w-[200px] text-left">
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                  <Check className="w-3 h-3 text-emerald-600" />
+                </div>
+                <span className="text-xs font-bold text-[#333]">Design Selected</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                  <Check className="w-3 h-3 text-emerald-600" />
+                </div>
+                <span className="text-xs font-bold text-[#333]">Theme Selected</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                  <Check className="w-3 h-3 text-emerald-600" />
+                </div>
+                <span className="text-xs font-bold text-[#333]">Implementation Approved</span>
+              </div>
+            </div>
+
+            <div className="w-full mt-4 pt-4 border-t border-[#e8e8e8]">
+              <button 
+                onClick={handleFinalize}
+                className="w-full flex justify-center items-center gap-2 px-6 py-3 bg-[#111] hover:bg-[#333] text-white rounded-xl text-sm font-bold transition-all shadow-lg active:scale-95"
+              >
+                Generate App
+                <Play className="w-4 h-4 fill-white" />
               </button>
             </div>
           </motion.div>

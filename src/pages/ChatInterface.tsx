@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Panel,
   Group as PanelGroup,
@@ -9,6 +10,8 @@ import toast, { Toaster } from "react-hot-toast";
 
 import { ChatPanel } from "../components/chat/ChatPanel";
 import { InitialOverlay } from "../components/chat/InitialOverlay";
+import { AgentWorkflowOverlay } from "../components/chat/AgentWorkflowOverlay";
+import { QualityReviewOverlay } from "../components/chat/QualityReviewOverlay";
 import { auth, saveChatToFirebase } from "../services/firebase";
 
 // Lazy load heavy components
@@ -83,6 +86,15 @@ const ChatInterface: React.FC = () => {
   const [ghPushing, setGhPushing] = useState(false);
   const [isTokenDashboardOpen, setIsTokenDashboardOpen] = useState(false);
   const [showLanding, setShowLanding] = useState(chatStore.messages.length === 0);
+  const [showQualityReview, setShowQualityReview] = useState(false);
+  const prevBuildPhase = useRef(projectStore.buildPhase);
+
+  useEffect(() => {
+    if (prevBuildPhase.current !== "idle" && prevBuildPhase.current !== "done" && projectStore.buildPhase === "done") {
+      setShowQualityReview(true);
+    }
+    prevBuildPhase.current = projectStore.buildPhase;
+  }, [projectStore.buildPhase]);
 
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window !== "undefined") {
@@ -525,6 +537,16 @@ const ChatInterface: React.FC = () => {
 
             {/* Canvas */}
             <div className="flex-1 overflow-hidden bg-white rounded-xl border border-[#e8e8e8] shadow-sm relative">
+              
+              <AnimatePresence>
+                {(projectStore.buildPhase !== "idle" && projectStore.buildPhase !== "done") && (
+                  <AgentWorkflowOverlay />
+                )}
+                {showQualityReview && (
+                  <QualityReviewOverlay onComplete={() => setShowQualityReview(false)} />
+                )}
+              </AnimatePresence>
+
               <React.Suspense
                 fallback={
                   <div className="h-full w-full flex flex-col items-center justify-center gap-4 bg-white">
