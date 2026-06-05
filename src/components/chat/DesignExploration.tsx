@@ -10,16 +10,25 @@ interface DesignExplorationProps {
 }
 
 export const DesignExploration: React.FC<DesignExplorationProps> = ({ prompt, onConfirm, onCancel }) => {
-  const [phase, setPhase] = useState<"intent" | "concepts" | "editor">("intent");
+  const [phase, setPhase] = useState<"intent" | "concepts" | "editor" | "blueprint">("intent");
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedConcept, setSelectedConcept] = useState<any>(null);
 
-  // Editor states
+  // Editor & Theme states (Phase 3 & 4)
   const [primaryColor, setPrimaryColor] = useState("#0ea5e9");
   const [borderRadius, setBorderRadius] = useState("12px");
   const [typography, setTypography] = useState("Inter");
   const [animation, setAnimation] = useState("Normal");
+  const [themeMode, setThemeMode] = useState<"Dark" | "Light" | "Auto" | "Custom">("Custom");
+  const [bgColor, setBgColor] = useState("#ffffff");
+  const [cardColor, setCardColor] = useState("#f7f7f7");
+  const [textColor, setTextColor] = useState("#111111");
+
+  // Blueprint states (Phase 5 & 6)
+  const [blueprintData, setBlueprintData] = useState<any>(null);
+  const [blueprintLoading, setBlueprintLoading] = useState(false);
+  const [blueprintInput, setBlueprintInput] = useState("");
 
   useEffect(() => {
     const fetchExploration = async () => {
@@ -55,15 +64,66 @@ export const DesignExploration: React.FC<DesignExplorationProps> = ({ prompt, on
     setPhase("editor");
   };
 
+  const handleGenerateBlueprint = async () => {
+    setPhase("blueprint");
+    setBlueprintLoading(true);
+    try {
+      const res = await fetch("/api/ai/blueprint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt })
+      });
+      if (!res.ok) throw new Error("Failed to generate blueprint");
+      const json = await res.json();
+      setBlueprintData(json);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to generate blueprint");
+    } finally {
+      setBlueprintLoading(false);
+    }
+  };
+
+  const handleUpdateBlueprint = async () => {
+    if (!blueprintInput.trim()) return;
+    setBlueprintLoading(true);
+    try {
+      const res = await fetch("/api/ai/blueprint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, modifications: blueprintInput, currentBlueprint: blueprintData })
+      });
+      if (!res.ok) throw new Error("Failed to update blueprint");
+      const json = await res.json();
+      setBlueprintData(json);
+      setBlueprintInput("");
+      toast.success("Blueprint updated!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update blueprint");
+    } finally {
+      setBlueprintLoading(false);
+    }
+  };
+
   const handleConfirm = () => {
     const enrichedPrompt = `${prompt}
     
 === DESIGN CONSTRAINTS ===
 Concept: ${selectedConcept.title}
+Theme Mode: ${themeMode}
 Primary Color: ${primaryColor}
+Background: ${bgColor}
+Card Color: ${cardColor}
+Text Color: ${textColor}
 Border Radius: ${borderRadius}
 Typography: ${typography}
 Animation Level: ${animation}
+
+=== IMPLEMENTATION BLUEPRINT ===
+Pages: ${blueprintData?.pages?.join(", ") || "Default"}
+Backend: ${blueprintData?.backend?.join(", ") || "Default"}
+Integrations: ${blueprintData?.integrations?.join(", ") || "Default"}
 =========================`;
     onConfirm(enrichedPrompt);
   };
@@ -154,12 +214,59 @@ Animation Level: ${animation}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
               {/* Controls */}
               <div className="flex flex-col gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-[#555] uppercase tracking-wider">Primary Color</label>
-                  <div className="flex items-center gap-2">
-                    <input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
-                    <span className="text-xs text-[#111] font-mono">{primaryColor}</span>
+                {/* Theme Mode Selector */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-[#555] uppercase tracking-wider">Theme Mode</label>
+                  <div className="flex gap-2">
+                    {["Light", "Dark", "Auto", "Custom"].map(mode => (
+                      <button
+                        key={mode}
+                        onClick={() => setThemeMode(mode as any)}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                          themeMode === mode ? "bg-indigo-500 text-white" : "bg-[#f3f3f3] text-[#555] hover:bg-[#e8e8e8]"
+                        }`}
+                      >
+                        {mode}
+                      </button>
+                    ))}
                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-[#555] uppercase tracking-wider">Primary Color</label>
+                    <div className="flex items-center gap-2">
+                      <input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
+                      <span className="text-xs text-[#111] font-mono">{primaryColor}</span>
+                    </div>
+                  </div>
+
+                  {themeMode === "Custom" && (
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-[#555] uppercase tracking-wider">Background</label>
+                      <div className="flex items-center gap-2">
+                        <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
+                      </div>
+                    </div>
+                  )}
+
+                  {themeMode === "Custom" && (
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-[#555] uppercase tracking-wider">Cards</label>
+                      <div className="flex items-center gap-2">
+                        <input type="color" value={cardColor} onChange={e => setCardColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
+                      </div>
+                    </div>
+                  )}
+
+                  {themeMode === "Custom" && (
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-[#555] uppercase tracking-wider">Text</label>
+                      <div className="flex items-center gap-2">
+                        <input type="color" value={textColor} onChange={e => setTextColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -199,15 +306,17 @@ Animation Level: ${animation}
                   
                   {/* Dynamic Mock Component */}
                   <div 
-                    className="bg-white shadow-lg p-5 w-full max-w-[200px] flex flex-col gap-3 transition-all duration-300"
+                    className="shadow-lg p-5 w-full max-w-[200px] flex flex-col gap-3 transition-all duration-300"
                     style={{ 
                       borderRadius, 
+                      backgroundColor: cardColor,
+                      color: textColor,
                       fontFamily: typography === "Outfit" ? "'Outfit', sans-serif" : typography === "Space Grotesk" ? "'Space Grotesk', sans-serif" : "sans-serif"
                     }}
                   >
-                    <div className="h-4 w-2/3 bg-stone-200 rounded" />
-                    <div className="h-2 w-full bg-stone-100 rounded mt-2" />
-                    <div className="h-2 w-4/5 bg-stone-100 rounded" />
+                    <div className="h-4 w-2/3 rounded opacity-70" style={{ backgroundColor: textColor }} />
+                    <div className="h-2 w-full rounded mt-2 opacity-30" style={{ backgroundColor: textColor }} />
+                    <div className="h-2 w-4/5 rounded opacity-30" style={{ backgroundColor: textColor }} />
                     
                     <button 
                       className="mt-4 py-2 w-full text-white text-xs font-bold transition-all hover:opacity-90"
@@ -223,11 +332,110 @@ Animation Level: ${animation}
 
             <div className="flex justify-end pt-2 border-t border-[#e8e8e8] mt-2">
               <button 
-                onClick={handleConfirm}
+                onClick={handleGenerateBlueprint}
                 className="flex items-center gap-2 px-5 py-2.5 bg-[#111] hover:bg-[#333] text-white rounded-xl text-xs font-bold transition-all shadow-lg active:scale-95"
               >
-                <Check className="w-4 h-4" />
-                Generate App
+                Generate Blueprint
+                <Move className="w-4 h-4 rotate-180" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* PHASE 5 & 6: BLUEPRINT & EDITOR */}
+        {phase === "blueprint" && (
+          <motion.div
+            key="blueprint"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col gap-4 bg-white border border-[#e8e8e8] rounded-2xl p-4 shadow-sm"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-[#111] text-sm font-bold">
+                <Layers className="w-4 h-4 text-indigo-500" />
+                <span>Implementation Blueprint</span>
+              </div>
+              <button onClick={() => setPhase("editor")} className="text-[10px] text-[#888] hover:text-[#111] font-bold uppercase underline">
+                Back to Design
+              </button>
+            </div>
+
+            {blueprintLoading && !blueprintData ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-3">
+                <Cpu className="w-8 h-8 text-indigo-500 animate-pulse" />
+                <span className="text-xs font-bold text-[#555] uppercase tracking-wider">Architecting Blueprint...</span>
+              </div>
+            ) : blueprintData && (
+              <div className="flex flex-col gap-5 mt-2">
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Pages */}
+                  <div className="flex flex-col gap-2">
+                    <h5 className="text-[10px] font-bold text-[#888] uppercase tracking-wider">Pages</h5>
+                    <div className="flex flex-col gap-1.5">
+                      {blueprintData.pages?.map((p: string, i: number) => (
+                        <div key={i} className="flex items-center gap-2 text-xs font-medium text-[#333]"><Check className="w-3.5 h-3.5 text-emerald-500" /> {p}</div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Backend */}
+                  <div className="flex flex-col gap-2">
+                    <h5 className="text-[10px] font-bold text-[#888] uppercase tracking-wider">Backend</h5>
+                    <div className="flex flex-col gap-1.5">
+                      {blueprintData.backend?.map((p: string, i: number) => (
+                        <div key={i} className="flex items-center gap-2 text-xs font-medium text-[#333]"><Check className="w-3.5 h-3.5 text-emerald-500" /> {p}</div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Integrations */}
+                  <div className="flex flex-col gap-2">
+                    <h5 className="text-[10px] font-bold text-[#888] uppercase tracking-wider">Integrations</h5>
+                    <div className="flex flex-col gap-1.5">
+                      {blueprintData.integrations?.map((p: string, i: number) => (
+                        <div key={i} className="flex items-center gap-2 text-xs font-medium text-[#333]"><Check className="w-3.5 h-3.5 text-emerald-500" /> {p}</div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Blueprint Editor */}
+                <div className="bg-[#f7f7f7] border border-[#e8e8e8] rounded-xl p-3 flex flex-col gap-2 relative">
+                   {blueprintLoading && (
+                     <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 rounded-xl flex items-center justify-center">
+                       <Cpu className="w-5 h-5 text-indigo-500 animate-spin" />
+                     </div>
+                   )}
+                   <label className="text-[10px] font-bold text-[#555] uppercase tracking-wider">Edit Blueprint</label>
+                   <div className="flex items-center gap-2">
+                     <input 
+                       type="text" 
+                       placeholder="e.g. Remove Checkout, Add Wishlist, Add Admin Dashboard" 
+                       value={blueprintInput}
+                       onChange={e => setBlueprintInput(e.target.value)}
+                       className="flex-1 bg-white border border-[#e8e8e8] rounded-lg px-3 py-2 text-xs focus:border-indigo-500 outline-none"
+                     />
+                     <button 
+                       onClick={handleUpdateBlueprint}
+                       disabled={!blueprintInput.trim()}
+                       className="px-4 py-2 bg-white border border-[#e8e8e8] hover:bg-[#f3f3f3] text-[#111] text-xs font-bold rounded-lg disabled:opacity-50 transition-all"
+                     >
+                       Update Plan
+                     </button>
+                   </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2 border-t border-[#e8e8e8] mt-2">
+              <button 
+                onClick={handleConfirm}
+                disabled={blueprintLoading || !blueprintData}
+                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:active:scale-100"
+              >
+                <Play className="w-4 h-4 fill-white" />
+                Confirm & Build Code
               </button>
             </div>
           </motion.div>

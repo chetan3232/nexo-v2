@@ -290,5 +290,54 @@ Return ONLY valid JSON in the exact following format, without any markdown forma
     }
 });
 
+// 6. Blueprint Generation & Editing API
+router.post("/blueprint", async (req, res) => {
+    try {
+        const { prompt, modifications, currentBlueprint } = req.body;
+        if (!prompt && !modifications) return res.status(400).json({ error: "Missing prompt or modifications" });
+        
+        console.log("[Routes AI] Generating Implementation Blueprint...");
+        if (!process.env.GEMINI_API_KEY) {
+             return res.status(500).json({ error: "API Key missing" });
+        }
+        const { GoogleGenerativeAI } = require("@google/generative-ai");
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+        const systemPrompt = `You are an AI Software Architect. Your job is to create or update an Implementation Blueprint.
+Return ONLY valid JSON in the exact following format, without any markdown formatting or code blocks:
+{
+  "pages": ["Page 1", "Page 2"],
+  "backend": ["Backend Feature 1", "Backend Feature 2"],
+  "integrations": ["Integration 1"]
+}
+Keep the items concise (1-3 words each).`;
+
+        let userMessage = `Generate an implementation blueprint for this app idea: "${prompt}"`;
+        if (modifications && currentBlueprint) {
+            userMessage = `Current Blueprint:
+${JSON.stringify(currentBlueprint, null, 2)}
+
+User Modifications Requested: "${modifications}"
+
+Please update the blueprint based on these modifications and return the full updated JSON.`;
+        }
+
+        const result = await model.generateContent([
+            { text: systemPrompt },
+            { text: userMessage }
+        ]);
+
+        const text = result.response.text();
+        const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const json = JSON.parse(cleanedText);
+        
+        res.json(json);
+    } catch (err) {
+        console.error("[Routes AI] Blueprint API failed:", err);
+        res.status(500).json({ error: "Failed to generate blueprint" });
+    }
+});
+
 module.exports = router;
 
