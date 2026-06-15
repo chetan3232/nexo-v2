@@ -12,6 +12,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
   const [prompt, setPrompt] = useState('');
   const [isListening, setIsListening] = useState(false);
   const selectedModel = useAgentStore((state) => state.selectedModel);
+  const setSelectedModel = useAgentStore((state) => state.setSelectedModel);
   const [recognition, setRecognition] = useState<any>(null);
 
   // Web Speech API initialization
@@ -89,14 +90,14 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
             <span className="text-xs font-semibold tracking-wider uppercase text-indigo-300">Nexo V2.5.0 Cinematic Studio</span>
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[0.95] text-white">
+          <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-[0.95] text-white">
             Build applications <br/>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-300 to-orange-300">
               at light speed.
             </span>
           </h1>
 
-          <p className="text-stone-400 max-w-xl mx-auto font-light text-base md:text-lg">
+          <p className="text-stone-400 max-w-md mx-auto text-xs md:text-sm">
             Say, type, or configure your ideas. Watch our autonomous multi-agent squads code, compile, and self-heal your workspace.
           </p>
         </motion.div>
@@ -106,36 +107,47 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.2, duration: 0.6 }}
-          className="bg-white/5 backdrop-blur-2xl border border-white/10 p-2 rounded-[2rem] shadow-2xl relative group max-w-2xl mx-auto"
+          className="bg-white/5 backdrop-blur-2xl border border-white/10 p-1.5 rounded-2xl shadow-2xl relative group max-w-xl mx-auto"
         >
-          <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500/20 to-orange-500/20 rounded-[2rem] blur opacity-30 group-hover:opacity-60 transition duration-1000"></div>
+          <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500/20 to-orange-500/20 rounded-2xl blur opacity-30 group-hover:opacity-60 transition duration-1000"></div>
           
-          <div className="relative bg-[#0d0d0f]/90 rounded-[1.7rem] p-4 flex flex-col">
+          <div className="relative bg-[#0d0d0f]/90 rounded-xl p-3 flex flex-col">
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleGenerate())}
               placeholder="What are we building today? (e.g. 'A real-time crypto analytics dashboard')"
-              className="w-full bg-transparent border-none text-white placeholder-stone-500 focus:ring-0 resize-none h-28 p-2 font-light text-lg outline-none"
+              className="w-full bg-transparent border-none text-white placeholder-stone-500 focus:ring-0 resize-none h-20 p-1 text-sm outline-none font-normal"
             />
             
-            <div className="flex justify-between items-center pt-3 px-2 border-t border-white/5">
-              <div className="flex items-center gap-3">
+            <div className="flex justify-between items-center pt-2 px-1 border-t border-white/5">
+              <div className="flex items-center gap-2.5">
                 <button
                   type="button"
                   onClick={toggleSpeech}
-                  className={`p-2 rounded-xl border transition-all flex items-center justify-center ${
+                  className={`p-1.5 rounded-lg border transition-all flex items-center justify-center ${
                     isListening
                       ? 'bg-red-500/20 border-red-500/40 text-red-400 animate-pulse'
                       : 'bg-white/5 border-white/10 text-stone-400 hover:text-white'
                   }`}
                   title="Speak your prompt"
                 >
-                  {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                  {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
                 </button>
 
-                <div className="flex items-center gap-1.5 text-[10px] text-stone-500 font-mono font-bold">
-                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value as any)}
+                  className="bg-white/5 border border-white/10 text-[9px] font-bold text-stone-400 hover:text-white rounded-lg px-2 py-1 outline-none cursor-pointer uppercase tracking-wider"
+                >
+                  <option value="gemini-3-flash-preview">Gemini 3 Flash</option>
+                  <option value="gemini-3-pro-preview">Gemini 3 Pro</option>
+                  <option value="nvidia/nemotron-3-super-120b-a12b:free">Nemotron 3 Super</option>
+                  <option value="google/gemma-4-31b-it:free">Gemma 4 Free</option>
+                </select>
+
+                <div className="flex items-center gap-1 text-[9px] text-stone-500 font-mono font-bold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
                   <span>ONLINE</span>
                 </div>
               </div>
@@ -143,13 +155,13 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
               <button
                 onClick={handleGenerate}
                 disabled={!prompt.trim()}
-                className={`px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-[0_0_20px_rgba(99,102,241,0.2)] ${
+                className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-[0_0_20px_rgba(99,102,241,0.2)] ${
                   prompt.trim()
-                    ? 'bg-white text-black hover:bg-stone-200 hover:scale-[1.03]'
+                    ? 'bg-white text-black hover:bg-stone-200 hover:scale-[1.02]'
                     : 'bg-white/10 text-stone-500 cursor-not-allowed'
                 }`}
               >
-                Generate <ChevronRight className="w-4 h-4" />
+                Generate <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -160,13 +172,13 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart }) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="flex justify-center gap-4 text-xs font-mono"
+          className="flex justify-center gap-3 text-[10px] font-mono"
         >
-          <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-2 rounded-xl backdrop-blur-md">
+          <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg backdrop-blur-md">
             <span className="text-yellow-400 font-bold">⚡ Fast:</span>
             <span className="text-stone-300">Gemini 2.5 Flash</span>
           </div>
-          <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-2 rounded-xl backdrop-blur-md">
+          <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg backdrop-blur-md">
             <span className="text-indigo-400 font-bold">🧠 Deep:</span>
             <span className="text-stone-300">
               {selectedModel.includes('nvidia') ? 'Nemotron-3 Super' : 'Gemma 4'}

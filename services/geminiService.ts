@@ -67,9 +67,14 @@ const extractCodeFromText = (text: string): { website?: WebsiteContent, cleanTex
 
   // Determine main entry file
   const mainFile = files['index.html'] ? 'index.html' : (files['App.tsx'] ? 'App.tsx' : Object.keys(files)[0]);
+  const isReact = Object.keys(files).some(f => f.endsWith('.tsx') || f.endsWith('.ts'));
 
   return {
-    website: { files, mainFile },
+    website: { 
+      files, 
+      mainFile,
+      template: isReact ? 'react' : 'web'
+    },
     cleanText: cleanText.trim() || "I've generated the project files for you."
   };
 };
@@ -84,33 +89,35 @@ export const generateResponse = async (
   onStateChange?: (state: any) => void,
   systemInstruction: string = DEFAULT_SYSTEM_INSTRUCTION
 ): Promise<{ text: string; websiteContent?: WebsiteContent; isError?: boolean }> => {
-  
-  // Always initialize GoogleGenAI with the environment variable API_KEY directly
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-  // Map history to the content format required by the SDK (alternating user/model roles)
-  const contents = history.map(msg => ({
-    role: (msg.role === 'model' || msg.role === 'assistant') ? 'model' : 'user',
-    parts: [{ text: msg.text }]
-  }));
-  contents.push({ role: 'user', parts: [{ text: newMessage }] });
-
   try {
-    // Calling the Gemini API for content generation as specified in guidelines
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: contents,
-      config: {
-        systemInstruction: systemInstruction,
-        temperature: 0.2,
+    const messages = [
+      ...history.map(msg => ({
+        role: (msg.role === 'model' || msg.role === 'assistant') ? 'model' : 'user',
+        content: msg.text
+      })),
+      { role: 'user', content: newMessage }
+    ];
+
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
       },
+      body: JSON.stringify({
+        messages,
+        model,
+        systemInstruction
+      })
     });
 
-    // Access the text property directly (not a method) from the response
-    const responseText = response.text || "";
+    const data = await response.json();
+    if (data.status === 'error') {
+      throw new Error(data.text);
+    }
+
+    const responseText = data.text || "";
     const parsed = extractCodeFromText(responseText);
     
-    // Signal the BUILDING state if code blocks were found in the output
     if (parsed.website && onStateChange) onStateChange("BUILDING");
 
     return {

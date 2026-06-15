@@ -1,0 +1,10 @@
+{
+  "packages": {
+    "lucide-react": "^0.470.0",
+    "framer-motion": "^11.15.0",
+    "recharts": "^2.15.0"
+  },
+  "snippets": {
+    "dashboard_grid": "export function Dashboard() { return <div className='grid grid-cols-1 md:grid-cols-3 gap-6 p-6'>...</div> }"
+  }
+}

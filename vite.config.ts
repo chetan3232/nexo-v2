@@ -1,4 +1,5 @@
 import path from 'path';
+import fs from 'fs';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -47,11 +48,80 @@ export default defineConfig(({ mode }) => {
                         ]
                       }));
                     } else if (req.url === '/api/chat') {
-                      res.statusCode = 200;
-                      res.end(JSON.stringify({
-                        status: 'success',
-                        text: "I have updated the project styles and layout components for you.",
-                      }));
+                      const { messages, model, systemInstruction } = parsedBody;
+                      console.log(`[ViteApiMiddleware] Routing completions query for model: ${model}`);
+                      
+                      (async () => {
+                        try {
+                          if (model && model.startsWith('gemini-')) {
+                            const apiKey = env.GEMINI_API_KEY || '';
+                            if (!apiKey) {
+                              res.statusCode = 200;
+                              res.end(JSON.stringify({
+                                status: 'success',
+                                text: "Mock Gemini Response: I have successfully compiled the project layout views and updated style components.\n\n```tsx filename=\"App.tsx\"\nexport default function App() {\n  return (\n    <div className=\"min-h-screen bg-stone-950 text-white flex items-center justify-center\">\n      <div className=\"text-center space-y-4\">\n        <h1 className=\"text-4xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent\">Nexo Application</h1>\n        <p className=\"text-stone-400 max-w-md\">This is a mock Gemini generated view. Connect your API keys to unlock autonomous builder squads.</p>\n      </div>\n    </div>\n  );\n}\n```",
+                              }));
+                              return;
+                            }
+                            
+                            const { GoogleGenAI } = await import("@google/genai");
+                            const ai = new GoogleGenAI({ apiKey });
+                            const contents = messages.map(msg => ({
+                              role: msg.role === 'assistant' || msg.role === 'model' ? 'model' : 'user',
+                              parts: [{ text: msg.content || msg.text || "" }]
+                            }));
+                            
+                            const response = await ai.models.generateContent({
+                              model,
+                              contents,
+                              config: { systemInstruction }
+                            });
+                            
+                            res.statusCode = 200;
+                            res.end(JSON.stringify({
+                              status: 'success',
+                              text: response.text || "Successfully executed generation."
+                            }));
+                          } else {
+                            const apiKey = env.OPENROUTER_API_KEY || '';
+                            if (!apiKey) {
+                              res.statusCode = 200;
+                              res.end(JSON.stringify({
+                                status: 'success',
+                                text: "Mock OpenRouter Response: Applied visual style coordinates and synchronized workspace structures.\n\n```tsx filename=\"App.tsx\"\nexport default function App() {\n  return (\n    <div className=\"min-h-screen bg-stone-950 text-white flex items-center justify-center\">\n      <div className=\"text-center space-y-4\">\n        <h1 className=\"text-4xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent\">Nexo Application</h1>\n        <p className=\"text-stone-400 max-w-md\">This is a mock OpenRouter generated view. Connect your API keys to unlock autonomous builder squads.</p>\n      </div>\n    </div>\n  );\n}\n```",
+                              }));
+                              return;
+                            }
+                            
+                            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                              method: "POST",
+                              headers: {
+                                "Authorization": `Bearer ${apiKey}`,
+                                "Content-Type": "application/json"
+                              },
+                              body: JSON.stringify({
+                                model,
+                                messages: messages.map(m => ({ role: m.role, content: m.content || m.text })),
+                                temperature: 0.2
+                              })
+                            });
+                            
+                            const data = await response.json();
+                            res.statusCode = 200;
+                            res.end(JSON.stringify({
+                              status: 'success',
+                              text: data.choices[0].message.content || ""
+                            }));
+                          }
+                        } catch (err) {
+                          console.error("Vite completions routing error:", err);
+                          res.statusCode = 200;
+                          res.end(JSON.stringify({
+                            status: 'error',
+                            text: `Completions routing error: ${err.message}`
+                          }));
+                        }
+                      })();
                     } else if (req.url === '/api/deploy') {
                       res.statusCode = 200;
                       res.end(JSON.stringify({
@@ -59,10 +129,41 @@ export default defineConfig(({ mode }) => {
                         deployUrl: 'https://nexo-deployed-sandbox.app',
                         logs: ['Starting compiler build', 'Resolving static paths', 'Push finished successfully']
                       }));
+                    } else if (req.url === '/api/brain/load') {
+                      const brainDir = path.resolve(__dirname, 'project-brain');
+                      const files: Record<string, string> = {};
+                      if (fs.existsSync(brainDir)) {
+                        const fileNames = fs.readdirSync(brainDir);
+                        fileNames.forEach((name) => {
+                          const filePath = path.join(brainDir, name);
+                          if (fs.statSync(filePath).isFile()) {
+                            files[name] = fs.readFileSync(filePath, 'utf-8');
+                          }
+                        });
+                      }
+                      res.statusCode = 200;
+                      res.end(JSON.stringify({ status: 'success', files }));
+                    } else if (req.url === '/api/brain/save') {
+                      const { filename, content } = parsedBody;
+                      if (!filename || content === undefined) {
+                        res.statusCode = 400;
+                        res.end(JSON.stringify({ error: 'Missing filename or content' }));
+                      } else {
+                        const brainDir = path.resolve(__dirname, 'project-brain');
+                        if (!fs.existsSync(brainDir)) {
+                          fs.mkdirSync(brainDir, { recursive: true });
+                        }
+                        const safeName = path.basename(filename);
+                        const filePath = path.join(brainDir, safeName);
+                        fs.writeFileSync(filePath, content, 'utf-8');
+                        res.statusCode = 200;
+                        res.end(JSON.stringify({ status: 'success' }));
+                      }
                     } else {
                       res.statusCode = 404;
                       res.end(JSON.stringify({ error: 'Endpoint not found' }));
                     }
+
                   } catch (e: any) {
                     res.statusCode = 500;
                     res.end(JSON.stringify({ error: e.message }));

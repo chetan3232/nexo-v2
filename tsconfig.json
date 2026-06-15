@@ -25,5 +25,10 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "exclude": [
+    "old_backup_before_migration",
+    "node_modules",
+    "dist"
+  ]
 }

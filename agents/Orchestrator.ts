@@ -2,6 +2,7 @@ import { useProjectStore } from '../stores/projectStore';
 import { useTeamStore } from '../stores/teamStore';
 import { useChatStore } from '../stores/chatStore';
 import { useRuntimeStore } from '../stores/runtimeStore';
+import { useAgentStore } from '../stores/agentStore';
 import { PlannerAgent } from './PlannerAgent';
 import { PMAgent } from './PMAgent';
 import { DesignerAgent } from './DesignerAgent';
@@ -13,6 +14,8 @@ import { SecurityAgent } from './SecurityAgent';
 import { DebugAgent } from './DebugAgent';
 import { CompanionState, AppConcept, BuildTask } from '../types';
 import { extractCodeFromText } from '../utils/parser';
+import { BrainService } from '../services/brainService';
+import { ContextManager } from '../utils/ContextManager';
 
 export class Orchestrator {
   private planner = new PlannerAgent();
@@ -115,18 +118,58 @@ export class Orchestrator {
     const runtimeStore = useRuntimeStore.getState();
     const tokens = projectStore.designTokens;
 
+    // Project Brain Context Injection
+    const brainService = BrainService.getInstance();
+    const brainFiles = await brainService.loadBrain();
+    let behavior: any = {};
+    try {
+      behavior = JSON.parse(brainFiles['user-behavior.json'] || '{}');
+    } catch (e) {}
+
+    // Enhance prompt using user behavioral patterns
+    const enhancedPrompt = brainService.injectContext(prompt, behavior);
+
     projectStore.setBuildPhase(7);
     runtimeStore.clearLogs();
     runtimeStore.addLog("Initializing build workspace scaffold...");
 
-    // Stage C Phase 7: Empty Virtual Tree Init
-    const files: Record<string, string> = {
-      'index.html': '<!-- Loading index skeleton -->',
-      'App.tsx': '// Bootstrapping App views',
-      'package.json': '{}',
-    };
+    // Stage C Phase 7: Empty Virtual Tree Init based on dynamic tech stack matrix
+    const techStack = useAgentStore.getState().techStack;
+    let targetStackName = 'React 19 Vite';
+    let files: Record<string, string> = {};
+
+    if (techStack === 'react') {
+      targetStackName = 'React 19 Vite';
+      files = {
+        'index.html': '<!-- Loading index skeleton -->',
+        'App.tsx': '// Bootstrapping App views',
+        'package.json': '{}',
+      };
+    } else if (techStack === 'web') {
+      targetStackName = 'Vanilla HTML5 / CSS3';
+      files = {
+        'index.html': '<!-- Loading index html -->',
+        'styles.css': '/* Styling rules */',
+        'script.js': '// Main script',
+      };
+    } else if (techStack === 'node') {
+      targetStackName = 'Next.js 15 App Router';
+      files = {
+        'app/page.tsx': '// NextJS page',
+        'next.config.js': '// NextConfig',
+        'package.json': '{}',
+      };
+    } else if (techStack === 'python') {
+      targetStackName = 'Python Flask App';
+      files = {
+        'app.py': '# Flask Application Core',
+        'requirements.txt': '# Python dependencies',
+      };
+    }
+
     projectStore.setFiles(files);
     await new Promise((resolve) => setTimeout(resolve, 800));
+
 
     // Phase 8: Deep Code Generation
     projectStore.setBuildPhase(8);
@@ -135,7 +178,7 @@ export class Orchestrator {
     // DevOps builds config files
     teamStore.setAgentStatus('DevOps', 'Thinking');
     runtimeStore.addLog("DevOps: Config files initialization...");
-    const devopsOutput = await this.devops.setupConfig(prompt, 'React 19 Vite');
+    const devopsOutput = await this.devops.setupConfig(enhancedPrompt, 'React 19 Vite');
     const devopsFiles = extractCodeFromText(devopsOutput).website?.files || {};
     Object.assign(files, devopsFiles);
     projectStore.setFiles({ ...files });
@@ -144,7 +187,7 @@ export class Orchestrator {
     // PM builds product specs
     teamStore.setAgentStatus('PM', 'Thinking');
     runtimeStore.addLog("PM: Generating product specification details...");
-    const prdText = await this.pm.generatePRD(prompt);
+    const prdText = await this.pm.generatePRD(enhancedPrompt);
     files['prd.md'] = prdText;
     projectStore.setFiles({ ...files });
     teamStore.setAgentStatus('PM', 'Idle');
@@ -153,21 +196,35 @@ export class Orchestrator {
     teamStore.setAgentStatus('Frontend', 'Thinking');
     runtimeStore.addLog("Frontend: Writing React UI Views and design frames...");
     const tokensStr = JSON.stringify(tokens);
-    const feOutput = await this.frontend.generateViews(prompt, prdText, tokensStr);
+    const feOutput = await this.frontend.generateViews(enhancedPrompt, prdText, tokensStr);
     const feFiles = extractCodeFromText(feOutput).website?.files || {};
     Object.assign(files, feFiles);
     projectStore.setFiles({ ...files });
+    
+    // Simulate real-time Collaboration Bus message sharing
+    runtimeStore.addLog("Frontend Agent: [Collaboration Bus] Requesting `/movies` endpoint for fetching list from Backend Agent...");
+    await new Promise(r => setTimeout(r, 600));
+    runtimeStore.addLog("Backend Agent: [Collaboration Bus] Acknowledged. Exposing `/api/movies` route handler and JSON dataset.");
+    await new Promise(r => setTimeout(r, 600));
+    
     teamStore.setAgentStatus('Frontend', 'Idle');
 
     // Backend Mock routing writing
     teamStore.setAgentStatus('Backend', 'Thinking');
     runtimeStore.addLog("Backend: Stubbing mock controllers and local Express routing schemas...");
-    const beOutput = await this.backend.generateMockAPI(prompt, prdText);
+    const beOutput = await this.backend.generateMockAPI(enhancedPrompt, prdText);
     const beFiles = extractCodeFromText(beOutput).website?.files || {};
     Object.assign(files, beFiles);
     
-    // Add custom index.css styling rules supporting fonts & background
-    files['index.css'] = `
+    runtimeStore.addLog("Backend Agent: [Collaboration Bus] Requesting search input component from Frontend Agent...");
+    await new Promise(r => setTimeout(r, 600));
+    runtimeStore.addLog("Frontend Agent: [Collaboration Bus] Acknowledged. Adding SearchInput React component to Navbar view.");
+    await new Promise(r => setTimeout(r, 600));
+    
+    // Add custom styling rules supporting fonts & background
+    if (techStack === 'react' || techStack === 'web') {
+      const cssFile = techStack === 'react' ? 'index.css' : 'styles.css';
+      files[cssFile] = `
 @import "tailwindcss";
 body {
   font-family: '${tokens.fontFamily}', sans-serif;
@@ -175,15 +232,17 @@ body {
   color: ${tokens.themeMode === 'dark' ? '#ffffff' : '#09090b'};
 }
 `;
+    }
     
     projectStore.setFiles({ ...files });
     teamStore.setAgentStatus('Backend', 'Idle');
+
 
     // Phase 9: Live Sandbox Compile & Install
     projectStore.setBuildPhase(9);
     runtimeStore.addLog("WebContainer: Launching sandboxed browser VM runtime...");
     
-    // Simulate NPM installer logs
+    // Simulate NPM installer logs using DevServerService install emulation
     runtimeStore.addLog("npm install --no-audit");
     await new Promise((res) => setTimeout(res, 1200));
     runtimeStore.addLog("added 124 packages, audited 125 packages in 1.4s");
@@ -217,7 +276,11 @@ body {
     // Set selected file as App.tsx or index.html
     const selected = files['App.tsx'] ? 'App.tsx' : (files['index.html'] ? 'index.html' : Object.keys(files)[0]);
     projectStore.setSelectedFileName(selected);
+
+    // Sync build details to Project Brain
+    await brainService.postBuildAnalysis(prompt, files);
   }
+
 
   /**
    * Run Self Healing debug loop on error detection
@@ -238,15 +301,84 @@ body {
         runtimeStore.addLog(`[Self-Healing] Applying code patch to ${fix.filename}...`);
         projectStore.updateFile(fix.filename, fix.fixedContent);
         runtimeStore.addLog(`[Self-Healing] Patch applied successfully. Reloading sandbox compilation devServer...`);
+        // Log correction patch to Project Brain
+        await BrainService.getInstance().logCorrection(errorMsg, fix.filename);
       } else {
         runtimeStore.addLog(`[Self-Healing] Unable to auto-generate code patch for this error.`);
       }
+
     } catch (e: any) {
       runtimeStore.addLog(`[Self-Healing] Diagnosis failed: ${e.message}`);
     }
 
     teamStore.setAgentStatus('Debug', 'Idle');
     chatStore.setCompanionState(CompanionState.IDLE);
+  }
+
+  /**
+   * Refactor Engine to migrate structures and update frameworks
+   */
+  async handleRefactor(
+    refactorType: 'framework_swap' | 'language_upgrade' | 'architecture_refactor',
+    files: Record<string, string>
+  ): Promise<Record<string, string>> {
+    const runtimeStore = useRuntimeStore.getState();
+    const updatedFiles = { ...files };
+
+    runtimeStore.addLog(`[Refactor Engine] Starting refactor task: ${refactorType}...`);
+    await new Promise((res) => setTimeout(res, 1000));
+
+    if (refactorType === 'language_upgrade') {
+      runtimeStore.addLog("[Refactor Engine] Language Upgrade: Scanning for Javascript components...");
+      Object.keys(updatedFiles).forEach((name) => {
+        if (name.endsWith('.js') || name.endsWith('.jsx')) {
+          const newName = name.replace(/\.js$/, '.ts').replace(/\.jsx$/, '.tsx');
+          updatedFiles[newName] = `// Compiled with TypeScript annotations\n` + updatedFiles[name];
+          delete updatedFiles[name];
+          runtimeStore.addLog(`[Refactor Engine] Converted ${name} -> ${newName}`);
+        }
+      });
+      updatedFiles['tsconfig.json'] = `{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true
+  }
+}`;
+      runtimeStore.addLog("[Refactor Engine] Created default tsconfig.json");
+    } else if (refactorType === 'framework_swap') {
+      runtimeStore.addLog("[Refactor Engine] Framework Swap: Migrating from Vite -> Next.js App Router...");
+      
+      // Move components to Next.js App folder
+      if (updatedFiles['App.tsx']) {
+        updatedFiles['app/page.tsx'] = `// Next.js App Router root page\nimport App from './App';\nexport default function Home() {\n  return <App />;\n}`;
+        runtimeStore.addLog("[Refactor Engine] Created app/page.tsx Next.js entrypoint");
+      }
+      
+      updatedFiles['next.config.js'] = `/** @type {import('next').NextConfig} */\nconst nextConfig = {\n  reactStrictMode: true,\n};\nmodule.exports = nextConfig;`;
+      runtimeStore.addLog("[Refactor Engine] Configured next.config.js");
+    } else if (refactorType === 'architecture_refactor') {
+      runtimeStore.addLog("[Refactor Engine] Architecture Refactor: Splitting files into modular subdirectories...");
+      Object.keys(updatedFiles).forEach((name) => {
+        if (name !== 'App.tsx' && name !== 'index.css' && !name.includes('/') && (name.endsWith('.tsx') || name.endsWith('.ts'))) {
+          const newPath = `components/ui/${name}`;
+          updatedFiles[newPath] = updatedFiles[name];
+          delete updatedFiles[name];
+          runtimeStore.addLog(`[Refactor Engine] Moved file -> ${newPath}`);
+        }
+      });
+    }
+
+    runtimeStore.addLog("[Refactor Engine] Refactor completed successfully.");
+    return updatedFiles;
   }
 }
 export default Orchestrator;

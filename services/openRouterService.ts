@@ -41,9 +41,14 @@ const extractCodeFromText = (text: string): { website?: WebsiteContent, cleanTex
   if (!hasContent) return { cleanText };
 
   const mainFile = files['index.html'] ? 'index.html' : (files['App.tsx'] ? 'App.tsx' : Object.keys(files)[0]);
+  const isReact = Object.keys(files).some(f => f.endsWith('.tsx') || f.endsWith('.ts'));
 
   return {
-    website: { files, mainFile },
+    website: { 
+      files, 
+      mainFile,
+      template: isReact ? 'react' : 'web'
+    },
     cleanText: cleanText.trim() || "I've generated the project files for you."
   };
 };
@@ -55,47 +60,33 @@ export const generateOpenRouterResponse = async (
   onStateChange?: (state: any) => void,
   systemInstruction: string = ""
 ): Promise<{ text: string; websiteContent?: WebsiteContent; isError?: boolean }> => {
-  
-  const apiKey = process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY !== 'undefined'
-    ? process.env.OPENROUTER_API_KEY
-    : '';
-  
-  if (!apiKey) {
-    return { text: "OpenRouter API Key is missing. Please add it to your environment variables.", isError: true };
-  }
-
-  const messages = [
-    { role: 'system', content: systemInstruction },
-    ...history.map(msg => ({
-      role: (msg.role === 'model' || msg.role === 'assistant') ? 'assistant' : 'user',
-      content: msg.text
-    })),
-    { role: 'user', content: newMessage }
-  ];
-
   try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const messages = [
+      ...history.map(msg => ({
+        role: (msg.role === 'model' || msg.role === 'assistant') ? 'model' : 'user',
+        content: msg.text
+      })),
+      { role: 'user', content: newMessage }
+    ];
+
+    const response = await fetch("/api/chat", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "HTTP-Referer": window.location.origin,
-        "X-Title": "Nexo v2",
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        "model": model,
-        "messages": messages,
-        "temperature": 0.2,
+        messages,
+        model,
+        systemInstruction
       })
     });
 
     const data = await response.json();
-    
-    if (data.error) {
-      throw new Error(data.error.message || "Unknown OpenRouter error");
+    if (data.status === 'error') {
+      throw new Error(data.text);
     }
 
-    const responseText = data.choices[0].message.content || "";
+    const responseText = data.text || "";
     const parsed = extractCodeFromText(responseText);
     
     if (parsed.website && onStateChange) onStateChange("BUILDING");

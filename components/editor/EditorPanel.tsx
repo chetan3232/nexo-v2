@@ -1,7 +1,8 @@
 import React from 'react';
-import { FileCode, Trash, FileCode2, Code, Terminal } from 'lucide-react';
+import { FileCode2, Code, Terminal, FolderPlus, Download, Check, Save } from 'lucide-react';
 import { useProjectStore } from '../../stores/projectStore';
 import { useRuntimeStore } from '../../stores/runtimeStore';
+import { useBlockStore } from '../../stores/blockStore';
 
 export const EditorPanel: React.FC = () => {
   const files = useProjectStore((state) => state.files);
@@ -12,30 +13,54 @@ export const EditorPanel: React.FC = () => {
   
   const terminalLogs = useRuntimeStore((state) => state.logs);
   const runningCommand = useRuntimeStore((state) => state.runningCommand);
+  const addLog = useRuntimeStore((state) => state.addLog);
+
+  // Block store hooks
+  const savedBlocks = useBlockStore((state) => state.savedBlocks);
+  const saveBlock = useBlockStore((state) => state.saveBlock);
 
   const activeContent = selectedFileName ? files[selectedFileName] || '' : '';
+
+  // Save current editor file content as a Reusable Block
+  const handleSaveBlock = () => {
+    if (!selectedFileName || !activeContent) return;
+    const blockName = `Custom ${selectedFileName}`;
+    saveBlock(blockName, 'User Saved', activeContent);
+    addLog(`📦 [BlockStore] Saved current ${selectedFileName} code to components library.`);
+    alert(`Successfully saved active code as block: "${blockName}"`);
+  };
+
+  // Inject a saved block directly into the active editor file
+  const handleInjectBlock = (blockId: string) => {
+    if (!selectedFileName) return;
+    const block = savedBlocks.find((b) => b.id === blockId);
+    if (block) {
+      updateFile(selectedFileName, block.code);
+      addLog(`📦 [BlockStore] Injected "${block.name}" block content into ${selectedFileName}.`);
+    }
+  };
 
   return (
     <div className="flex-1 flex overflow-hidden bg-[#0d0d0f] text-stone-200">
       
       {/* File Explorer Sidebar */}
-      <div className="w-56 bg-[#09090b]/80 border-r border-stone-900 flex flex-col shrink-0 select-none">
-        <div className="p-4 text-[10px] font-bold text-stone-500 uppercase tracking-widest border-b border-stone-900 flex items-center gap-1.5">
-          <Code className="w-3.5 h-3.5" /> Workspace Files
+      <div className="w-44 bg-[#09090b]/80 border-r border-stone-900 flex flex-col shrink-0 select-none">
+        <div className="p-3 text-[9px] font-bold text-stone-500 uppercase tracking-widest border-b border-stone-900 flex items-center gap-1.5">
+          <Code className="w-3 h-3" /> Files
         </div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-thin">
+        <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5 scrollbar-thin">
           {Object.keys(files).map((filename) => (
             <div
               key={filename}
               onClick={() => setSelectedFileName(filename)}
-              className={`group w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
+              className={`group w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer transition-all ${
                 selectedFileName === filename
                   ? 'bg-indigo-600/10 border border-indigo-500/20 text-white'
                   : 'text-stone-400 hover:bg-white/5 border border-transparent'
               }`}
             >
-              <div className="flex items-center gap-2.5 truncate">
-                <FileCode2 className="w-4 h-4 text-indigo-400 shrink-0" />
+              <div className="flex items-center gap-2 truncate">
+                <FileCode2 className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                 <span className="truncate font-mono">{filename}</span>
               </div>
               
@@ -45,7 +70,7 @@ export const EditorPanel: React.FC = () => {
                     e.stopPropagation();
                     deleteFile(filename);
                   }}
-                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 text-stone-500 hover:text-red-400 rounded transition-all"
+                  className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-red-500/20 text-stone-500 hover:text-red-400 rounded transition-all"
                 >
                   ✕
                 </button>
@@ -59,13 +84,45 @@ export const EditorPanel: React.FC = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         
         {/* Editor Screen Header */}
-        <div className="h-10 bg-[#09090b] border-b border-stone-900 flex items-center justify-between px-6 shrink-0 select-none">
-          <span className="text-[10px] font-mono text-stone-500 font-bold uppercase tracking-wider">
+        <div className="h-8 bg-[#09090b] border-b border-stone-900 flex items-center justify-between px-4 shrink-0 select-none">
+          <span className="text-[9px] font-mono text-stone-500 font-bold uppercase tracking-wider">
             {selectedFileName || 'No File Selected'}
           </span>
-          <span className="text-[9px] font-mono text-stone-600 font-bold uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded border border-white/5">
-            React 19 Editor
-          </span>
+          
+          <div className="flex items-center gap-2">
+            {/* Inject Block Dropdown */}
+            {selectedFileName && (
+              <div className="flex items-center gap-1">
+                <select
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handleInjectBlock(e.target.value);
+                      e.target.value = ''; // Reset select
+                    }
+                  }}
+                  defaultValue=""
+                  className="bg-[#141417] border border-stone-800 text-[8px] font-bold text-stone-400 hover:text-white rounded-md px-1.5 py-0.5 outline-none cursor-pointer uppercase tracking-wider"
+                >
+                  <option value="" disabled>Inject Block</option>
+                  {savedBlocks.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+                
+                <button
+                  onClick={handleSaveBlock}
+                  className="flex items-center gap-0.5 bg-indigo-600/10 border border-indigo-500/20 hover:bg-indigo-600 text-indigo-400 hover:text-white px-1.5 py-0.5 rounded-md text-[8px] font-bold uppercase tracking-wider transition-all"
+                  title="Save active file as component block"
+                >
+                  <Save className="w-2.5 h-2.5" /> Save
+                </button>
+              </div>
+            )}
+            
+            <span className="text-[8px] font-mono text-stone-600 font-bold uppercase tracking-widest bg-white/5 px-1.5 py-0.5 rounded border border-white/5">
+              Editor
+            </span>
+          </div>
         </div>
 
         {/* Text Code Area */}

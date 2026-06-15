@@ -111,37 +111,37 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSendMessage, onRetryMess
     <div className="flex flex-col h-full bg-[#121214] border-l border-stone-800 text-stone-200">
       
       {/* Header */}
-      <div className="h-16 border-b border-stone-800 flex items-center justify-between px-6 shrink-0">
-        <span className="font-bold text-sm tracking-wide">Studio Chat Assistant</span>
-        <div className="flex items-center gap-1.5 text-[10px] font-mono text-stone-500 bg-white/5 border border-white/5 px-2.5 py-1 rounded-full uppercase">
-          <span className={`w-1.5 h-1.5 rounded-full ${companionState === CompanionState.IDLE ? 'bg-green-500' : 'bg-indigo-500 animate-pulse'}`}></span>
+      <div className="h-12 border-b border-stone-800 flex items-center justify-between px-4 shrink-0">
+        <span className="font-bold text-xs tracking-wide">Studio Chat Assistant</span>
+        <div className="flex items-center gap-1 text-[9px] font-mono text-stone-500 bg-white/5 border border-white/5 px-2 py-0.5 rounded-full uppercase">
+          <span className={`w-1 h-1 rounded-full ${companionState === CompanionState.IDLE ? 'bg-green-500' : 'bg-indigo-500 animate-pulse'}`}></span>
           <span>{companionState}</span>
         </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
         {messages.map((msg, idx) => (
           <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} animate-in fade-in duration-300`}>
             {msg.isError ? (
-              <div className="max-w-[90%] p-4 bg-red-950/20 border border-red-800/40 rounded-3xl rounded-tl-none text-red-300 space-y-3 shadow-lg">
-                <div className="flex items-center gap-2 font-bold text-xs">
-                  <AlertTriangle className="w-4 h-4 text-red-500" />
+              <div className="max-w-[90%] p-3 bg-red-950/20 border border-red-800/40 rounded-2xl rounded-tl-none text-red-300 space-y-2 shadow-lg">
+                <div className="flex items-center gap-1.5 font-bold text-[11px]">
+                  <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
                   <span>Compilation / Gen Error</span>
                 </div>
-                <p className="text-xs leading-relaxed text-red-400">{msg.text}</p>
+                <p className="text-[11px] leading-relaxed text-red-400">{msg.text}</p>
                 <button
                   onClick={() => onRetryMessage(idx)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 border border-red-500/20 rounded-xl text-[10px] font-bold text-red-400 hover:bg-red-500/20 transition-all shadow-sm"
+                  className="flex items-center gap-1 px-2.5 py-1 bg-red-500/10 border border-red-500/20 rounded-lg text-[9px] font-bold text-red-400 hover:bg-red-500/20 transition-all shadow-sm"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" /> Retry Request
+                  <RefreshCw className="w-3 h-3" /> Retry Request
                 </button>
               </div>
             ) : (
-              <div className={`max-w-[90%] p-4 text-xs leading-relaxed shadow-lg ${
+              <div className={`max-w-[90%] p-3 text-[11px] leading-relaxed shadow-lg ${
                 msg.role === 'user'
-                  ? 'bg-indigo-600 text-white rounded-3xl rounded-tr-none'
-                  : 'bg-stone-900 border border-stone-800 text-stone-300 rounded-3xl rounded-tl-none'
+                  ? 'bg-indigo-600 text-white rounded-2xl rounded-tr-none'
+                  : 'bg-stone-900 border border-stone-800 text-stone-300 rounded-2xl rounded-tl-none'
               }`}>
                 {msg.text}
               </div>
@@ -149,8 +149,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSendMessage, onRetryMess
           </div>
         ))}
         {companionState !== CompanionState.IDLE && (
-          <div className="flex justify-start items-center gap-2 text-stone-500 text-[10px] font-bold uppercase tracking-widest px-2 animate-pulse">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+          <div className="flex justify-start items-center gap-1.5 text-stone-500 text-[9px] font-bold uppercase tracking-widest px-1.5 animate-pulse">
+            <Sparkles className="w-3 h-3 text-indigo-400" />
             <span>Companion is working...</span>
           </div>
         )}
@@ -158,21 +158,21 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSendMessage, onRetryMess
       </div>
 
       {/* Input */}
-      <div className="p-4 bg-stone-950/50 border-t border-stone-800 space-y-2">
+      <div className="p-3 bg-stone-950/50 border-t border-stone-800 space-y-1.5">
         {attachedFile && (
-          <div className="flex items-center justify-between bg-white/5 border border-white/5 px-3 py-1.5 rounded-xl text-[10px] font-mono">
-            <span className="truncate max-w-[200px] text-indigo-300">📎 {attachedFile.name}</span>
+          <div className="flex items-center justify-between bg-white/5 border border-white/5 px-2.5 py-1 rounded-lg text-[9px] font-mono">
+            <span className="truncate max-w-[180px] text-indigo-300">📎 {attachedFile.name}</span>
             <button onClick={() => setAttachedFile(null)} className="text-stone-500 hover:text-white">✕</button>
           </div>
         )}
         
-        <div className="flex items-center bg-stone-900 border border-stone-800 rounded-2xl p-1 focus-within:border-stone-700 focus-within:ring-2 focus-within:ring-indigo-500/10 transition-all">
+        <div className="flex items-center bg-stone-900 border border-stone-800 rounded-xl p-0.5 focus-within:border-stone-700 focus-within:ring-2 focus-within:ring-indigo-500/10 transition-all">
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="p-3 text-stone-500 hover:text-white transition-colors"
+            className="p-2 text-stone-500 hover:text-white transition-colors"
             title="Attach file / image mockup"
           >
-            <Paperclip className="w-4 h-4" />
+            <Paperclip className="w-3.5 h-3.5" />
           </button>
           <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*,text/*,.json,.js,.ts,.tsx" />
 
@@ -180,25 +180,25 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSendMessage, onRetryMess
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
-            placeholder="Change layout alignment..."
-            className="flex-1 bg-transparent border-none text-white text-xs p-3 outline-none resize-none h-11 scrollbar-none font-light"
+            placeholder="Type prompt here..."
+            className="flex-1 bg-transparent border-none text-white text-[11px] p-2 outline-none resize-none h-8 scrollbar-none font-normal"
             rows={1}
           />
 
           <button
             onClick={toggleSpeech}
-            className={`p-3 transition-colors ${isListening ? 'text-red-400 animate-pulse' : 'text-stone-500 hover:text-white'}`}
+            className={`p-2 transition-colors ${isListening ? 'text-red-400 animate-pulse' : 'text-stone-500 hover:text-white'}`}
             title="Voice command integration"
           >
-            {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
           </button>
 
           <button
             onClick={handleSend}
             disabled={!input.trim() && !attachedFile}
-            className="p-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-stone-800 disabled:text-stone-600 text-white rounded-xl transition-all font-bold"
+            className="p-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-stone-800 disabled:text-stone-600 text-white rounded-lg transition-all font-bold"
           >
-            <Send className="w-3.5 h-3.5" />
+            <Send className="w-3 h-3" />
           </button>
         </div>
       </div>

@@ -1,6 +1,46 @@
 import { WebsiteContent } from '../../types';
+import { useRuntimeStore } from '../../stores/runtimeStore';
+import { discoverDependencies } from '../../utils/deps';
 
 export class DevServerService {
+  /**
+   * Emulates npm install inside the virtual sandbox.
+   */
+  public static async install(files: Record<string, string>): Promise<Record<string, string>> {
+    const store = useRuntimeStore.getState();
+    store.addLog("📦 [Sandbox] Running package installer: npm install");
+    store.addLog("📦 [Sandbox] Scanning imports for dependency auto-discovery...");
+    
+    // Auto-discover imports
+    const discovered = discoverDependencies(files);
+    const discoveredList = Object.keys(discovered);
+    store.addLog(`📦 [Sandbox] Discovered imports to install: ${JSON.stringify(discoveredList)}`);
+    
+    // Update package.json dependency declarations
+    let pkgJson: any = {};
+    try {
+      pkgJson = JSON.parse(files['package.json'] || '{}');
+    } catch (e) {
+      pkgJson = {};
+    }
+    
+    pkgJson.dependencies = {
+      ...(pkgJson.dependencies || {}),
+      ...discovered
+    };
+    
+    files['package.json'] = JSON.stringify(pkgJson, null, 2);
+    
+    store.addLog("📦 [Sandbox] Resolving dependency graph tree from virtual npm registry...");
+    for (const pkg of discoveredList) {
+      store.addLog(`📦 [Sandbox] Resolving: ${pkg}@${discovered[pkg]} - Success`);
+      await new Promise((res) => setTimeout(res, 100));
+    }
+    
+    store.addLog(`📦 [Sandbox] Installed ${discoveredList.length} packages successfully.`);
+    return files;
+  }
+
   /**
    * Bundles workspace files into an injectable HTML document that runs standard React or Native layouts.
    */
@@ -54,9 +94,27 @@ export class DevServerService {
       
       // Clean export keywords
       if (filename === 'App.tsx') {
-        code = code.replace(/export\s+default\s+function\s+App/g, 'function App');
-        code = code.replace(/export\s+default\s+function\s+(\w+)/g, 'function $1($2) { return <$1 {...$2} /> }\nconst App = $1;');
-        code = code.replace(/export\s+default\s+(\w+);?/g, 'const App = $1;');
+        let appName = 'App';
+        const funcMatch = code.match(/export\s+default\s+function\s+(\w+)/);
+        const classMatch = code.match(/export\s+default\s+class\s+(\w+)/);
+        const constMatch = code.match(/export\s+default\s+(\w+)/);
+        
+        if (funcMatch) {
+          appName = funcMatch[1];
+          code = code.replace(/export\s+default\s+function\s+(\w+)/g, 'function $1');
+        } else if (classMatch) {
+          appName = classMatch[1];
+          code = code.replace(/export\s+default\s+class\s+(\w+)/g, 'class $1');
+        } else if (constMatch) {
+          appName = constMatch[1];
+          code = code.replace(/export\s+default\s+(\w+);?/g, '/* export default $1 */');
+        }
+        
+        if (appName !== 'App') {
+          code += `\nconst App = ${appName};\n`;
+        } else {
+          code += `\nif (typeof App === 'undefined' && typeof ${appName} !== 'undefined') { var App = ${appName}; }\n`;
+        }
       } else {
         code = code.replace(/export\s+default\s+/g, '');
         code = code.replace(/export\s+/g, '');
@@ -92,13 +150,13 @@ export class DevServerService {
               overflow-x: hidden;
             }
             /* Visual edit mode selector highlights */
-            .visual-editable-element {
-              outline: 1px dashed rgba(99, 102, 241, 0.4);
-              cursor: pointer;
+            body.visual-edit-active * {
+              outline: 1px dashed rgba(99, 102, 241, 0.35) !important;
+              cursor: pointer !important;
               transition: outline 0.15s ease;
             }
-            .visual-editable-element:hover {
-              outline: 2px solid #6366f1;
+            body.visual-edit-active *:hover {
+              outline: 2px solid #6366f1 !important;
             }
           </style>
         </head>
@@ -129,6 +187,39 @@ export class DevServerService {
             const { useState, useEffect, useRef, useMemo, useCallback } = React;
             const { motion, AnimatePresence } = FramerMotion;
             
+            // Listen for Host to Iframe postMessages
+            window.addEventListener('message', (event) => {
+              const { type, visualMode, id, styleClass } = event.data;
+              
+              if (type === 'SET_VISUAL_MODE') {
+                if (visualMode) {
+                  document.body.classList.add('visual-edit-active');
+                  // Run ID tagging
+                  let idCounter = 1;
+                  const tagNode = (node) => {
+                    if (node && node.nodeType === 1) {
+                      if (!node.getAttribute('data-nexo-id')) {
+                        node.setAttribute('data-nexo-id', 'nexo-' + idCounter++);
+                      }
+                      Array.from(node.childNodes).forEach(tagNode);
+                    }
+                  };
+                  tagNode(document.getElementById('root'));
+                } else {
+                  document.body.classList.remove('visual-edit-active');
+                }
+              }
+              
+              if (type === 'UPDATE_STYLE') {
+                const element = document.querySelector('[data-nexo-id="' + id + '"]');
+                if (element) {
+                  element.className = styleClass;
+                  // Signal synchronization complete
+                  window.parent.postMessage({ type: 'STYLE_SYNCED', id, className: styleClass }, '*');
+                }
+              }
+            });
+
             // Inject Lucide React components
             ${lucideDestructuring}
 
@@ -142,12 +233,17 @@ export class DevServerService {
                 // Attach click listener for visual color editor if enabled
                 document.body.addEventListener('click', (e) => {
                   const target = e.target;
-                  if (target) {
+                  if (target && document.body.classList.contains('visual-edit-active')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const nexoId = target.getAttribute('data-nexo-id') || 'nexo-0';
                     window.parent.postMessage({
-                      type: 'ELEMENT_CLICKED',
+                      type: 'ELEMENT_SELECTED',
+                      id: nexoId,
                       tagName: target.tagName,
                       className: target.className,
-                      textContent: target.textContent
+                      textContent: target.textContent || ''
                     }, '*');
                   }
                 });

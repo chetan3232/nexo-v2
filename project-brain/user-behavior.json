@@ -1,0 +1,10 @@
+{
+  "themeMode": "dark",
+  "primaryColor": "#6366f1",
+  "borderRadius": "lg",
+  "fontFamily": "Outfit",
+  "frequentPrompts": [
+    "create a calculator app using html,css,js"
+  ],
+  "buildFailuresCount": 0
+}
