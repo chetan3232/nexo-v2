@@ -48,33 +48,24 @@
       "title": "create coffee shop landi...",
       "messages": [
         {
+          "model": "nvidia/nemotron-3-super-120b-a12b:free",
           "role": "user",
           "text": "create coffee shop landing page",
-          "timestamp": 1781548428037,
-          "model": "nvidia/nemotron-3-super-120b-a12b:free"
+          "timestamp": 1781548428037
         },
         {
           "id": "plan_build_3de864fd-6589-4f1e-9a18-a7a62bba0fae",
+          "model": "nvidia/nemotron-3-super-120b-a12b:free",
           "role": "assistant",
           "text": "🧠 **Strategic Planning Phase Initiated**\n\nAI is analyzing your request and planning layout, components, and backend requirements. Code generation will begin shortly...",
-          "timestamp": 1781548429186,
-          "model": "nvidia/nemotron-3-super-120b-a12b:free"
+          "timestamp": 1781548429186
         }
       ],
-      "content": {
-        "files": {
-          "index.html": "",
-          "style.css": "",
-          "script.js": ""
-        },
-        "patches": {},
-        "mainFile": "index.html",
-        "template": "web"
-      },
+      "content": null,
       "model": "nvidia/nemotron-3-super-120b-a12b:free",
       "projectMode": "frontend",
       "createdAt": "2026-06-15T18:33:51.883Z",
-      "updatedAt": 1781548590965
+      "updatedAt": 1781548840862
     }
   ]
 }

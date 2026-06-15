@@ -40,7 +40,6 @@ import { useChatStore } from "../stores/chatStore";
 import { useAgentStore } from "../stores/agentStore";
 import { useDesignStore } from "../stores/designStore";
 import { useRuntimeStore } from "../stores/runtimeStore";
-import { useBuildPhaseStore, mapBuildPhaseToPhaseId, getCurrentStageColor } from "../stores/buildPhaseStore";
 import { saveCurrentProject } from "../services/saveService";
 import { Orchestrator } from "../agents/Orchestrator";
 import { Message } from "../types";
@@ -54,7 +53,6 @@ import {
   RotateCw,
   Monitor,
   Sparkles,
-  Share2,
   GitBranch,
   X,
   ExternalLink,
@@ -537,10 +535,6 @@ const ChatInterface: React.FC = () => {
           <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#555] hover:text-[#111] hover:bg-[#f3f3f3] border border-[#e8e8e8] transition-all">
             <Sparkles className="w-3.5 h-3.5 text-[#0ea5e9]" />
             Remix
-          </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#555] hover:text-[#111] hover:bg-[#f3f3f3] border border-[#e8e8e8] transition-all">
-            <Share2 className="w-3.5 h-3.5" />
-            Share
           </button>
           <button
             onClick={handleDeploy}

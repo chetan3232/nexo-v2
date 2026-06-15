@@ -20,12 +20,18 @@ import {
   Trash2,
   Sparkles,
   Globe,
+  Share2,
+  Copy,
+  Check,
+  ExternalLink,
 } from "lucide-react";
 import { GithubIcon as Github } from "./GithubIcon";
 import { useAgentStore, DEFAULT_SYSTEM_PROMPT } from "../../stores/agentStore";
 import { useProjectStore } from "../../stores/projectStore";
 import { useMemoryStore } from "../../stores/memoryStore";
 import toast from "react-hot-toast";
+import { auth, shareProject, signInWithGoogle, SharePermission } from "../../services/firebase";
+import { useChatStore } from "../../stores/chatStore";
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -82,6 +88,69 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   }, [branchName]);
 
   const [showKey, setShowKey] = useState(false);
+
+  const [currentUser, setCurrentUser] = useState(() => auth.currentUser);
+  const [permission, setPermission] = useState<SharePermission>("read");
+  const [botRestrictions, setBotRestrictions] = useState("");
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [copiedShareLink, setCopiedShareLink] = useState(false);
+
+  React.useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setCurrentUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleShare = async () => {
+    const chatStore = useChatStore.getState();
+    const projectStore = useProjectStore.getState();
+
+    const chatId = chatStore.currentChatId;
+    if (!chatId) {
+      toast.error("Please start a chat session before sharing.");
+      return;
+    }
+
+    if (!currentUser) {
+      toast.error("Please sign in to share.");
+      return;
+    }
+
+    if (!projectStore.currentContent || !projectStore.currentContent.files || Object.keys(projectStore.currentContent.files).length === 0) {
+      toast.error("No generated files found. Please run the AI first to build your project!");
+      return;
+    }
+
+    setIsSharing(true);
+    try {
+      const firstUserMessage = chatStore.messages.find((m) => m.role === "user")?.text || "New Project";
+      const projectTitle = firstUserMessage.length > 24
+        ? firstUserMessage.substring(0, 24) + "..."
+        : firstUserMessage;
+
+      const generatedShareId = await shareProject({
+        uid: currentUser.uid,
+        chatId,
+        title: projectTitle,
+        permission,
+        botRestrictions,
+        messages: chatStore.messages,
+        content: projectStore.currentContent,
+        ownerName: currentUser.displayName || currentUser.email || "Anonymous",
+      });
+
+      const generatedUrl = `${window.location.origin}${window.location.pathname}#/s/${generatedShareId}`;
+      setShareUrl(generatedUrl);
+      toast.success("Share link generated successfully!");
+    } catch (error) {
+      console.error("Error sharing project:", error);
+      toast.error("Failed to generate share link. Please try again.");
+    } finally {
+      setIsSharing(false);
+    }
+  };
 
   const handleResetPrompt = () => {
     setSystemPrompt(DEFAULT_SYSTEM_PROMPT);
@@ -1014,8 +1083,187 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           )}
 
-          {/* Share & Publish tab stubs with old quick actions */}
-          {["Share", "Publish", "Versions"].includes(activeTab) && (
+          {/* Share Tab */}
+          {activeTab === "Share" && (
+            <div className="max-w-xl mx-auto h-full flex flex-col pt-6 animate-in fade-in duration-300">
+              <h2 className="text-xl font-bold text-stone-800 mb-2 flex items-center gap-2">
+                <Share2 className="w-5 h-5 text-indigo-600" />
+                Share Project
+              </h2>
+              <p className="text-xs text-stone-500 mb-6">
+                Generate a public share link. Anyone with this link can view the live preview, read the chat history, and fork/remix the project.
+              </p>
+
+              {!currentUser ? (
+                <div className="flex flex-col items-center justify-center p-8 bg-[#f9f9fb] rounded-2xl border border-stone-200 text-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center">
+                    <User className="w-6 h-6 text-indigo-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-stone-800">Authentication Required</h3>
+                    <p className="text-xs text-stone-500 mt-1 max-w-sm">
+                      Please sign in to save and share your creations. Your shared projects will be safely stored under your account.
+                    </p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await signInWithGoogle();
+                        toast.success("Signed in successfully!");
+                      } catch (err) {
+                        console.error(err);
+                        toast.error("Failed to sign in.");
+                      }
+                    }}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-[#111] hover:bg-[#333] text-white text-xs font-semibold rounded-xl transition-all shadow-sm active:scale-95"
+                  >
+                    <User className="w-4 h-4" />
+                    Sign In with Google
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {/* Share Configuration */}
+                  <div className="bg-white border border-stone-200 rounded-2xl p-5 space-y-4 shadow-sm">
+                    {/* Permission Select */}
+                    <div>
+                      <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">
+                        Permission Level
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setPermission("read")}
+                          className={`flex items-center gap-2 p-3 rounded-xl border text-left transition-all ${
+                            permission === "read"
+                              ? "border-indigo-600 bg-indigo-50/40 text-indigo-950 font-medium"
+                              : "border-stone-200 hover:border-stone-300 text-stone-600"
+                          }`}
+                        >
+                          <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                            permission === "read" ? "border-indigo-600" : "border-stone-300"
+                          }`}>
+                            {permission === "read" && <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full" />}
+                          </div>
+                          <div>
+                            <div className="text-xs font-semibold">Read-only</div>
+                            <div className="text-[10px] opacity-75">View & remix only</div>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPermission("write")}
+                          className={`flex items-center gap-2 p-3 rounded-xl border text-left transition-all ${
+                            permission === "write"
+                              ? "border-indigo-600 bg-indigo-50/40 text-indigo-950 font-medium"
+                              : "border-stone-200 hover:border-stone-300 text-stone-600"
+                          }`}
+                        >
+                          <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                            permission === "write" ? "border-indigo-600" : "border-stone-300"
+                          }`}>
+                            {permission === "write" && <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full" />}
+                          </div>
+                          <div>
+                            <div className="text-xs font-semibold">Collaborator</div>
+                            <div className="text-[10px] opacity-75">Allow direct edits</div>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Bot Restrictions Input */}
+                    <div>
+                      <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1.5">
+                        Bot Restrictions (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. database setup, layout styles, API endpoints"
+                        value={botRestrictions}
+                        onChange={(e) => setBotRestrictions(e.target.value)}
+                        className="w-full px-3 py-2 text-xs border border-stone-200 rounded-xl focus:outline-none focus:border-indigo-500 placeholder-stone-400"
+                      />
+                      <span className="text-[10px] text-stone-400 block mt-1">
+                        Topics or components the AI companion will be restricted from modifying.
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Generate / Share output */}
+                  {shareUrl ? (
+                    <div className="bg-stone-50 border border-stone-200 rounded-2xl p-5 space-y-3">
+                      <div className="text-xs font-bold text-stone-500 uppercase tracking-wider">
+                        Your Share Link
+                      </div>
+                      <div className="flex items-center gap-2 bg-white border border-stone-200 rounded-xl p-2.5">
+                        <input
+                          type="text"
+                          readOnly
+                          value={shareUrl}
+                          className="flex-1 text-xs text-stone-600 bg-transparent outline-none truncate"
+                        />
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(shareUrl);
+                            setCopiedShareLink(true);
+                            toast.success("Link copied to clipboard!");
+                            setTimeout(() => setCopiedShareLink(false), 2000);
+                          }}
+                          className="p-1.5 hover:bg-stone-100 rounded-lg text-stone-500 hover:text-stone-800 transition-colors"
+                          title="Copy Link"
+                        >
+                          {copiedShareLink ? (
+                            <Check className="w-4 h-4 text-emerald-600" />
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <a
+                          href={shareUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold text-center flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          Open Link
+                        </a>
+                        <button
+                          onClick={() => setShareUrl("")}
+                          className="px-4 py-2 bg-white hover:bg-stone-150 text-stone-600 border border-stone-200 rounded-xl text-xs font-semibold transition-colors"
+                        >
+                          Generate New
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleShare}
+                      disabled={isSharing}
+                      className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-stone-300 text-white font-semibold rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-indigo-600/10"
+                    >
+                      {isSharing ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Generating Share Link...
+                        </>
+                      ) : (
+                        <>
+                          <Share2 className="w-4 h-4" />
+                          Generate Share Link
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Publish & Versions Tab */}
+          {["Publish", "Versions"].includes(activeTab) && (
             <div className="max-w-xl mx-auto h-full flex flex-col pt-8 animate-in fade-in duration-300">
               <h2 className="text-xl font-bold text-stone-800 mb-6">
                 {activeTab}
