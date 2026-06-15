@@ -21,11 +21,14 @@ import {
   Compass,
   Database,
   Layers,
-  Activity
+  Activity,
+  Loader2
 } from "lucide-react";
 import { useProjectStore } from "../../stores/projectStore";
 import { useChatStore } from "../../stores/chatStore";
 import { useAgentStore } from "../../stores/agentStore";
+import { useAgentEventStore } from "../../stores/agentEventStore";
+import { useTeamStore } from "../../stores/teamStore";
 import { PROJECT_TEMPLATES } from "../../lib/templates";
 import {
   auth,
@@ -33,19 +36,43 @@ import {
   deleteChatFromFirebase,
   signInWithGoogle
 } from "../../services/firebase";
+import { DeploymentService } from "../../services/deploymentService";
 import { onAuthStateChanged } from "firebase/auth";
 import JSZip from "jszip";
 import toast from "react-hot-toast";
+import { BlockLibrary } from "../ui/BlockLibrary";
 
-type SidebarTab = "projects" | "chats" | "templates" | "assets" | "keys" | "deploy" | "settings";
+type SidebarTab = "projects" | "chats" | "templates" | "assets" | "keys" | "deploy" | "settings" | "blocks";
 
 export const WorkspaceSidebar: React.FC = () => {
   const [activeTab, setActiveTab] = useState<SidebarTab>("projects");
   const [isExpanded, setIsExpanded] = useState(true);
 
   // States from stores
-  const { currentContent, selectedFileName, setSelectedFileName, deployStatus, deployUrl, setDeployStatus, setDeployUrl } = useProjectStore();
+  const { currentContent, selectedFileName, setSelectedFileName, deployStatus, deployUrl, setDeployStatus, setDeployUrl, buildPhase } = useProjectStore();
   const { messages, setMessages, currentChatId, setCurrentChatId, setHasStarted } = useChatStore();
+  
+  // Event stores
+  const { activeFiles } = useAgentEventStore();
+  const { members } = useTeamStore();
+
+  const getIsMemberActiveForPhase = (role: string, phase: string) => {
+    if (phase === "idle" || phase === "done") return false;
+    switch (role) {
+      case "pm":
+        return phase === "planning";
+      case "designer":
+        return phase === "planning";
+      case "developer":
+        return phase === "generating" || phase === "building";
+      case "qa-agent":
+        return phase === "fixing";
+      case "devops-agent":
+        return phase === "deploying";
+      default:
+        return false;
+    }
+  };
   const {
     selectedModel,
     setSelectedModel,
@@ -202,19 +229,23 @@ export const WorkspaceSidebar: React.FC = () => {
     toast.success(`Applied starter template: ${template.name}`);
   };
 
-  const handleDeploy = () => {
+  const handleDeploy = async () => {
     setIsDeploying(true);
     setDeployStatus("deploying");
-    setTimeout(() => {
-      setIsDeploying(false);
+    try {
+      const url = await DeploymentService.getInstance().deployProject();
+      setDeployUrl(url);
       setDeployStatus("done");
-      const mockUrl = `https://nexo-preview-${Math.random().toString(36).substring(2, 7)}.vercel.app`;
-      setDeployUrl(mockUrl);
-      toast.success("Project deployed live!");
-    }, 3000);
+    } catch (e) {
+      console.error("[WorkspaceSidebar] Deployment error:", e);
+      setDeployStatus("error");
+    } finally {
+      setIsDeploying(false);
+    }
   };
 
   const models = [
+    { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B", desc: "Free OpenRouter reasoning model" },
     { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", desc: "Fast reasoning, high quota" },
     { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", desc: "Best quality, deep reasoning" },
     { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", desc: "Balanced speed & quality" },
@@ -229,6 +260,7 @@ export const WorkspaceSidebar: React.FC = () => {
     { id: "projects", icon: FolderOpen, label: "Explorer" },
     { id: "chats", icon: MessageSquare, label: "Chats" },
     { id: "templates", icon: Compass, label: "Starters" },
+    { id: "blocks", icon: Layers, label: "Blocks" },
     { id: "assets", icon: Image, label: "Assets" },
     { id: "keys", icon: Key, label: "API Keys" },
     { id: "deploy", icon: Globe, label: "Deployments" },
@@ -384,13 +416,23 @@ export const WorkspaceSidebar: React.FC = () => {
             className="w-72 bg-studio-panel/30 border-r border-studio-border/60 flex flex-col overflow-hidden backdrop-blur-xl"
           >
             {/* Expanded Header */}
-            <div className="h-14 border-b border-studio-border/60 px-6 flex items-center justify-between shrink-0 bg-studio-panel/10">
-              <span className="text-[10px] font-black text-studio-accent uppercase tracking-[0.2em]">
-                {activeTab}
-              </span>
+            <div className="h-14 border-b border-studio-border/60 px-5 flex items-center justify-between shrink-0 bg-studio-panel/10 gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-[10px] font-black text-studio-accent uppercase tracking-[0.2em] truncate">
+                  {activeTab}
+                </span>
+                {buildPhase !== "idle" && buildPhase !== "done" && (
+                  <span 
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-mono font-bold text-white shrink-0 shadow-sm bg-studio-accent"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                    <span className="capitalize">{buildPhase}</span>
+                  </span>
+                )}
+              </div>
               <button
                 onClick={() => setIsExpanded(false)}
-                className="text-studio-muted hover:text-studio-text text-[10px] font-bold tracking-wider px-2 py-1 rounded-md border border-studio-border/60 hover:bg-studio-panel/50 transition-all"
+                className="text-studio-muted hover:text-studio-text text-[10px] font-bold tracking-wider px-2 py-1 rounded-md border border-studio-border/60 hover:bg-studio-panel/50 transition-all shrink-0"
               >
                 Collapse
               </button>
@@ -400,32 +442,87 @@ export const WorkspaceSidebar: React.FC = () => {
             <div className="flex-grow overflow-y-auto p-5 space-y-5 custom-scrollbar bg-studio-panel/5">
               {/* PROJECTS / EXPLORER VIEW */}
               {activeTab === "projects" && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-studio-muted font-black uppercase tracking-wider">WORKSPACE FILES</span>
+                <div className="space-y-5 flex flex-col h-full">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-studio-muted font-black uppercase tracking-wider">WORKSPACE FILES</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {currentContent?.files && Object.keys(currentContent.files).length > 0 ? (
+                        Object.keys(currentContent.files).map((filename) => {
+                          const isWriting = activeFiles.has(filename);
+                          return (
+                            <button
+                              key={filename}
+                              onClick={() => setSelectedFileName(filename)}
+                              className={`w-full px-3 py-2 flex items-center gap-2.5 rounded-xl text-xs font-semibold tracking-wide text-left transition-all border ${
+                                selectedFileName === filename
+                                  ? "bg-studio-accent/10 text-studio-text border-studio-accent/25 shadow-md shadow-studio-accent/5"
+                                  : isWriting
+                                    ? "bg-indigo-500/5 text-indigo-400 border-indigo-500/20 animate-pulse"
+                                    : "bg-transparent border-transparent text-studio-muted hover:text-studio-text hover:bg-studio-panel/40"
+                              }`}
+                            >
+                              {isWriting ? (
+                                <Loader2 className="w-3.5 h-3.5 shrink-0 text-indigo-500 animate-spin" />
+                              ) : (
+                                <FileCode className="w-3.5 h-3.5 shrink-0 text-studio-accent/80" />
+                              )}
+                              <span className="truncate flex-1">{filename}</span>
+                              {isWriting && (
+                                <span className="text-[8px] font-mono font-bold bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded">
+                                  Writing
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="text-studio-muted text-xs italic text-center py-10 bg-studio-card/20 rounded-2xl border border-studio-border border-dashed">
+                          No files generated yet
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    {currentContent?.files && Object.keys(currentContent.files).length > 0 ? (
-                      Object.keys(currentContent.files).map((filename) => (
-                        <button
-                          key={filename}
-                          onClick={() => setSelectedFileName(filename)}
-                          className={`w-full px-3 py-2.5 flex items-center gap-2.5 rounded-xl text-xs font-semibold tracking-wide text-left transition-all border ${
-                            selectedFileName === filename
-                              ? "bg-studio-accent/10 text-studio-text border-studio-accent/25 shadow-md shadow-studio-accent/5"
-                              : "bg-transparent border-transparent text-studio-muted hover:text-studio-text hover:bg-studio-panel/40"
-                          }`}
-                        >
-                          <FileCode className="w-4 h-4 shrink-0 text-studio-accent/80 animate-pulse" />
-                          <span className="truncate">{filename}</span>
-                        </button>
-                      ))
-                    ) : (
-                      <div className="text-studio-muted text-xs italic text-center py-10 bg-studio-card/20 rounded-2xl border border-studio-border border-dashed">
-                        No files generated yet
+
+                  {/* Active AI Squad Panel */}
+                  {buildPhase !== "idle" && buildPhase !== "done" && (
+                    <div className="border-t border-studio-border/60 pt-4 space-y-3 mt-auto">
+                      <div className="flex items-center justify-between text-[10px] text-studio-muted font-black uppercase tracking-wider">
+                        <span>Active AI Squad</span>
+                        <Activity className="w-3.5 h-3.5 text-studio-accent animate-pulse" />
                       </div>
-                    )}
-                  </div>
+                      <div className="space-y-2 max-h-[190px] overflow-y-auto pr-1">
+                        {members.map((member) => {
+                          const isMemberActive = getIsMemberActiveForPhase(member.role, buildPhase);
+                          return (
+                            <div 
+                              key={member.id} 
+                              className={`flex items-center gap-2 p-2 rounded-xl border transition-all ${
+                                isMemberActive 
+                                  ? "bg-studio-accent/5 border-studio-accent/20" 
+                                  : "opacity-40 border-transparent bg-transparent"
+                              }`}
+                            >
+                              <img src={member.avatar} alt={member.name} className="w-6 h-6 rounded bg-studio-card border border-studio-border/60" />
+                              <div className="flex-1 min-w-0">
+                                <div className="text-[10px] font-bold truncate text-studio-text flex items-center gap-1.5">
+                                  {member.name}
+                                  {isMemberActive && <span className="w-1 h-1 rounded-full bg-emerald-500 animate-ping" />}
+                                </div>
+                                <div className="text-[8px] text-studio-muted font-medium capitalize">{member.role}</div>
+                              </div>
+                              {isMemberActive && (
+                                <span className="text-[8px] font-mono text-studio-accent font-bold animate-pulse">
+                                  {buildPhase === "generating" ? "Writing" : "Thinking"}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -448,9 +545,9 @@ export const WorkspaceSidebar: React.FC = () => {
                     </div>
                   ) : (
                     <div className="space-y-2.5">
-                      {chatHistory.map((chat) => (
+                      {chatHistory.map((chat, index) => (
                         <div
-                          key={chat.id}
+                          key={chat.id || index}
                           onClick={() => handleLoadChat(chat)}
                           className={`group p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col gap-2 relative overflow-hidden ${
                             currentChatId === chat.id
@@ -517,6 +614,14 @@ export const WorkspaceSidebar: React.FC = () => {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* BLOCKS LIBRARY VIEW */}
+              {activeTab === "blocks" && (
+                <div className="space-y-4 h-full flex flex-col">
+                  <span className="text-xs text-studio-muted block">Browse layout libraries or save current code as custom blocks:</span>
+                  <BlockLibrary />
                 </div>
               )}
 

@@ -444,6 +444,12 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
 
   const models = [
     {
+      id: "nvidia/nemotron-3-super-120b-a12b:free",
+      name: "Nemotron 3 Super 120B",
+      provider: "OpenRouter",
+      desc: "Free OpenRouter high quality reasoning",
+    },
+    {
       id: "gemini-2.5-flash",
       name: "Gemini 2.5 Flash",
       provider: "Google",
@@ -550,9 +556,9 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
                 )}
               </div>
             )}
-            {chatHistory.map((chat) => (
+            {chatHistory.map((chat, index) => (
               <div
-                key={chat.id}
+                key={chat.id || index}
                 onClick={() => handleLoadChat(chat)}
                 className="group relative flex items-center justify-between p-3.5 rounded-xl bg-studio-card/25 hover:bg-studio-card/65 border border-studio-border/60 hover:border-studio-accent/30 shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer"
               >
@@ -660,7 +666,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 relative min-w-0 z-10">
+      <div className="flex-1 flex flex-col items-center p-6 relative min-w-0 z-10 overflow-y-auto scrollbar-none">
         {/* Mobile Logo Fallback */}
         <div className="absolute top-8 left-8 flex items-center gap-3 lg:hidden select-none">
           <div className="w-9 h-9 bg-gradient-to-tr from-studio-accent to-blue-500 rounded-xl flex items-center justify-center shadow-lg">
@@ -675,7 +681,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
-          className="w-full max-w-4xl space-y-10"
+          className="w-full max-w-4xl space-y-10 my-auto py-8 lg:py-12"
         >
           <div className="space-y-4 text-center">
             <h2 className="text-4xl md:text-6xl font-black text-studio-text tracking-tighter leading-none">

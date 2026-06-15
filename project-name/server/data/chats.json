@@ -1,3 +1,80 @@
 {
-    "chats": []
+  "chats": [
+    {
+      "id": "f1ff19db-15e6-4195-8cb8-9d8c49ea169a",
+      "title": "Test Weather Dashboard",
+      "messages": [],
+      "content": {
+        "files": {
+          "index.html": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Weather Dashboard</title>\n    <link rel=\"stylesheet\" href=\"style.css\">\n    <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n    <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n    <link href=\"https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap\" rel=\"stylesheet\">\n    <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css\">\n</head>\n<body>\n    <div id=\"app\" class=\"weather-dashboard\">\n        <header class=\"dashboard-header\">\n            <div class=\"search-container\">\n                <input type=\"text\" id=\"city-search\" placeholder=\"Enter city name...\" class=\"search-input\">\n                <button id=\"search-button\" class=\"search-button\"><i class=\"fas fa-search\"></i></button>\n            </div>\n            <div class=\"unit-toggle-container\">\n                <span class=\"unit-label\">°C</span>\n                <label class=\"switch\">\n                    <input type=\"checkbox\" id=\"unit-toggle\">\n                    <span class=\"slider round\"></span>\n                </label>\n                <span class=\"unit-label\">°F</span>\n            </div>\n        </header>\n\n        <main class=\"dashboard-main\">\n            <div id=\"loading-spinner\" class=\"loading-spinner hidden\">\n                <div class=\"spinner\"></div>\n            </div>\n\n            <section id=\"current-weather\" class=\"weather-card current-weather hidden\">\n                <h2 id=\"city-name\" class=\"city-name\"></h2>\n                <p id=\"current-date\" class=\"current-date\"></p>\n                <div class=\"weather-summary\">\n                    <img id=\"current-weather-icon\" src=\"\" alt=\"Weather Icon\" class=\"weather-icon\">\n                    <div>\n                        <p id=\"current-temp\" class=\"current-temp\"></p>\n                        <p id=\"weather-description\" class=\"weather-description\"></p>\n                    </div>\n                </div>\n                <div class=\"weather-details\">\n                    <div class=\"detail-item\">\n                        <i class=\"fas fa-thermometer-half\"></i>\n                        <span>Feels like: <span id=\"feels-like-temp\"></span></span>\n                    </div>\n                    <div class=\"detail-item\">\n                        <i class=\"fas fa-tint\"></i>\n                        <span>Humidity: <span id=\"humidity\"></span></span>\n                    </div>\n                    <div class=\"detail-item\">\n                        <i class=\"fas fa-wind\"></i>\n                        <span>Wind: <span id=\"wind-speed\"></span></span>\n                    </div>\n                    <div class=\"detail-item\">\n                        <i class=\"fas fa-arrow-down\"></i>\n                        <span>Pressure: <span id=\"pressure\"></span></span>\n                    </div>\n                </div>\n            </section>\n\n            <section id=\"forecast\" class=\"weather-card forecast-section hidden\">\n                <h3 class=\"section-title\">7-Day Forecast</h3>\n                <div id=\"forecast-container\" class=\"forecast-container\">\n                    <!-- Forecast items will be dynamically inserted here -->\n                </div>\n            </section>\n        </main>\n    </div>\n    <script src=\"script.js\"></script>\n</body>\n</html>\n",
+          "style.css": "@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');\n\n:root {\n    --bg-color: #1a1a2e;\n    --card-bg-color: rgba(255, 255, 255, 0.1);\n    --card-border-color: rgba(255, 255, 255, 0.2);\n    --text-color: #e0e0e0;\n    --primary-color: #0f3460;\n    --secondary-color: #e94560;\n    --tertiary-color: #533483;\n    --shadow-color: rgba(0, 0, 0, 0.3);\n    --gradient-start: #0a1128;\n    --gradient-end: #03081a;\n}\n\n* {\n    margin: 0;\n    padding: 0;\n    box-sizing: border-box;\n}\n\nbody {\n    font-family: 'Poppins', sans-serif;\n    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));\n    color: var(--text-color);\n    display: flex;\n    justify-content: center;\n    align-items: center;\n    min-height: 100vh;\n    padding: 20px;\n    overflow-x: hidden;\n}\n\n#app {\n    display: flex;\n    flex-direction: column;\n    gap: 30px;\n    width: 100%;\n    max-width: 1200px;\n    margin: 0 auto;\n}\n\n.dashboard-header {\n    display: flex;\n    flex-wrap: wrap;\n    justify-content: space-between;\n    align-items: center;\n    gap: 20px;\n    padding: 25px;\n    background: var(--card-bg-color);\n    border-radius: 20px;\n    backdrop-filter: blur(15px);\n    border: 1px solid var(--card-border-color);\n    box-shadow: 0 8px 32px 0 var(--shadow-color);\n    transition: all 0.3s ease;\n}\n\n.search-container {\n    display: flex;\n    flex-grow: 1;\n    max-width: 400px;\n}\n\n.search-input {\n    flex-grow: 1;\n    padding: 12px 20px;\n    border: none;\n    border-radius: 15px 0 0 15px;\n    background: rgba(255, 255, 255, 0.15);\n    color: var(--text-color);\n    font-size: 1rem;\n    outline: none;\n    transition: background 0.3s ease, box-shadow 0.3s ease;\n}\n\n.search-input::placeholder {\n    color: rgba(255, 255, 255, 0.6);\n}\n\n.search-input:focus {\n    background: rgba(255, 255, 255, 0.25);\n    box-shadow: 0 0 0 2px var(--secondary-color);\n}\n\n.search-button {\n    padding: 12px 20px;\n    border: none;\n    border-radius: 0 15px 15px 0;\n    background: var(--secondary-color);\n    color: #fff;\n    font-size: 1.1rem;\n    cursor: pointer;\n    transition: background 0.3s ease, transform 0.2s ease;\n}\n\n.search-button:hover {\n    background: #c73450;\n    transform: translateY(-2px);\n}\n\n.unit-toggle-container {\n    display: flex;\n    align-items: center;\n    gap: 10px;\n}\n\n.unit-label {\n    font-size: 1.1rem;\n    font-weight: 500;\n}\n\n/* The switch - the box around the slider */\n.switch {\n    position: relative;\n    display: inline-block;\n    width: 60px;\n    height: 34px;\n}\n\n/* Hide default HTML checkbox */\n.switch input {\n    opacity: 0;\n    width: 0;\n    height: 0;\n}\n\n/* The slider */\n.slider {\n    position: absolute;\n    cursor: pointer;\n    top: 0;\n    left: 0;\n    right: 0;\n    bottom: 0;\n    background-color: var(--primary-color);\n    transition: .4s;\n    border-radius: 34px;\n}\n\n.slider:before {\n    position: absolute;\n    content: \"\";\n    height: 26px;\n    width: 26px;\n    left: 4px;\n    bottom: 4px;\n    background-color: white;\n    transition: .4s;\n    border-radius: 50%;\n}\n\ninput:checked + .slider {\n    background-color: var(--secondary-color);\n}\n\ninput:focus + .slider {\n    box-shadow: 0 0 1px var(--secondary-color);\n}\n\ninput:checked + .slider:before {\n    transform: translateX(26px);\n}\n\n/* Rounded sliders */\n.slider.round {\n    border-radius: 34px;\n}\n\n.slider.round:before {\n    border-radius: 50%;\n}\n\n.dashboard-main {\n    display: grid;\n    grid-template-columns: 1fr;\n    gap: 30px;\n    position: relative; /* For spinner positioning */\n}\n\n.weather-card {\n    background: var(--card-bg-color);\n    border-radius: 20px;\n    backdrop-filter: blur(15px);\n    border: 1px solid var(--card-border-color);\n    box-shadow: 0 8px 32px 0 var(--shadow-color);\n    padding: 30px;\n    transition: all 0.3s ease;\n    opacity: 0;\n    transform: translateY(20px);\n    visibility: hidden;\n}\n\n.weather-card.visible {\n    opacity: 1;\n    transform: translateY(0);\n    visibility: visible;\n}\n\n.current-weather {\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    text-align: center;\n}\n\n.city-name {\n    font-size: 2.5rem;\n    font-weight: 700;\n    margin-bottom: 10px;\n    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.4);\n}\n\n.current-date {\n    font-size: 1.1rem;\n    opacity: 0.8;\n    margin-bottom: 20px;\n}\n\n.weather-summary {\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    margin-bottom: 30px;\n    gap: 15px;\n}\n\n.weather-summary .weather-icon {\n    width: 120px;\n    height: 120px;\n    filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.3));\n}\n\n.current-temp {\n    font-size: 4rem;\n    font-weight: 600;\n    line-height: 1;\n    margin-bottom: 5px;\n    text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.5);\n}\n\n.weather-description {\n    font-size: 1.3rem;\n    font-weight: 500;\n    text-transform: capitalize;\n    opacity: 0.9;\n}\n\n.weather-details {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));\n    gap: 20px;\n    width: 100%;\n    max-width: 800px;\n    margin-top: 20px;\n}\n\n.detail-item {\n    display: flex;\n    align-items: center;\n    gap: 10px;\n    background: rgba(255, 255, 255, 0.08);\n    padding: 15px 20px;\n    border-radius: 15px;\n    font-size: 1rem;\n    font-weight: 400;\n    transition: background 0.3s ease;\n}\n\n.detail-item:hover {\n    background: rgba(255, 255, 255, 0.15);\n}\n\n.detail-item i {\n    color: var(--secondary-color);\n    font-size: 1.2rem;\n}\n\n.forecast-section {\n    padding: 30px;\n}\n\n.section-title {\n    font-size: 1.8rem;\n    font-weight: 600;\n    margin-bottom: 25px;\n    text-align: center;\n    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);\n}\n\n.forecast-container {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));\n    gap: 20px;\n}\n\n.forecast-item {\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    background: rgba(255, 255, 255, 0.08);\n    padding: 20px 10px;\n    border-radius: 15px;\n    transition: transform 0.3s ease, background 0.3s ease;\n    text-align: center;\n}\n\n.forecast-item:hover {\n    transform: translateY(-5px);\n    background: rgba(255, 255, 255, 0.15);\n}\n\n.forecast-item .day {\n    font-size: 1rem;\n    font-weight: 500;\n    margin-bottom: 8px;\n    opacity: 0.9;\n}\n\n.forecast-item .forecast-icon {\n    width: 60px;\n    height: 60px;\n    margin-bottom: 8px;\n    filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.2));\n}\n\n.forecast-item .temps {\n    font-size: 1.1rem;\n    font-weight: 600;\n    display: flex;\n    gap: 5px;\n}\n\n.forecast-item .temps .high {\n    color: var(--secondary-color);\n}\n\n.forecast-item .temps .low {\n    opacity: 0.7;\n}\n\n/* Loading Spinner */\n.loading-spinner {\n    position: absolute;\n    top: 50%;\n    left: 50%;\n    transform: translate(-50%, -50%);\n    z-index: 10;\n    background: rgba(0, 0, 0, 0.6);\n    border-radius: 20px;\n    padding: 30px;\n    display: flex;\n    justify-content: center;\n    align-items: center;\n    transition: opacity 0.3s ease;\n}\n\n.loading-spinner.hidden {\n    opacity: 0;\n    pointer-events: none;\n}\n\n.spinner {\n    border: 8px solid rgba(255, 255, 255, 0.3);\n    border-top: 8px solid var(--secondary-color);\n    border-radius: 50%;\n    width: 60px;\n    height: 60px;\n    animation: spin 1s linear infinite;\n}\n\n@keyframes spin {\n    0% { transform: rotate(0deg); }\n    100% { transform: rotate(360deg); }\n}\n\n/* Utility classes */\n.hidden {\n    display: none;\n}\n\n/* Responsive Design */\n@media (max-width: 992px) {\n    .dashboard-header {\n        flex-direction: column;\n        align-items: stretch;\n        padding: 20px;\n    }\n\n    .search-container {\n        max-width: 100%;\n    }\n\n    .unit-toggle-container {\n        justify-content: center;\n    }\n\n    .city-name {\n        font-size: 2rem;\n    }\n\n    .current-temp {\n        font-size: 3.5rem;\n    }\n\n    .weather-description {\n        font-size: 1.1rem;\n    }\n\n    .weather-details {\n        grid-template-columns: 1fr;\n    }\n}\n\n@media (max-width: 768px) {\n    body {\n        padding: 15px;\n    }\n\n    #app {\n        gap: 20px;\n    }\n\n    .dashboard-header {\n        padding: 15px;\n        border-radius: 15px;\n    }\n\n    .search-input, .search-button {\n        padding: 10px 15px;\n        font-size: 0.9rem;\n    }\n\n    .weather-card {\n        padding: 20px;\n        border-radius: 15px;\n    }\n\n    .city-name {\n        font-size: 1.8rem;\n    }\n\n    .current-date {\n        font-size: 1rem;\n    }\n\n    .weather-summary .weather-icon {\n        width: 100px;\n        height: 100px;\n    }\n\n    .current-temp {\n        font-size: 3rem;\n    }\n\n    .weather-description {\n        font-size: 1rem;\n    }\n\n    .detail-item {\n        font-size: 0.9rem;\n        padding: 12px 15px;\n        border-radius: 12px;\n    ",
+          "script.js": ""
+        },
+        "patches": {},
+        "mainFile": "index.html",
+        "template": "web"
+      },
+      "model": "gemini-2.5-flash",
+      "projectMode": "frontend",
+      "createdAt": "2026-06-15T04:52:57.127Z",
+      "updatedAt": 1781499211425
+    },
+    {
+      "id": "f21bd5bd-c862-4f86-9da0-6ddbc3ae01ba",
+      "title": "create a best 3d type nu...",
+      "messages": [
+        {
+          "model": "nvidia/nemotron-3-super-120b-a12b:free",
+          "role": "user",
+          "text": "create a best 3d type nu calculator app bnao ",
+          "timestamp": 1781547032986
+        },
+        {
+          "id": "plan_build_c03ba854-23dd-46d9-be9d-a66bbffd91c5",
+          "model": "nvidia/nemotron-3-super-120b-a12b:free",
+          "role": "assistant",
+          "text": "🧠 **Strategic Planning Phase Initiated**\n\nAI is analyzing your request and planning layout, components, and backend requirements. Code generation will begin shortly...",
+          "timestamp": 1781547034785
+        }
+      ],
+      "content": null,
+      "model": "nvidia/nemotron-3-super-120b-a12b:free",
+      "projectMode": "frontend",
+      "createdAt": "2026-06-15T18:10:37.621Z",
+      "updatedAt": 1781548428021
+    },
+    {
+      "id": "6b187c12-68b0-4497-9808-e1756c2887ed",
+      "title": "create coffee shop landi...",
+      "messages": [
+        {
+          "role": "user",
+          "text": "create coffee shop landing page",
+          "timestamp": 1781548428037,
+          "model": "nvidia/nemotron-3-super-120b-a12b:free"
+        },
+        {
+          "id": "plan_build_3de864fd-6589-4f1e-9a18-a7a62bba0fae",
+          "role": "assistant",
+          "text": "🧠 **Strategic Planning Phase Initiated**\n\nAI is analyzing your request and planning layout, components, and backend requirements. Code generation will begin shortly...",
+          "timestamp": 1781548429186,
+          "model": "nvidia/nemotron-3-super-120b-a12b:free"
+        }
+      ],
+      "content": {
+        "files": {
+          "index.html": "",
+          "style.css": "",
+          "script.js": ""
+        },
+        "patches": {},
+        "mainFile": "index.html",
+        "template": "web"
+      },
+      "model": "nvidia/nemotron-3-super-120b-a12b:free",
+      "projectMode": "frontend",
+      "createdAt": "2026-06-15T18:33:51.883Z",
+      "updatedAt": 1781548496955
+    }
+  ]
 }

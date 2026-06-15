@@ -4,6 +4,7 @@ const { RateLimiterMemory } = require("rate-limiter-flexible");
 const fs = require("fs");
 const path = require("path");
 const allowanceManager = require("./allowanceManager");
+const { PRODUCTION_DEVELOPMENT_RULES } = require("../constants/productionRules");
 
 // 1. Zod Request validation schema
 const chatRequestSchema = z.object({
@@ -73,7 +74,7 @@ Rules:
 2. **Typography**: Always import Inter or Outfit from Google Fonts. Use fluid type scale.
 3. **Micro-Interactions**: Hover transforms, focus rings, smooth transitions on all interactive elements
 4. **Glassmorphism**: backdrop-blur, semi-transparent cards, 1px borders for depth
-5. **Never use placeholder images** — use real Unsplash URLs or CSS gradients
+5. **CRITICAL: NEVER USE LOCAL OR RELATIVE PLACEHOLDER IMAGE PATHS** (e.g., \`/images/logo.png\`, \`placeholder.jpg\`, \`avatar.png\`, etc.). Always use high-quality, topic-relevant real online images from Unsplash (e.g., \`https://images.unsplash.com/photo-...\` with matching query terms) or direct inline SVGs. Every single image tag must resolve to a valid, live, beautiful online URL.
 
 ### 🚀 TECHNOLOGY RULES
 
@@ -82,6 +83,7 @@ Rules:
 - Always include package.json with correct dependencies if using a framework
 - Always use semantic HTML5 elements
 - Always make designs fully responsive (mobile + tablet + desktop)
+- **Real API Integrations**: If the user project requires AI features (like chatbots, translation, summaries): DO NOT use setTimeout mocks or dummy static responses. Write actual, working API call integrations (e.g., using fetch/axios to query direct AI endpoints or local API proxies) and add an API Key input field in the UI so the user can supply a key and get real dynamic responses.
 
 ### ⚡ AUTONOMOUS CAPABILITIES
 
@@ -102,7 +104,9 @@ Your output is successful when:
 - Design is premium, not generic
 - All files are complete (zero truncation)
 
-Build with the soul of an architect, the speed of a compiler, and the precision of a senior engineer.`;
+Build with the soul of an architect, the speed of a compiler, and the precision of a senior engineer.
+
+${PRODUCTION_DEVELOPMENT_RULES}`;
 
 const buildSystemPrompt = (basePrompt, enabledTools, projectMode, techStack) => {
   let prompt = basePrompt || SYSTEM_PROMPT;
@@ -350,7 +354,7 @@ const getClient = (provider, customApiKey) => {
 
 // Define fallback list based on model requested
 const getFallbackChain = (requestedModel) => {
-  const isNvidia = requestedModel.startsWith("nvidia/") || requestedModel === "minimaxai/minimax-m2.7" || requestedModel.startsWith("stepfun-ai/") || requestedModel === "qwen/qwen3-coder-480b-a35b-instruct";
+  const isNvidia = (requestedModel.startsWith("nvidia/") && requestedModel !== "nvidia/nemotron-3-super-120b-a12b:free") || requestedModel === "minimaxai/minimax-m2.7" || requestedModel.startsWith("stepfun-ai/") || requestedModel === "qwen/qwen3-coder-480b-a35b-instruct";
   const isGroq = !isNvidia && (requestedModel.startsWith("groq/") || requestedModel.includes("llama") || requestedModel.includes("mixtral"));
   const isOpenAI = requestedModel.startsWith("openai/") || requestedModel.startsWith("gpt-");
   const isAnthropic = requestedModel.startsWith("anthropic/") || requestedModel.startsWith("claude-");

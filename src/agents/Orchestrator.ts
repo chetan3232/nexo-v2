@@ -38,6 +38,7 @@ import { BackgroundPreserver } from "../utils/backgroundPreserver";
 import { AgentEventBus } from "../utils/agentEventBus";
 import { auth } from "../services/firebase";
 import { saveCurrentProject } from "../services/saveService";
+import { SAAS_TEMPLATES } from "../utils/saasTemplates";
 
 export class Orchestrator {
   private static instance: Orchestrator;
@@ -52,6 +53,13 @@ export class Orchestrator {
   private constructor() {}
 
   private activeEventSource: EventSource | null = null;
+  private activeJobId: string | null = null;
+  private activeChatId: string | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 12;
+  private visibilityListenerAttached = false;
   private autoFixAttempts = 0;
   private maxAutoFixAttempts = 3;
   private snapshots: Array<{
@@ -88,7 +96,10 @@ export class Orchestrator {
     try {
       chatStore.setState(CompanionState.THINKING);
       useProjectStore.getState().setBuildPhase("planning");
-      useProjectStore.getState().setSubStatus("Triggering background generation...");
+      useProjectStore.getState().setSubStatus("Analyzing your prompt and planning architecture...");
+      BackgroundPreserver.activate();
+      AgentEventBus.getInstance().buildStart();
+      this.ensureVisibilityListener();
       
       const response = await fetch("/api/ai/build", {
         method: "POST",
@@ -108,6 +119,9 @@ export class Orchestrator {
 
       const { jobId } = await response.json();
       localStorage.setItem(`nexo_active_job_${chatId}`, jobId);
+      this.activeJobId = jobId;
+      this.activeChatId = chatId;
+      this.reconnectAttempts = 0;
       
       this.connectToJobStream(jobId, chatId);
     } catch (err: any) {
@@ -115,40 +129,56 @@ export class Orchestrator {
       toast.error(`Failed to start generation: ${err.message}`);
       useProjectStore.getState().setBuildPhase("idle");
       chatStore.setState(CompanionState.IDLE);
+      BackgroundPreserver.deactivate();
+      AgentEventBus.getInstance().setGenerating(false);
     }
   }
 
-  public connectToJobStream(jobId: string, chatId: string) {
+  public connectToJobStream(jobId: string, chatId: string, isReconnect = false) {
     const projectStore = useProjectStore.getState();
     const chatStore = useChatStore.getState();
     const teamStore = useTeamStore.getState();
     const bus = AgentEventBus.getInstance();
 
+    this.activeJobId = jobId;
+    this.activeChatId = chatId;
+
     if (this.activeEventSource) {
       this.activeEventSource.close();
+      this.activeEventSource = null;
     }
 
-    // Set initial states
-    projectStore.setBuildPhase("building");
-    chatStore.setState(CompanionState.THINKING);
-    bus.clear();
-    bus.setGenerating(true);
+    BackgroundPreserver.activate();
+    this.ensureVisibilityListener();
 
-    // Instantiate dynamic planning message bubble
-    chatStore.setMessages((prev: any[]) => {
-      const hasPlan = prev.some(m => m.id === `plan_${jobId}`);
-      if (hasPlan) return prev;
-      return [
-        ...prev,
-        {
-          id: `plan_${jobId}`,
-          role: "assistant",
-          text: `🧠 **Strategic Planning Phase Initiated**\n\nAI is currently planning the layout, color palette, components, and backend requirements for your app. Please wait...`,
-          timestamp: Date.now(),
-          model: useAgentStore.getState().selectedModel
-        }
-      ];
-    });
+    // Set initial states (skip reset on reconnect to preserve UI progress)
+    if (!isReconnect) {
+      projectStore.setBuildPhase("building");
+      chatStore.setState(CompanionState.THINKING);
+      bus.clear();
+      bus.setGenerating(true);
+      projectStore.setBuildingFiles({});
+    } else {
+      bus.setGenerating(true);
+    }
+
+    // Instantiate dynamic planning message bubble (only on fresh connect)
+    if (!isReconnect) {
+      chatStore.setMessages((prev: any[]) => {
+        const hasPlan = prev.some(m => m.id === `plan_${jobId}`);
+        if (hasPlan) return prev;
+        return [
+          ...prev,
+          {
+            id: `plan_${jobId}`,
+            role: "assistant",
+            text: `🧠 **Strategic Planning Phase Initiated**\n\nAI is analyzing your request and planning layout, components, and backend requirements. Code generation will begin shortly...`,
+            timestamp: Date.now(),
+            model: useAgentStore.getState().selectedModel
+          }
+        ];
+      });
+    }
 
     console.log(`[Orchestrator] Connecting to SSE stream for jobId: ${jobId}`);
     const source = new EventSource(`/api/ai/stream/${jobId}`);
@@ -257,6 +287,10 @@ export class Orchestrator {
           }
           case "create_file": {
             const { path } = packet;
+            projectStore.setBuildingFiles((prev) => ({
+              ...prev,
+              [path]: { status: "writing", charCount: 0 },
+            }));
             projectStore.setCurrentContent((prev) => {
               const currentFiles = prev ? { ...prev.files } : {};
               if (!(path in currentFiles)) {
@@ -269,6 +303,8 @@ export class Orchestrator {
                 template: prev?.template || "web"
               };
             });
+            projectStore.setSelectedFileName(path);
+            bus.fileCreate(path);
 
             const wc = WebContainerService.getInstance().getWebContainer();
             if (wc) {
@@ -287,6 +323,13 @@ export class Orchestrator {
           }
           case "write_code": {
             const { path, chunk } = packet;
+            projectStore.setBuildingFiles((prev) => ({
+              ...prev,
+              [path]: {
+                status: "writing",
+                charCount: (prev[path]?.charCount || 0) + chunk.length,
+              },
+            }));
             projectStore.setCurrentContent((prev) => {
               const currentFiles = prev ? { ...prev.files } : {};
               currentFiles[path] = (currentFiles[path] || "") + chunk;
@@ -297,6 +340,8 @@ export class Orchestrator {
                 template: prev?.template || "web"
               };
             });
+            projectStore.setSelectedFileName(path);
+            bus.fileWrite(path, chunk);
 
             const wc = WebContainerService.getInstance().getWebContainer();
             if (wc) {
@@ -311,6 +356,10 @@ export class Orchestrator {
           }
           case "update_file": {
             const { path, content } = packet;
+            projectStore.setBuildingFiles((prev) => ({
+              ...prev,
+              [path]: { status: "done", charCount: content.length },
+            }));
             projectStore.setCurrentContent((prev) => {
               const currentFiles = prev ? { ...prev.files } : {};
               currentFiles[path] = content;
@@ -321,6 +370,7 @@ export class Orchestrator {
                 template: prev?.template || "web"
               };
             });
+            bus.fileDone(path);
 
             const wc = WebContainerService.getInstance().getWebContainer();
             if (wc) {
@@ -339,6 +389,13 @@ export class Orchestrator {
           }
           case "files_update": {
             const files = packet.files;
+            projectStore.setBuildingFiles((prev) => {
+              const next = { ...prev };
+              Object.entries(files).forEach(([fpath, contents]) => {
+                next[fpath] = { status: "done", charCount: (contents as string).length };
+              });
+              return next;
+            });
             projectStore.setCurrentContent((prev) => {
               const currentFiles = prev ? prev.files : {};
               return {
@@ -374,7 +431,15 @@ export class Orchestrator {
           }
           case "done": {
             console.log("[Orchestrator] Generation done received. Booting runtime...");
-            localStorage.removeItem(`nexo_active_job_${chatId}`);
+            this.cleanupActiveJob(chatId);
+            
+            projectStore.setBuildingFiles((prev) => {
+              const next = { ...prev };
+              Object.keys(next).forEach((fpath) => {
+                next[fpath] = { ...next[fpath], status: "done" };
+              });
+              return next;
+            });
             
             projectStore.setBuildPhase("done");
             chatStore.setState(CompanionState.IDLE);
@@ -398,7 +463,14 @@ export class Orchestrator {
           case "done_history": {
             // Job was already complete, let's boot runtime
             console.log("[Orchestrator] Historical job was complete. Booting runtime...");
-            localStorage.removeItem(`nexo_active_job_${chatId}`);
+            this.cleanupActiveJob(chatId);
+            projectStore.setBuildingFiles((prev) => {
+              const next = { ...prev };
+              Object.keys(next).forEach((fpath) => {
+                next[fpath] = { ...next[fpath], status: "done" };
+              });
+              return next;
+            });
             projectStore.setBuildPhase("done");
             chatStore.setState(CompanionState.IDLE);
             bus.setGenerating(false);
@@ -418,11 +490,17 @@ export class Orchestrator {
           }
           case "error": {
             toast.error(`Generation error: ${packet.error}`);
+            this.cleanupActiveJob(chatId);
+            projectStore.setBuildingFiles((prev) => {
+              const next = { ...prev };
+              Object.keys(next).forEach((fpath) => {
+                next[fpath] = { ...next[fpath], status: "done" };
+              });
+              return next;
+            });
             projectStore.setBuildPhase("idle");
             chatStore.setState(CompanionState.IDLE);
             bus.setGenerating(false);
-            
-            localStorage.removeItem(`nexo_active_job_${chatId}`);
             source.close();
             this.activeEventSource = null;
             break;
@@ -433,9 +511,159 @@ export class Orchestrator {
       }
     });
 
-    source.onerror = (err) => {
-      console.warn("[Orchestrator] SSE stream connection encountered an error, keeping alive for reconnect...", err);
+    source.onopen = () => {
+      this.reconnectAttempts = 0;
+      console.log(`[Orchestrator] SSE connected for job ${jobId}`);
     };
+
+    source.onerror = (err) => {
+      console.warn("[Orchestrator] SSE stream error — reconnecting in background...", err);
+      source.close();
+      if (this.activeEventSource === source) {
+        this.activeEventSource = null;
+      }
+      this.scheduleReconnect();
+    };
+
+    if (document.hidden) {
+      this.startJobPolling(jobId);
+    }
+  }
+
+  private cleanupActiveJob(chatId: string) {
+    localStorage.removeItem(`nexo_active_job_${chatId}`);
+    this.activeJobId = null;
+    this.activeChatId = null;
+    this.stopJobPolling();
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    BackgroundPreserver.deactivate();
+  }
+
+  private scheduleReconnect() {
+    if (!this.activeJobId || !this.activeChatId) return;
+
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.warn("[Orchestrator] Max SSE reconnect attempts reached — using polling fallback");
+      this.startJobPolling(this.activeJobId);
+      return;
+    }
+
+    const delay = Math.min(1000 * Math.pow(1.5, this.reconnectAttempts), 12000);
+    this.reconnectAttempts++;
+
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = setTimeout(() => {
+      if (this.activeJobId && this.activeChatId) {
+        this.connectToJobStream(this.activeJobId, this.activeChatId, true);
+      }
+    }, delay);
+  }
+
+  private startJobPolling(jobId: string) {
+    if (this.pollTimer) return;
+    console.log("[Orchestrator] Starting background job polling (tab may be hidden)");
+    this.pollTimer = setInterval(() => {
+      this.syncJobFromServer(jobId);
+    }, 2500);
+  }
+
+  private stopJobPolling() {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+  }
+
+  private async syncJobFromServer(jobId: string) {
+    try {
+      const res = await fetch(`/api/ai/job/${jobId}`);
+      if (!res.ok) return;
+      const job = await res.json();
+      const projectStore = useProjectStore.getState();
+      const chatStore = useChatStore.getState();
+
+      if (job.tasks) projectStore.setTasks(job.tasks);
+      if (job.reasoningSteps) projectStore.setReasoningSteps(job.reasoningSteps);
+      if (job.subStatus) projectStore.setSubStatus(job.subStatus);
+
+      if (job.files && Object.keys(job.files).length > 0) {
+        const prevFiles = projectStore.currentContent?.files || {};
+        const merged = { ...prevFiles, ...job.files };
+        projectStore.setCurrentContent({
+          files: merged,
+          patches: {},
+          mainFile: job.mainFile || projectStore.currentContent?.mainFile || "index.html",
+          template: job.template || projectStore.currentContent?.template || "web",
+        });
+
+        const writingFile = Object.keys(job.files).find(
+          (f) => !prevFiles[f] || prevFiles[f] !== job.files[f]
+        );
+        if (writingFile) {
+          projectStore.setSelectedFileName(writingFile);
+        }
+
+        projectStore.setBuildingFiles((prev) => {
+          const next = { ...prev };
+          Object.entries(job.files).forEach(([fpath, contents]) => {
+            next[fpath] = {
+              status: job.status === "completed" ? "done" : "writing",
+              charCount: (contents as string).length,
+            };
+          });
+          return next;
+        });
+      }
+
+      if (job.status) {
+        projectStore.setBuildPhase(this.mapStatusToPhase(job.status));
+      }
+
+      if (job.status === "completed") {
+        this.cleanupActiveJob(this.activeChatId || "");
+        projectStore.setBuildPhase("done");
+        chatStore.setState(CompanionState.IDLE);
+        AgentEventBus.getInstance().setGenerating(false);
+        await this.bootRuntime();
+        toast.success("Build complete! 🎉");
+        try {
+          await saveCurrentProject();
+        } catch (e) {
+          console.error("Failed to save project on poll completion:", e);
+        }
+      } else if (job.status === "failed") {
+        this.cleanupActiveJob(this.activeChatId || "");
+        projectStore.setBuildPhase("idle");
+        chatStore.setState(CompanionState.IDLE);
+        AgentEventBus.getInstance().setGenerating(false);
+        toast.error("Generation failed.");
+      }
+    } catch (e) {
+      console.warn("[Orchestrator] Job poll sync failed:", e);
+    }
+  }
+
+  private ensureVisibilityListener() {
+    if (this.visibilityListenerAttached || typeof document === "undefined") return;
+    this.visibilityListenerAttached = true;
+
+    document.addEventListener("visibilitychange", () => {
+      if (!this.activeJobId || !this.activeChatId) return;
+
+      if (document.hidden) {
+        this.startJobPolling(this.activeJobId);
+      } else {
+        this.stopJobPolling();
+        this.reconnectAttempts = 0;
+        this.syncJobFromServer(this.activeJobId);
+        if (!this.activeEventSource || this.activeEventSource.readyState === EventSource.CLOSED) {
+          this.connectToJobStream(this.activeJobId, this.activeChatId, true);
+        }
+      }
+    });
   }
 
   private mapStatusToPhase(status: string): "idle" | "planning" | "generating" | "building" | "fixing" | "deploying" | "done" {
@@ -726,48 +954,73 @@ export class Orchestrator {
 
   public async handleSaaSExport() {
     const projectStore = useProjectStore.getState();
-    const chatStore = useChatStore.getState();
-    const agentStore = useAgentStore.getState();
-
     if (!projectStore.currentContent) return;
 
     projectStore.setBuildPhase("building");
-    projectStore.setSubStatus("Injecting SaaS Intelligence...");
+    projectStore.setSubStatus("Staging SaaS Infrastructure...");
 
     try {
-      const enhancer = new EnhancementAgent();
-      const resultText = await enhancer.enhance(
-        `TRANSFORM THIS PROJECT INTO A FULL SAAS STARTER. 
-                MANDATORY ADDITIONS:
-                1. Authentication (Supabase/Firebase)
-                2. Stripe Payment Integration (Pricing page + Checkout)
-                3. User Dashboard
-                4. Settings Panel
-                5. Onboarding Flow`,
-        chatStore.messages,
-        {
-          model: agentStore.selectedModel,
-          projectMode: agentStore.projectMode,
-          techStack: agentStore.techStack,
-          selectedLanguage: agentStore.selectedLanguage,
-          temperature: 0.7,
-          topP: 1,
-        },
-      );
+      const wc = WebContainerService.getInstance().getWebContainer();
+      const files = { ...projectStore.currentContent.files };
 
-      const parsed = extractCodeFromText(resultText);
-      if (parsed.website) {
-        const wc = WebContainerService.getInstance().getWebContainer();
+      // Helper to write to container
+      const writeContainerFile = async (path: string, content: string) => {
         if (wc) {
-          for (const [path, contents] of Object.entries(parsed.website.files)) {
-            await wc.fs.writeFile(path, contents as string);
+          const parts = path.split("/");
+          if (parts.length > 1) {
+            parts.pop();
+            await wc.fs.mkdir(parts.join("/"), { recursive: true });
           }
+          await wc.fs.writeFile(path, content);
         }
-        this.updateProjectStore(resultText);
-        toast.success("SaaS Transformation Complete!");
+      };
+
+      // 1. Back up original App.tsx if it exists
+      if (files["src/App.tsx"] && !files["src/App.original.tsx"]) {
+        projectStore.setSubStatus("Backing up current layout to App.original.tsx...");
+        files["src/App.original.tsx"] = files["src/App.tsx"];
+        await writeContainerFile("src/App.original.tsx", files["src/App.tsx"]);
       }
+
+      // 2. Inject components
+      projectStore.setSubStatus("Injecting SaaS Auth component...");
+      files["src/components/SaaSOnboarding.tsx"] = SAAS_TEMPLATES.Onboarding;
+      await writeContainerFile("src/components/SaaSOnboarding.tsx", SAAS_TEMPLATES.Onboarding);
+
+      files["src/components/SaaSAuth.tsx"] = SAAS_TEMPLATES.Auth;
+      await writeContainerFile("src/components/SaaSAuth.tsx", SAAS_TEMPLATES.Auth);
+
+      projectStore.setSubStatus("Injecting Stripe Billing modules...");
+      files["src/components/SaaSBilling.tsx"] = SAAS_TEMPLATES.Billing;
+      await writeContainerFile("src/components/SaaSBilling.tsx", SAAS_TEMPLATES.Billing);
+
+      projectStore.setSubStatus("Injecting Admin Dashboard widgets...");
+      files["src/components/SaaSDashboard.tsx"] = SAAS_TEMPLATES.Dashboard;
+      await writeContainerFile("src/components/SaaSDashboard.tsx", SAAS_TEMPLATES.Dashboard);
+
+      files["src/components/SaaSSettings.tsx"] = SAAS_TEMPLATES.Settings;
+      await writeContainerFile("src/components/SaaSSettings.tsx", SAAS_TEMPLATES.Settings);
+
+      projectStore.setSubStatus("Finalizing SaaS entry points...");
+      files["src/App.tsx"] = SAAS_TEMPLATES.App;
+      await writeContainerFile("src/App.tsx", SAAS_TEMPLATES.App);
+
+      // 3. Update the global state store
+      projectStore.setCurrentContent((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          files
+        };
+      });
+
+      projectStore.setSelectedFileName("src/App.tsx");
+      projectStore.incrementPreviewKey();
+
+      toast.success("SaaS Integration Modules Injected Successfully!");
     } catch (error) {
       console.error("SaaS Transform failed:", error);
+      toast.error("Failed to inject SaaS components.");
     } finally {
       projectStore.setBuildPhase("idle");
     }

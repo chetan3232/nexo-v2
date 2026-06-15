@@ -42,6 +42,7 @@ interface ChatPanelProps {
 
 // All supported models
 const ALL_MODELS = [
+  { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B", badge: "Free" },
   { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", badge: "Default" },
   { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", badge: "Pro" },
   { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", badge: "New" },
@@ -111,7 +112,7 @@ const SkeletonLoader: React.FC = () => {
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
   const { messages, input, setInput } = useChatStore();
-  const { buildPhase, subStatus, tasks } = useProjectStore();
+  const { buildPhase, subStatus, tasks, buildingFiles } = useProjectStore();
   const { selectedModel, setSelectedModel } = useAgentStore();
 
   const getLoaderTheme = () => {
@@ -574,6 +575,45 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                                 {[0,1,2].map(i => (
                                   <span key={i} className="w-1 h-1 bg-[#0ea5e9] rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
                                 ))}
+                              </span>
+                            )}
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* File Generation Progress */}
+                  {buildingFiles && Object.keys(buildingFiles).length > 0 && (
+                    <div className="flex flex-col gap-1.5 border-l-2 border-[#e8e8e8] ml-3 pl-4 py-1.5 select-none max-h-48 overflow-y-auto scrollbar-hide">
+                      <div className="text-[8px] font-black uppercase tracking-[0.15em] text-[#888] mb-1">
+                        📁 File Operations
+                      </div>
+                      {Object.entries(buildingFiles).map(([fpath, progress]) => {
+                        const isWriting = progress.status === "writing";
+                        const isDone = progress.status === "done";
+                        return (
+                          <motion.div
+                            key={fpath}
+                            initial={{ opacity: 0, x: -4 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="flex items-center justify-between gap-2 text-[10px]"
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              {isWriting ? (
+                                <Loader2 className="w-2.5 h-2.5 animate-spin text-[#0ea5e9] shrink-0" />
+                              ) : (
+                                <span className="text-emerald-500 font-bold text-[10px] shrink-0 select-none">✓</span>
+                              )}
+                              <span className={`font-mono truncate leading-tight ${
+                                isDone ? "text-[#aaa]" : "text-[#111] font-medium"
+                              }`}>
+                                {fpath}
+                              </span>
+                            </div>
+                            {isWriting && progress.charCount > 0 && (
+                              <span className="text-[8px] text-[#aaa] font-semibold shrink-0">
+                                {progress.charCount} chars
                               </span>
                             )}
                           </motion.div>

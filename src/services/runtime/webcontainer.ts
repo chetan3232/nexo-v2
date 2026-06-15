@@ -13,9 +13,12 @@ export class WebContainerService {
   }
 
   async boot() {
-    if (this.webcontainer) return this.webcontainer;
-
     const runtimeStore = useRuntimeStore.getState();
+    if (this.webcontainer) {
+      runtimeStore.setIsBooted(true);
+      return this.webcontainer;
+    }
+
     runtimeStore.addTerminalLog("Booting WebContainer runtime...");
 
     try {

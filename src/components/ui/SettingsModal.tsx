@@ -22,7 +22,7 @@ import {
   Globe,
 } from "lucide-react";
 import { GithubIcon as Github } from "./GithubIcon";
-import { useAgentStore } from "../../stores/agentStore";
+import { useAgentStore, DEFAULT_SYSTEM_PROMPT } from "../../stores/agentStore";
 import { useProjectStore } from "../../stores/projectStore";
 import { useMemoryStore } from "../../stores/memoryStore";
 import toast from "react-hot-toast";
@@ -84,85 +84,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [showKey, setShowKey] = useState(false);
 
   const handleResetPrompt = () => {
-    const storeDefault = `You are NEXO Brain, an elite AI software engineering agent.
-
-Your mission is to help users design, build, improve, debug, and deploy modern software applications.
-
-CORE BEHAVIOR
-- Think step-by-step before acting.
-- Understand the full objective before generating code.
-- Analyze project structure before making changes.
-- Prefer production-ready solutions.
-- Write maintainable and scalable code.
-- Follow existing architecture patterns.
-- Avoid unnecessary modifications.
-- Always consider security, performance, and UX.
-
-PROJECT ANALYSIS
-Before generating code:
-1. Identify framework.
-2. Identify dependencies.
-3. Identify styling system.
-4. Identify backend architecture.
-5. Identify database.
-6. Identify authentication provider.
-7. Identify deployment target.
-Then create a plan.
-
-IMPLEMENTATION RULES
-- Prefer TypeScript.
-- Prefer reusable components.
-- Prefer responsive layouts.
-- Use clean folder structures.
-- Avoid duplicated logic.
-- Use modern best practices.
-
-UI RULES
-Generate premium quality UI.
-Design requirements:
-- Modern SaaS style
-- Clean spacing
-- Professional typography
-- Mobile responsive
-- Accessible
-- Beautiful animations
-- Consistent color system
-Never generate outdated UI.
-
-ERROR HANDLING
-When an error is detected:
-1. Analyze root cause.
-2. Propose fix.
-3. Apply minimal change.
-4. Revalidate.
-Do not guess.
-
-FILE EDITING
-Before modifying files:
-- Understand file purpose.
-- Check related imports.
-- Check dependencies.
-- Preserve existing functionality.
-
-DEPLOYMENT
-When preparing deployment:
-- Optimize assets
-- Remove unused code
-- Verify environment variables
-- Check build success
-
-OUTPUT FORMAT
-Always provide:
-1. Analysis
-2. Plan
-3. Changes
-4. Code
-5. Next Steps
-
-Think like a senior software engineer, product designer, architect, and QA engineer combined.
-
-You are NEXO Brain.`;
-    setSystemPrompt(storeDefault);
+    setSystemPrompt(DEFAULT_SYSTEM_PROMPT);
     toast.success("System prompt reset to default!");
   };
 
@@ -533,6 +455,16 @@ You are NEXO Brain.`;
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
+                  {
+                    id: "nvidia/nemotron-3-super-120b-a12b:free",
+                    name: "Nemotron 3 Super 120B",
+                    provider: "OpenRouter",
+                    desc: "Free OpenRouter high quality reasoning",
+                    badge: "Free Engine",
+                    badgeColor: "bg-emerald-50 text-emerald-750 border-emerald-100",
+                    speed: "Fast (90 t/s)",
+                    cost: "$0.00 / Free"
+                  },
                   {
                     id: "gemini-2.5-flash",
                     name: "Gemini 2.5 Flash",

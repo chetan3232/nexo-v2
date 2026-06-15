@@ -4,7 +4,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nexo v2 - Build Your Own Companion</title>
+  <title>Nexo V2 — Autonomous Software Engineer</title>
+  <meta name="description" content="Nexo V2 is an autonomous AI software engineer in your browser. Turn natural language into complete, running applications — instantly with 16 AI agents, WebContainers, and cinematic code generation." />
+  <meta name="theme-color" content="#0c0c0e" />
+  <meta property="og:title" content="Nexo V2 — Autonomous Software Engineer" />
+  <meta property="og:description" content="Turn natural language into complete applications. 16 AI agents. WebContainer runtime. Zero setup." />
+  <meta property="og:type" content="website" />
   <link rel="icon" type="image/png" href="/src/assets/NEXO-V2.png" />
   <script src="https://cdn.tailwindcss.com"></script>
   <link
@@ -13,20 +18,23 @@
   <!-- Polyfill for Buffer needed by E2B -->
   <script src="https://bundle.run/buffer@6.0.3"></script>
   <script>
+    // Theme initialization — prevent flash of wrong theme
+    (function() {
+      const saved = localStorage.getItem('theme');
+      if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+
     // Safe polyfills that don't overwrite existing injected variables
     window.global = window;
     if (window.buffer) {
       window.Buffer = window.buffer.Buffer;
     }
 
-    // Ensure process.env exists without wiping existing keys (like API_KEY)
+    // Ensure process.env exists without wiping existing keys
     window.process = window.process || {};
     window.process.env = window.process.env || {};
-
-    // Set the API key if not already present (User provided key)
-    if (!window.process.env.API_KEY) {
-      window.process.env.API_KEY = 'AIzaSyBdwndziQV1EcJkzxjMkzq3HrL2u-YCQ7c';
-    }
 
     if (!window.process.env.NODE_ENV) {
       window.process.env.NODE_ENV = 'development';
@@ -85,77 +93,150 @@
     }
   </script>
   <style>
-    body {
-      background-color: #FFFFFF;
-      color: #0F172A;
+    /* ── CSS Custom Properties (Design Tokens) ── */
+    :root {
+      --nexo-bg: #f7f7f7;
+      --nexo-surface: #ffffff;
+      --nexo-surface-alt: #f3f3f3;
+      --nexo-text: #111111;
+      --nexo-text-secondary: #555555;
+      --nexo-text-muted: #888888;
+      --nexo-border: #e8e8e8;
+      --nexo-accent: #0ea5e9;
+      --nexo-accent-purple: #8b5cf6;
+      --nexo-accent-emerald: #10b981;
+      --nexo-accent-amber: #f59e0b;
+
+      /* Phase Colors */
+      --nexo-phase-planning: #3b82f6;
+      --nexo-phase-generating: #8b5cf6;
+      --nexo-phase-fixing: #f59e0b;
+      --nexo-phase-deploying: #14b8a6;
+
+      --nexo-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+      --nexo-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.08);
+      --nexo-radius: 12px;
+      --nexo-radius-lg: 16px;
     }
 
-    /* Dark Mode variables & overrides */
+    html.dark {
+      --nexo-bg: #0c0c0e;
+      --nexo-surface: #121214;
+      --nexo-surface-alt: #1c1c20;
+      --nexo-text: #f1f5f9;
+      --nexo-text-secondary: #94a3b8;
+      --nexo-text-muted: #64748b;
+      --nexo-border: #222226;
+      --nexo-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      --nexo-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    body {
+      background-color: var(--nexo-bg);
+      color: var(--nexo-text);
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* ── Dark Mode Overrides ── */
     html.dark body {
-      background-color: #0c0c0e !important;
-      color: #f1f5f9 !important;
+      background-color: var(--nexo-bg) !important;
+      color: var(--nexo-text) !important;
     }
     
     html.dark .bg-white {
-      background-color: #121214 !important;
+      background-color: var(--nexo-surface) !important;
     }
     
     html.dark .bg-\[\#f8fafc\] {
-      background-color: #0c0c0e !important;
+      background-color: var(--nexo-bg) !important;
     }
     
     html.dark .bg-\[\#f7f7f7\] {
-      background-color: #0c0c0e !important;
+      background-color: var(--nexo-bg) !important;
     }
     
     html.dark .border-\[\#e8e8e8\] {
-      border-color: #222226 !important;
+      border-color: var(--nexo-border) !important;
+    }
+
+    html.dark .border-stone-200 {
+      border-color: var(--nexo-border) !important;
+    }
+
+    html.dark .border-stone-100 {
+      border-color: rgba(255, 255, 255, 0.06) !important;
     }
     
-    html.dark .text-\[\#111\] {
-      color: #ffffff !important;
+    html.dark .text-\[\#111\],
+    html.dark .text-stone-900 {
+      color: var(--nexo-text) !important;
     }
     
     html.dark .text-\[\#333\] {
-      color: #f1f5f9 !important;
+      color: var(--nexo-text) !important;
     }
     
     html.dark .text-\[\#555\] {
-      color: #94a3b8 !important;
+      color: var(--nexo-text-secondary) !important;
     }
     
     html.dark .text-\[\#888\] {
-      color: #64748b !important;
+      color: var(--nexo-text-muted) !important;
+    }
+
+    html.dark .text-stone-500 {
+      color: var(--nexo-text-secondary) !important;
+    }
+
+    html.dark .text-stone-600 {
+      color: var(--nexo-text-secondary) !important;
+    }
+
+    html.dark .text-stone-400 {
+      color: var(--nexo-text-muted) !important;
+    }
+
+    html.dark .text-stone-700 {
+      color: var(--nexo-text) !important;
     }
     
     html.dark .hover\:text-\[\#111\]:hover {
-      color: #ffffff !important;
+      color: var(--nexo-text) !important;
     }
     
     html.dark .hover\:bg-\[\#f3f3f3\]:hover {
-      background-color: #1c1c20 !important;
+      background-color: var(--nexo-surface-alt) !important;
     }
     
     html.dark .bg-\[\#f3f3f3\] {
-      background-color: #1c1c20 !important;
+      background-color: var(--nexo-surface-alt) !important;
+    }
+
+    html.dark .bg-stone-50 {
+      background-color: var(--nexo-surface-alt) !important;
+    }
+
+    html.dark .bg-stone-900 {
+      background-color: #e2e8f0 !important;
+      color: #0f172a !important;
     }
     
     html.dark input, html.dark textarea, html.dark select {
       background-color: #161619 !important;
-      color: #ffffff !important;
-      border-color: #282830 !important;
+      color: var(--nexo-text) !important;
+      border-color: var(--nexo-border) !important;
     }
     
     html.dark .text-studio-text {
-      color: #f1f5f9 !important;
+      color: var(--nexo-text) !important;
     }
     
     html.dark .text-studio-muted {
-      color: #94a3b8 !important;
+      color: var(--nexo-text-secondary) !important;
     }
     
     html.dark .bg-studio-bg {
-      background-color: #0c0c0e !important;
+      background-color: var(--nexo-bg) !important;
     }
     
     html.dark .bg-studio-panel {
@@ -182,7 +263,18 @@
       background: rgba(14, 165, 233, 0.4) !important;
     }
 
-    /* Premium custom scrollbar */
+    /* Feature card backgrounds in dark mode */
+    html.dark .bg-indigo-50 { background-color: rgba(99, 102, 241, 0.12) !important; }
+    html.dark .bg-purple-50 { background-color: rgba(139, 92, 246, 0.12) !important; }
+    html.dark .bg-emerald-50 { background-color: rgba(16, 185, 129, 0.12) !important; }
+    html.dark .bg-sky-50 { background-color: rgba(14, 165, 233, 0.12) !important; }
+    html.dark .bg-amber-50 { background-color: rgba(245, 158, 11, 0.12) !important; }
+    html.dark .bg-rose-50 { background-color: rgba(244, 63, 94, 0.12) !important; }
+    html.dark .bg-blue-50 { background-color: rgba(59, 130, 246, 0.12) !important; }
+    html.dark .bg-red-50 { background-color: rgba(239, 68, 68, 0.12) !important; }
+    html.dark .bg-green-50 { background-color: rgba(34, 197, 94, 0.12) !important; }
+
+    /* ── Premium custom scrollbar ── */
     .custom-scrollbar::-webkit-scrollbar {
       width: 4px;
       height: 4px;
@@ -211,7 +303,7 @@
       scrollbar-width: none;
     }
 
-    /* Cinematic Glassmorphism Classes */
+    /* ── Cinematic Glassmorphism ── */
     .glass-panel {
       background: rgba(15, 23, 42, 0.65);
       backdrop-filter: blur(20px);
@@ -230,6 +322,12 @@
       border-color: rgba(14, 165, 233, 0.4);
       box-shadow: 0 0 15px rgba(14, 165, 233, 0.15);
     }
+
+    /* ── Phase Color Accents ── */
+    .phase-planning { --phase-color: var(--nexo-phase-planning); }
+    .phase-generating { --phase-color: var(--nexo-phase-generating); }
+    .phase-fixing { --phase-color: var(--nexo-phase-fixing); }
+    .phase-deploying { --phase-color: var(--nexo-phase-deploying); }
 
     @keyframes slideInBuild {
       0% {

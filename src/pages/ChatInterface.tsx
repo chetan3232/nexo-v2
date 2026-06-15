@@ -13,7 +13,8 @@ import { InitialOverlay } from "../components/chat/InitialOverlay";
 import { AgentWorkflowOverlay } from "../components/chat/AgentWorkflowOverlay";
 import { QualityReviewOverlay } from "../components/chat/QualityReviewOverlay";
 import { PreviewTransferOverlay } from "../components/chat/PreviewTransferOverlay";
-import { auth, saveChatToFirebase } from "../services/firebase";
+import { auth, saveChatToFirebase, signInWithGoogle, logout } from "../services/firebase";
+import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 
 // Lazy load heavy components
 const EditorPanel = React.lazy(() =>
@@ -29,6 +30,9 @@ const PreviewPanel = React.lazy(() =>
 
 import { SettingsModal } from "../components/ui/SettingsModal";
 import { TokenDashboard } from "../components/ui/TokenDashboard";
+import { DeployModal } from "../components/ui/DeployModal";
+import { DeploymentService } from "../services/deploymentService";
+import { compileAndBundle } from "../utils/bundler";
 
 // Stores & Services
 import { useProjectStore } from "../stores/projectStore";
@@ -36,6 +40,7 @@ import { useChatStore } from "../stores/chatStore";
 import { useAgentStore } from "../stores/agentStore";
 import { useDesignStore } from "../stores/designStore";
 import { useRuntimeStore } from "../stores/runtimeStore";
+import { useBuildPhaseStore, mapBuildPhaseToPhaseId, getCurrentStageColor } from "../stores/buildPhaseStore";
 import { saveCurrentProject } from "../services/saveService";
 import { Orchestrator } from "../agents/Orchestrator";
 import { Message } from "../types";
@@ -58,6 +63,12 @@ import {
   Sun,
   Moon,
   Save,
+  Rocket,
+  User,
+  LogOut,
+  PanelLeftClose,
+  PanelLeft,
+  MessageSquare,
 } from "lucide-react";
 import { StudioControls } from "../components/ui/StudioControls";
 import JSZip from "jszip";
@@ -75,13 +86,54 @@ const ChatInterface: React.FC = () => {
     topP,
     setTopP,
     showStudioPanel,
-    setShowStudioPanel
+    setShowStudioPanel,
+    projectMode,
   } = useAgentStore();
 
-  const [workspaceTab, setWorkspaceTab] = useState<"preview" | "code">("preview");
+  const [workspaceTab, setWorkspaceTab] = useState<"preview" | "code">(
+    useAgentStore.getState().projectMode === "fullstack" ? "code" : "preview"
+  );
   const [isVisualMode, setIsVisualMode] = useState(false);
-  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const selectedFileName = useProjectStore((s) => s.selectedFileName);
+  const setSelectedFileName = useProjectStore((s) => s.setSelectedFileName);
   const [settingsTab, setSettingsTab] = useState<string | null>(null);
+  const [showChatPanel, setShowChatPanel] = useState(true);
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+
+  // Monitor auth status
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Responsive adaptive panel widths
+  useEffect(() => {
+    if (window.innerWidth < 1280) {
+      setShowStudioPanel(false);
+    }
+    if (window.innerWidth < 1024) {
+      setShowChatPanel(false);
+    }
+  }, [setShowStudioPanel]);
+
+  // If user switches to fullstack mode, disable live preview and switch to code tab
+  useEffect(() => {
+    if (projectMode === "fullstack") {
+      setWorkspaceTab("code");
+    }
+  }, [projectMode]);
+
+  // Auto-switch to Code tab when AI starts analyzing/generating
+  useEffect(() => {
+    const phase = projectStore.buildPhase;
+    if (phase === "planning" || phase === "generating" || phase === "building" || phase === "fixing") {
+      setWorkspaceTab("code");
+    }
+  }, [projectStore.buildPhase]);
+
+
   const [projectTitle, setProjectTitle] = useState("Untitled");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [ghPushing, setGhPushing] = useState(false);
@@ -238,6 +290,7 @@ const ChatInterface: React.FC = () => {
       useRuntimeStore.getState().setUrl(null);
     }
     setShowLanding(false);
+    setWorkspaceTab("code");
 
     const userMsg: Message = {
       role: "user",
@@ -290,6 +343,39 @@ const ChatInterface: React.FC = () => {
       toast.success("ZIP exported successfully!");
     } catch (e) {
       toast.error("Failed to build ZIP.");
+    }
+  };
+
+  const handleDeploy = async () => {
+    projectStore.setShowDeployModal(true);
+    projectStore.setDeployStatus("deploying");
+    projectStore.setDeployUrl("");
+    try {
+      const url = await DeploymentService.getInstance().deployProject();
+      projectStore.setDeployUrl(url);
+      projectStore.setDeployStatus("done");
+    } catch (e) {
+      console.error("[ChatInterface] Deployment error:", e);
+      projectStore.setDeployStatus("error");
+    }
+  };
+
+  const handleDownloadSingleHtml = async () => {
+    try {
+      toast.loading("Compiling and bundling for HTML download...", { id: "html-download" });
+      const htmlContent = await compileAndBundle();
+      
+      const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${projectTitle.replace(/\s+/g, "-").toLowerCase()}.html`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Single HTML page downloaded successfully!", { id: "html-download" });
+    } catch (e) {
+      console.error("[ChatInterface] Failed to download single HTML:", e);
+      toast.error("Failed to compile HTML.", { id: "html-download" });
     }
   };
 
@@ -369,7 +455,7 @@ const ChatInterface: React.FC = () => {
 
       {/* ── Workspace Inner Header (Back + Title) ── */}
       <div className="h-[52px] bg-white border-b border-[#e8e8e8] flex items-center justify-between px-5 shrink-0 z-20 select-none">
-        {/* Left: back + editable title */}
+        {/* Left: back + editable title + Chat Toggle */}
         <div className="flex items-center gap-3">
           <button
             onClick={handleBackToStart}
@@ -379,6 +465,25 @@ const ChatInterface: React.FC = () => {
             Back to start
           </button>
           <div className="h-4 w-px bg-[#e8e8e8]" />
+          
+          {/* Chat Sidebar Toggle */}
+          <button
+            onClick={() => setShowChatPanel(!showChatPanel)}
+            className={`p-2 rounded-lg transition-colors flex items-center justify-center shrink-0 ${
+              showChatPanel
+                ? "text-[#0ea5e9] bg-[#0ea5e9]/10"
+                : "text-[#888] hover:text-[#111] hover:bg-[#f3f3f3] border border-[#e8e8e8]/60"
+            }`}
+            title={showChatPanel ? "Hide Chat Sidebar" : "Show Chat Sidebar"}
+          >
+            {showChatPanel ? (
+              <PanelLeftClose className="w-3.5 h-3.5" />
+            ) : (
+              <PanelLeft className="w-3.5 h-3.5" />
+            )}
+          </button>
+
+
           {isEditingTitle ? (
             <input
               type="text"
@@ -401,7 +506,7 @@ const ChatInterface: React.FC = () => {
           )}
         </div>
 
-        {/* Right: Save + GitHub + Remix / Share / Publish + icon buttons */}
+        {/* Right: Save + GitHub + Remix / Share / Publish + icon buttons + User Widget */}
         <div className="flex items-center gap-2">
           {/* Manual Save Button */}
           <button
@@ -438,11 +543,11 @@ const ChatInterface: React.FC = () => {
             Share
           </button>
           <button
-            onClick={handleDownloadZip}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#111] hover:bg-[#333] transition-all"
+            onClick={handleDeploy}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 transition-all shadow-md shadow-emerald-700/10 active:scale-95"
           >
-            <Download className="w-3.5 h-3.5" />
-            Publish
+            <Rocket className="w-3.5 h-3.5" />
+            Deploy
           </button>
           <div className="w-px h-4 bg-[#e8e8e8]" />
           <button
@@ -461,6 +566,19 @@ const ChatInterface: React.FC = () => {
             {theme === "dark" ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5" />}
           </button>
 
+          {/* Studio Panel Toggle */}
+          <button
+            onClick={() => setShowStudioPanel(!showStudioPanel)}
+            className={`p-2 rounded-lg transition-colors flex items-center justify-center shrink-0 ${
+              showStudioPanel
+                ? "text-[#0ea5e9] bg-[#0ea5e9]/10"
+                : "text-[#888] hover:text-[#111] hover:bg-[#f3f3f3]"
+            }`}
+            title={showStudioPanel ? "Hide Studio Panel" : "Show Studio Panel"}
+          >
+            <Sliders className="w-3.5 h-3.5" />
+          </button>
+
           <button
             onClick={() => setSettingsTab("Chat")}
             className="p-2 rounded-lg text-[#888] hover:text-[#111] hover:bg-[#f3f3f3] transition-colors"
@@ -468,6 +586,7 @@ const ChatInterface: React.FC = () => {
           >
             <Settings className="w-3.5 h-3.5" />
           </button>
+          
           <button
             onClick={() => setIsTokenDashboardOpen(true)}
             className="p-2 rounded-lg text-[#888] hover:text-[#111] hover:bg-[#f3f3f3] transition-colors flex items-center gap-1"
@@ -475,30 +594,74 @@ const ChatInterface: React.FC = () => {
           >
             <Coins className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
           </button>
+
+          {/* User Widget */}
+          <div className="w-px h-4 bg-[#e8e8e8] mx-1" />
+          {user ? (
+            <div className="flex items-center gap-1.5 bg-[#f7f7f7] pl-1 pr-2.5 py-1 rounded-full border border-[#e8e8e8] shrink-0">
+              {user.photoURL ? (
+                <img
+                  src={user.photoURL}
+                  alt="User"
+                  className="w-5 h-5 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-5 h-5 rounded-full bg-[#0ea5e9] flex items-center justify-center text-white text-[9px] font-bold">
+                  {(user.displayName || user.email || "U")[0].toUpperCase()}
+                </div>
+              )}
+              <span className="text-[10px] font-semibold text-[#333] max-w-[65px] truncate">
+                {user.displayName
+                  ? user.displayName.split(" ")[0]
+                  : user.email?.split("@")[0]}
+              </span>
+              <button
+                onClick={logout}
+                className="text-[#aaa] hover:text-[#e55] transition-colors"
+                title="Logout"
+              >
+                <LogOut className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={signInWithGoogle}
+              className="flex items-center gap-1.5 px-3 py-1 bg-[#f3f3f3] hover:bg-[#ebebeb] text-[#333] rounded-full text-[10px] font-semibold transition-all border border-[#e8e8e8] shrink-0"
+            >
+              <User className="w-3 h-3" />
+              Sign In
+            </button>
+          )}
         </div>
       </div>
+
+
 
       {/* ── Main Workspace ── */}
       <main className="flex-1 flex overflow-hidden min-h-0">
         <PanelGroup orientation="horizontal">
 
           {/* LEFT: Chat sidebar */}
-          <Panel defaultSize={showStudioPanel ? 25 : 35} minSize={20} maxSize={50} className="flex flex-col overflow-hidden p-3 pr-1.5">
-            <div className="flex-1 overflow-hidden rounded-xl border border-[#e8e8e8] shadow-sm bg-white">
-              <React.Suspense
-                fallback={
-                  <div className="h-full w-full flex items-center justify-center bg-white rounded-xl">
-                    <div className="w-6 h-6 border-2 border-[#e8e8e8] border-t-[#0ea5e9] rounded-full animate-spin" />
-                  </div>
-                }
-              >
-                <ChatPanel onSend={handleSend} />
-              </React.Suspense>
-            </div>
-          </Panel>
+          {showChatPanel && (
+            <>
+              <Panel defaultSize={showStudioPanel ? 25 : 35} minSize={20} maxSize={50} className="flex flex-col overflow-hidden p-3 pr-1.5">
+                <div className="flex-1 overflow-hidden rounded-xl border border-[#e8e8e8] shadow-sm bg-white">
+                  <React.Suspense
+                    fallback={
+                      <div className="h-full w-full flex items-center justify-center bg-white rounded-xl">
+                        <div className="w-6 h-6 border-2 border-[#e8e8e8] border-t-[#0ea5e9] rounded-full animate-spin" />
+                      </div>
+                    }
+                  >
+                    <ChatPanel onSend={handleSend} />
+                  </React.Suspense>
+                </div>
+              </Panel>
 
-          {/* Resize handle */}
-          <PanelResizeHandle className="w-1.5 bg-transparent hover:bg-[#0ea5e9]/20 transition-colors cursor-col-resize" />
+              {/* Resize handle */}
+              <PanelResizeHandle className="w-1.5 bg-transparent hover:bg-[#0ea5e9]/20 transition-colors cursor-col-resize" />
+            </>
+          )}
 
           {/* RIGHT: Preview / Code panel */}
           <Panel defaultSize={65} minSize={40} maxSize={82} className="flex flex-col overflow-hidden p-3 pl-1.5 pr-1 gap-2">
@@ -506,15 +669,17 @@ const ChatInterface: React.FC = () => {
             {/* Secondary toolbar: Preview | Code toggle */}
             <div className="bg-white rounded-xl border border-[#e8e8e8] h-11 flex items-center justify-between px-3 shrink-0 shadow-sm">
               <div className="flex items-center gap-0.5 bg-[#f3f3f3] rounded-lg p-0.5">
-                <button
-                  onClick={() => setWorkspaceTab("preview")}
-                  className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${workspaceTab === "preview"
-                      ? "bg-white text-[#111] shadow-sm"
-                      : "text-[#888] hover:text-[#333]"
-                    }`}
-                >
-                  Preview
-                </button>
+                {projectMode === "frontend" && (
+                  <button
+                    onClick={() => setWorkspaceTab("preview")}
+                    className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${workspaceTab === "preview"
+                        ? "bg-white text-[#111] shadow-sm"
+                        : "text-[#888] hover:text-[#333]"
+                      }`}
+                  >
+                    Preview
+                  </button>
+                )}
                 <button
                   onClick={() => setWorkspaceTab("code")}
                   className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${workspaceTab === "code"
@@ -559,17 +724,21 @@ const ChatInterface: React.FC = () => {
             <div className="flex-1 overflow-hidden bg-white rounded-xl border border-[#e8e8e8] shadow-sm relative">
               
               <AnimatePresence>
-                {(projectStore.buildPhase !== "idle" && projectStore.buildPhase !== "done") && (
-                  <AgentWorkflowOverlay />
-                )}
-                {showQualityReview && (
-                  <QualityReviewOverlay onComplete={() => {
-                    setShowQualityReview(false);
-                    setShowPreviewTransfer(true);
-                  }} />
-                )}
-                {showPreviewTransfer && (
-                  <PreviewTransferOverlay onComplete={() => setShowPreviewTransfer(false)} />
+                {workspaceTab === "preview" && (
+                  <>
+                    {(projectStore.buildPhase !== "idle" && projectStore.buildPhase !== "done") && (
+                      <AgentWorkflowOverlay />
+                    )}
+                    {showQualityReview && (
+                      <QualityReviewOverlay onComplete={() => {
+                        setShowQualityReview(false);
+                        setShowPreviewTransfer(true);
+                      }} />
+                    )}
+                    {showPreviewTransfer && (
+                      <PreviewTransferOverlay onComplete={() => setShowPreviewTransfer(false)} />
+                    )}
+                  </>
                 )}
               </AnimatePresence>
 
@@ -583,7 +752,7 @@ const ChatInterface: React.FC = () => {
                   </div>
                 }
               >
-                <div className={workspaceTab === "preview" ? "h-full w-full block" : "h-full w-full hidden"}>
+                <div className={workspaceTab === "preview" && projectMode === "frontend" ? "h-full w-full block" : "h-full w-full hidden"}>
                   <PreviewPanel
                     isVisualMode={isVisualMode}
                     setIsVisualMode={setIsVisualMode}
@@ -633,7 +802,7 @@ const ChatInterface: React.FC = () => {
         <SettingsModal
           initialTab={settingsTab}
           onClose={() => setSettingsTab(null)}
-          onDeploy={() => toast.success("Deploying...")}
+          onDeploy={handleDeploy}
           onLoadHistory={() => toast.success("Loading history...")}
           onDownloadZip={handleDownloadZip}
           temperature={temperature}
@@ -647,6 +816,16 @@ const ChatInterface: React.FC = () => {
         isOpen={isTokenDashboardOpen}
         onClose={() => setIsTokenDashboardOpen(false)}
       />
+
+      {projectStore.showDeployModal && (
+        <DeployModal
+          status={projectStore.deployStatus}
+          url={projectStore.deployUrl}
+          onClose={() => projectStore.setShowDeployModal(false)}
+          onDownloadHtml={handleDownloadSingleHtml}
+          onDownloadZip={handleDownloadZip}
+        />
+      )}
     </div>
   );
 };

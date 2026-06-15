@@ -13,10 +13,12 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
   selectedFileName,
   setSelectedFileName,
 }) => {
-  const { currentContent, setCurrentContent } = useProjectStore();
+  const { currentContent, setCurrentContent, buildPhase } = useProjectStore();
+  const isGenerating = buildPhase !== "idle" && buildPhase !== "done";
   const [localValue, setLocalValue] = useState<string>("");
   const [openTabs, setOpenTabs] = useState<string[]>([]);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const userEditingRef = useRef(false);
   
   const editorRef = useRef<any>(null);
 
@@ -34,10 +36,18 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
   // Sync local value when file selection changes
   useEffect(() => {
-    if (selectedFileName && currentContent?.files[selectedFileName]) {
+    if (selectedFileName && currentContent?.files[selectedFileName] !== undefined) {
       setLocalValue(currentContent.files[selectedFileName]);
+      userEditingRef.current = false;
     }
-  }, [selectedFileName, currentContent?.files]);
+  }, [selectedFileName]);
+
+  // Live-stream code into editor while AI is generating
+  useEffect(() => {
+    if (!isGenerating || !selectedFileName || !currentContent?.files[selectedFileName]) return;
+    if (userEditingRef.current) return;
+    setLocalValue(currentContent.files[selectedFileName]);
+  }, [isGenerating, selectedFileName, currentContent]);
 
   // Debounced update to global store and WebContainer filesystem
   useEffect(() => {
@@ -207,7 +217,10 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                 : "javascript"
             }
             value={localValue}
-            onChange={(val) => setLocalValue(val || "")}
+            onChange={(val) => {
+              userEditingRef.current = true;
+              setLocalValue(val || "");
+            }}
             onMount={handleEditorDidMount}
             options={{
               fontSize,

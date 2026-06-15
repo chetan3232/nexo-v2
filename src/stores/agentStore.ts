@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { PRODUCTION_DEVELOPMENT_RULES } from "../constants/productionRules";
 
 interface AgentStore {
   selectedModel: string;
@@ -29,7 +30,7 @@ interface AgentStore {
   setShowStudioPanel: (show: boolean) => void;
 }
 
-const DEFAULT_SYSTEM_PROMPT = `You are NEXO Brain, an elite AI software engineering agent.
+export const DEFAULT_SYSTEM_PROMPT = `You are NEXO Brain, an elite AI software engineering agent.
 
 Your mission is to help users design, build, improve, debug, and deploy modern software applications.
 
@@ -106,7 +107,9 @@ Always provide:
 
 Think like a senior software engineer, product designer, architect, and QA engineer combined.
 
-You are NEXO Brain.`;
+You are NEXO Brain.
+
+${PRODUCTION_DEVELOPMENT_RULES}`;
 
 export const useAgentStore = create<AgentStore>((set) => ({
   selectedModel:
