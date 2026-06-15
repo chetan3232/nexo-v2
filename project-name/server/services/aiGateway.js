@@ -15,7 +15,7 @@ const chatRequestSchema = z.object({
     })
   ),
   model: z.string().optional().default("inclusionai/ling-2.6-1t:free"),
-  temperature: z.number().optional().default(1.0),
+  temperature: z.number().optional().default(0.7),
   top_p: z.number().optional().default(1.0),
   projectMode: z.string().optional().default("frontend"),
   techStack: z.string().optional().default("Vanilla"),
@@ -282,7 +282,7 @@ const logUsage = (model, inputTokens = 0, outputTokens = 0, durationMs = 0, user
   }
 };
 
-const callWithRetry = async (fn, maxRetries = 3, initialDelay = 1000) => {
+const callWithRetry = async (fn, maxRetries = 3, initialDelay = 500) => {
   let delay = initialDelay;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -446,13 +446,13 @@ class AIGateway {
           throw new Error(`Provider ${provider} is not configured.`);
         }
 
-                const maxTokens = provider === "nvidia" ? 8192 : 16384;
+                const maxTokens = provider === "nvidia" ? 8192 : 32768;
         
         const startTime = Date.now();
         const responseStream = await callWithRetry(() => client.chat.completions.create({
           model: targetModel,
           messages: messagesPayload,
-          temperature: temperature || 1.0,
+          temperature: temperature !== undefined ? temperature : 0.7,
           top_p: top_p || 1.0,
           stream: true,
           max_tokens: maxTokens,
@@ -568,7 +568,7 @@ class AIGateway {
           throw new Error(`Provider ${provider} is not configured.`);
         }
 
-        const maxTokens = provider === "nvidia" ? 8192 : 16384;
+        const maxTokens = provider === "nvidia" ? 8192 : 32768;
         const actualStream = provider === "nvidia" && targetModel === "minimaxai/minimax-m2.7" ? false : stream;
 
         if (actualStream) {

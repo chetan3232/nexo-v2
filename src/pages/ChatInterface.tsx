@@ -10,9 +10,6 @@ import toast, { Toaster } from "react-hot-toast";
 
 import { ChatPanel } from "../components/chat/ChatPanel";
 import { InitialOverlay } from "../components/chat/InitialOverlay";
-import { AgentWorkflowOverlay } from "../components/chat/AgentWorkflowOverlay";
-import { QualityReviewOverlay } from "../components/chat/QualityReviewOverlay";
-import { PreviewTransferOverlay } from "../components/chat/PreviewTransferOverlay";
 import { auth, saveChatToFirebase, signInWithGoogle, logout } from "../services/firebase";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 
@@ -137,16 +134,16 @@ const ChatInterface: React.FC = () => {
   const [ghPushing, setGhPushing] = useState(false);
   const [isTokenDashboardOpen, setIsTokenDashboardOpen] = useState(false);
   const [showLanding, setShowLanding] = useState(chatStore.messages.length === 0);
-  const [showQualityReview, setShowQualityReview] = useState(false);
-  const [showPreviewTransfer, setShowPreviewTransfer] = useState(false);
   const prevBuildPhase = useRef(projectStore.buildPhase);
 
   useEffect(() => {
     if (prevBuildPhase.current !== "idle" && prevBuildPhase.current !== "done" && projectStore.buildPhase === "done") {
-      setShowQualityReview(true);
+      if (projectMode === "frontend") {
+        setWorkspaceTab("preview");
+      }
     }
     prevBuildPhase.current = projectStore.buildPhase;
-  }, [projectStore.buildPhase]);
+  }, [projectStore.buildPhase, projectMode]);
 
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window !== "undefined") {
@@ -586,7 +583,7 @@ const ChatInterface: React.FC = () => {
             className="p-2 rounded-lg text-[#888] hover:text-[#111] hover:bg-[#f3f3f3] transition-colors flex items-center gap-1"
             title="Token & Cost Dashboard"
           >
-            <Coins className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+            <Coins className="w-3.5 h-3.5 text-cyan-500" />
           </button>
 
           {/* User Widget */}
@@ -717,24 +714,7 @@ const ChatInterface: React.FC = () => {
             {/* Canvas */}
             <div className="flex-1 overflow-hidden bg-white rounded-xl border border-[#e8e8e8] shadow-sm relative">
               
-              <AnimatePresence>
-                {workspaceTab === "preview" && (
-                  <>
-                    {(projectStore.buildPhase !== "idle" && projectStore.buildPhase !== "done") && (
-                      <AgentWorkflowOverlay />
-                    )}
-                    {showQualityReview && (
-                      <QualityReviewOverlay onComplete={() => {
-                        setShowQualityReview(false);
-                        setShowPreviewTransfer(true);
-                      }} />
-                    )}
-                    {showPreviewTransfer && (
-                      <PreviewTransferOverlay onComplete={() => setShowPreviewTransfer(false)} />
-                    )}
-                  </>
-                )}
-              </AnimatePresence>
+
 
               <React.Suspense
                 fallback={

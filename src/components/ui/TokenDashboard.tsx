@@ -175,7 +175,7 @@ export const TokenDashboard: React.FC<{ isOpen: boolean; onClose: () => void }> 
             {/* Header */}
             <div className="p-6 md:p-8 border-b border-stone-900 flex items-center justify-between bg-stone-900/20">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-400 border border-indigo-500/20">
+                <div className="p-3 bg-cyan-500/10 rounded-2xl text-cyan-400 border border-cyan-500/20">
                   <TrendingUp className="w-6 h-6" />
                 </div>
                 <div>
@@ -214,7 +214,7 @@ export const TokenDashboard: React.FC<{ isOpen: boolean; onClose: () => void }> 
               {/* Stat Cards Grid */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="p-5 bg-stone-900/40 rounded-3xl border border-stone-850/60 relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-indigo-500/10 transition-all duration-500" />
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-cyan-500/10 transition-all duration-500" />
                   <span className="text-[9px] font-bold text-stone-500 uppercase tracking-widest block mb-1">Total Cost</span>
                   <div className="flex items-baseline gap-1 text-2xl font-black text-white">
                     <DollarSign className="w-4 h-4 text-emerald-500 shrink-0 self-center" />
@@ -268,7 +268,7 @@ export const TokenDashboard: React.FC<{ isOpen: boolean; onClose: () => void }> 
                 {/* Model Split Table */}
                 <div className="lg:col-span-2 p-6 bg-stone-900/30 border border-stone-850/50 rounded-3xl space-y-4">
                   <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                    <PieChart className="w-4.5 h-4.5 text-indigo-400" /> Model Distribution &amp; Cost
+                    <PieChart className="w-4.5 h-4.5 text-cyan-400" /> Model Distribution &amp; Cost
                   </h3>
                   
                   {Object.keys(modelStats).length === 0 ? (
@@ -300,12 +300,12 @@ export const TokenDashboard: React.FC<{ isOpen: boolean; onClose: () => void }> 
                 </div>
 
                 {/* Subscription & Allowance Card */}
-                <div className="p-6 bg-indigo-500/5 border border-indigo-500/10 rounded-3xl flex flex-col justify-between relative overflow-hidden">
-                  <div className="absolute top-[-10%] right-[-10%] w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
+                <div className="p-6 bg-cyan-500/5 border border-cyan-500/10 rounded-3xl flex flex-col justify-between relative overflow-hidden">
+                  <div className="absolute top-[-10%] right-[-10%] w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-indigo-400 animate-pulse" />
-                      <h4 className="text-xs font-black uppercase tracking-widest text-indigo-400">
+                      <Sparkles className="w-5 h-5 text-cyan-400 animate-pulse" />
+                      <h4 className="text-xs font-black uppercase tracking-widest text-cyan-400">
                         {isAnonymous ? "Free Preview Tier" : "Developer Tier"}
                       </h4>
                     </div>
@@ -324,7 +324,7 @@ export const TokenDashboard: React.FC<{ isOpen: boolean; onClose: () => void }> 
                     <div className="w-full bg-stone-900 rounded-full h-2 overflow-hidden border border-stone-850">
                       <div 
                         className={`h-2 rounded-full transition-all duration-500 ${
-                          percentUsed > 90 ? 'bg-rose-500' : percentUsed > 70 ? 'bg-amber-500' : 'bg-indigo-500'
+                          percentUsed > 90 ? 'bg-rose-500' : percentUsed > 70 ? 'bg-amber-500' : 'bg-cyan-500'
                         }`} 
                         style={{ width: `${percentUsed}%` }}
                       ></div>
@@ -342,7 +342,7 @@ export const TokenDashboard: React.FC<{ isOpen: boolean; onClose: () => void }> 
                             onClose();
                             toast("Please click Sign In at the top right to claim your $5.00 free credit!", { icon: "🔑" });
                           }}
-                          className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-bold tracking-wider uppercase transition-all shadow-md"
+                          className="w-full py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-[10px] font-bold tracking-wider uppercase transition-all shadow-md"
                         >
                           Sign In for $5.00 Free
                         </button>
