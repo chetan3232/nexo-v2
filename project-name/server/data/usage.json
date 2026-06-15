@@ -260,10 +260,20 @@
       "cost": 0.000158,
       "speed": 44,
       "durationMs": 3347
+    },
+    {
+      "timestamp": "2026-06-15T18:37:33.608Z",
+      "model": "nvidia/nemotron-3-super-120b-a12b:free",
+      "inputTokens": 1442,
+      "outputTokens": 5289,
+      "tokens": 6731,
+      "cost": 0,
+      "speed": 24,
+      "durationMs": 217550
     }
   ],
-  "totalTokens": 146412,
-  "totalInputTokens": 31529,
-  "totalOutputTokens": 40747,
+  "totalTokens": 153143,
+  "totalInputTokens": 32971,
+  "totalOutputTokens": 46036,
   "totalCost": 0.013342
 }

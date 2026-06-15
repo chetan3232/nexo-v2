@@ -42,16 +42,69 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
     }
   }, [selectedFileName]);
 
-  // Live-stream code into editor while AI is generating
+  // Reset user editing flag when generation starts
   useEffect(() => {
-    if (!isGenerating || !selectedFileName || !currentContent?.files[selectedFileName]) return;
+    if (isGenerating) {
+      userEditingRef.current = false;
+    }
+  }, [isGenerating]);
+
+  // Live-stream code into editor with a smooth typing simulation effect while AI is generating
+  const targetValue = selectedFileName && currentContent?.files[selectedFileName] !== undefined 
+    ? currentContent.files[selectedFileName] 
+    : "";
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!isGenerating || !selectedFileName || !targetValue) return;
     if (userEditingRef.current) return;
-    setLocalValue(currentContent.files[selectedFileName]);
-  }, [isGenerating, selectedFileName, currentContent]);
+
+    // If localValue is empty or completely different (not a subset prefix), snap it immediately
+    if (!localValue || !targetValue.startsWith(localValue)) {
+      setLocalValue(targetValue);
+      return;
+    }
+
+    // If targetValue has grown, type the difference smoothly
+    if (targetValue.length > localValue.length) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+
+      let currentLength = localValue.length;
+      const totalDiff = targetValue.length - currentLength;
+
+      // Ensure the typing animation finishes within a maximum of 1.2 seconds to stay snappy
+      const targetDurationMs = 1200;
+      const stepIntervalMs = 12;
+      const totalSteps = targetDurationMs / stepIntervalMs;
+      const baseStride = Math.max(1, Math.ceil(totalDiff / totalSteps));
+
+      intervalRef.current = setInterval(() => {
+        if (currentLength < targetValue.length) {
+          const remaining = targetValue.length - currentLength;
+          const stride = Math.min(baseStride, remaining);
+          currentLength += stride;
+          setLocalValue(targetValue.substring(0, currentLength));
+        } else {
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+        }
+      }, stepIntervalMs);
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [isGenerating, selectedFileName, targetValue]);
 
   // Debounced update to global store and WebContainer filesystem
   useEffect(() => {
     if (!selectedFileName || !currentContent) return;
+    if (!userEditingRef.current) return; // Only sync back if the user manually modified the file
 
     const timeout = setTimeout(async () => {
       if (localValue !== currentContent.files[selectedFileName]) {
