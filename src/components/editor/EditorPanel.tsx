@@ -49,54 +49,15 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
     }
   }, [isGenerating]);
 
-  // Live-stream code into editor with a smooth typing simulation effect while AI is generating
-  const targetValue = selectedFileName && currentContent?.files[selectedFileName] !== undefined 
-    ? currentContent.files[selectedFileName] 
-    : "";
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
+  // Sync editor value with the generated code in real-time or when file selection changes
   useEffect(() => {
-    if (!isGenerating || !selectedFileName || !targetValue) return;
-    if (userEditingRef.current) return;
-
-    const isSubsetPrefix = localValue && targetValue.startsWith(localValue);
-    const currentLengthStart = isSubsetPrefix ? localValue.length : 0;
-
-    // If targetValue is longer than our typed prefix/start, type the difference smoothly
-    if (targetValue.length > currentLengthStart) {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-
-      let currentLength = currentLengthStart;
-      const totalDiff = targetValue.length - currentLength;
-
-      // Ensure the typing animation finishes within a maximum of 2.0 seconds to stay snappy
-      const targetDurationMs = 2000;
-      const stepIntervalMs = 8;
-      const totalSteps = targetDurationMs / stepIntervalMs;
-      const baseStride = Math.max(1, Math.ceil(totalDiff / totalSteps));
-
-      intervalRef.current = setInterval(() => {
-        if (currentLength < targetValue.length) {
-          const remaining = targetValue.length - currentLength;
-          const stride = Math.min(baseStride, remaining);
-          currentLength += stride;
-          setLocalValue(targetValue.substring(0, currentLength));
-        } else {
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
-          }
-        }
-      }, stepIntervalMs);
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
+    if (selectedFileName && currentContent?.files[selectedFileName] !== undefined) {
+      const serverValue = currentContent.files[selectedFileName];
+      if (isGenerating || !userEditingRef.current) {
+        setLocalValue(serverValue);
       }
-    };
-  }, [isGenerating, selectedFileName, targetValue]);
+    }
+  }, [selectedFileName, currentContent?.files, isGenerating]);
 
   // Debounced update to global store and WebContainer filesystem
   useEffect(() => {

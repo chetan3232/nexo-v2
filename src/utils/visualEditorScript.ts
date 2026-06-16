@@ -1,6 +1,26 @@
 export const VISUAL_EDITOR_SCRIPT = `
 (function() {
     console.log("NEXO Visual Editor Active");
+
+    // Catch window errors and forward them
+    window.addEventListener('error', (e) => {
+        window.parent.postMessage({
+            type: 'NEXO_RUNTIME_ERROR',
+            message: e.message,
+            filename: e.filename,
+            lineno: e.lineno,
+            colno: e.colno,
+            error: e.error ? { message: e.error.message, stack: e.error.stack } : null
+        }, '*');
+    });
+
+    window.addEventListener('unhandledrejection', (e) => {
+        window.parent.postMessage({
+            type: 'NEXO_RUNTIME_ERROR',
+            message: e.reason?.message || String(e.reason),
+            error: e.reason ? { message: e.reason.message, stack: e.reason.stack } : null
+        }, '*');
+    });
     
     let selectedElement = null;
     const highlight = document.createElement('div');

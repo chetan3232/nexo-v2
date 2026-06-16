@@ -66,6 +66,54 @@
       "projectMode": "frontend",
       "createdAt": "2026-06-15T18:33:51.883Z",
       "updatedAt": 1781548840862
+    },
+    {
+      "id": "cbcc1d0b-7412-473a-ad3d-e7ca6fc548fa",
+      "title": "create a landing page fo...",
+      "messages": [
+        {
+          "model": "nvidia/nemotron-3-super-120b-a12b:free",
+          "role": "user",
+          "text": "create a landing page for a coffee shop",
+          "timestamp": 1781549158679
+        },
+        {
+          "id": "plan_build_501848b1-5ec0-4272-9c63-e526df1d4dad",
+          "model": "nvidia/nemotron-3-super-120b-a12b:free",
+          "role": "assistant",
+          "text": "🧠 **Strategic Planning Phase Initiated**\n\nAI is analyzing your request and planning layout, components, and backend requirements. Code generation will begin shortly...",
+          "timestamp": 1781549159701
+        }
+      ],
+      "content": null,
+      "model": "nvidia/nemotron-3-super-120b-a12b:free",
+      "projectMode": "frontend",
+      "createdAt": "2026-06-15T18:46:02.175Z",
+      "updatedAt": 1781551571316
+    },
+    {
+      "id": "edaef30e-c29e-480b-a60a-f02ce106301d",
+      "title": "create a landing page fo...",
+      "messages": [
+        {
+          "model": "gemini-2.5-flash",
+          "role": "user",
+          "text": "create a landing page for a my coffee shop",
+          "timestamp": 1781609277007
+        },
+        {
+          "id": "plan_build_f3373531-9a58-40ea-9626-937b45d77db6",
+          "model": "gemini-2.5-flash",
+          "role": "assistant",
+          "text": "🧠 **Strategic Planning Phase Initiated**\n\nAI is analyzing your request and planning layout, components, and backend requirements. Code generation will begin shortly...",
+          "timestamp": 1781609278191
+        }
+      ],
+      "content": null,
+      "model": "gemini-2.5-flash",
+      "projectMode": "frontend",
+      "createdAt": "2026-06-16T11:28:00.957Z",
+      "updatedAt": 1781609842602
     }
   ]
 }

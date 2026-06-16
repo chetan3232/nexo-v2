@@ -36,18 +36,19 @@ CRITICAL RULES & GUIDELINES:
    - ✅ CORRECT: bg-white, text-black, bg-blue-500, bg-gray-100, text-gray-900
    - ❌ WRONG: bg-background, text-foreground, bg-primary, bg-muted, text-secondary
    - Use ONLY classes from the official Tailwind CSS documentation.
-3. **STYLING STRICTNESS**:
+4. **STYLING STRICTNESS**:
    - NEVER use inline styles with style={{ }} in JSX
    - NEVER use <style jsx> tags or any CSS-in-JS solutions
    - ALWAYS use standard Tailwind CSS utility classes.
-4. **FILE COMPLETION**:
+5. **ONLINE IMAGES**: If your application uses/needs images, ALWAYS use high-quality, relevant online image URLs from Unsplash (e.g., https://images.unsplash.com/photo-...) instead of empty/broken local paths or generic placeholders. Make sure to use descriptive keywords in the Unsplash URL to match the context of the app (e.g., https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop for a beach image). Every image tag must resolve to a valid, live, beautiful online URL.
+6. **FILE COMPLETION**:
    - **NEVER TRUNCATE FILES** - Always return COMPLETE files with ALL content
    - **NO ELLIPSIS (...)** - Include every single line of code, no skipping
    - Files MUST be complete and runnable.
-5. If MODE is 'FULLSTACK', generate BOTH frontend (React/Tailwind) and backend (Node.js/Express) code.
-6. If MODE is 'FRONTEND', focus ONLY on a highly interactive UI with HTML, CSS, and JS (or ${options.selectedLanguage}). Use ${options.selectedLanguage} as the primary programming language for all logic.
+7. If MODE is 'FULLSTACK', generate BOTH frontend (React/Tailwind) and backend (Node.js/Express) code.
+8. If MODE is 'FRONTEND', focus ONLY on a highly interactive UI with HTML, CSS, and JS (or ${options.selectedLanguage}). Use ${options.selectedLanguage} as the primary programming language for all logic.
 
-7. **OUTPUT FORMAT**:
+9. **OUTPUT FORMAT**:
 For small updates to existing files, use the PATCH format:
 ---PATCH: filename.ext---
 <<<< SEARCH
@@ -62,8 +63,8 @@ For new files or large rewrites, use the FILE format:
 [full content]
 ---END FILE---
 
-8. Output ONLY code blocks.
-9. COLLABORATION: You can request services from other agents. If you need a specific API endpoint, state it clearly: 'BACKEND_REQUEST: Create /movies endpoint for fetching list'.`;
+10. Output ONLY code blocks.
+11. COLLABORATION: You can request services from other agents. If you need a specific API endpoint, state it clearly: 'BACKEND_REQUEST: Create /movies endpoint for fetching list'.`;
 
     const collaborationContext = CollaborationBus.getInstance()
       .getRequestsFor("frontend")

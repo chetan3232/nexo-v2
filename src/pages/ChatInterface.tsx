@@ -231,7 +231,7 @@ const ChatInterface: React.FC = () => {
   }, [chatStore.messages]);
 
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
+    const handleMessage = async (event: MessageEvent) => {
       if (event.data.type === "NEXO_ELEMENT_SELECTED") {
         setSelectedElement({
           id: event.data.id,
@@ -240,6 +240,10 @@ const ChatInterface: React.FC = () => {
           styles: {},
         });
         setIsVisualMode(true);
+      } else if (event.data.type === "NEXO_RUNTIME_ERROR") {
+        console.error("Caught runtime error in iframe:", event.data);
+        const { ErrorCaptureService } = await import("../services/runtime/errorCapture");
+        ErrorCaptureService.getInstance().captureIframeError(event.data);
       }
     };
     window.addEventListener("message", handleMessage);
@@ -265,16 +269,28 @@ const ChatInterface: React.FC = () => {
   }, []);
 
   // Boot runtime automatically if currentContent exists but runtime is not booted
+  const bootAttempted = useRef(false);
   useEffect(() => {
-    if (projectStore.currentContent && !isBooted && projectStore.buildPhase === "idle") {
+    if (projectStore.currentContent && !isBooted && !bootAttempted.current && (projectStore.buildPhase === "idle" || projectStore.buildPhase === "done")) {
+      bootAttempted.current = true;
       console.log("[ChatInterface] Code exists but runtime is not booted. Auto-booting virtual environment...");
       Orchestrator.getInstance().bootRuntime().catch(err => {
         console.error("Failed to auto-boot runtime on content load:", err);
+        // Reset so user can retry manually, but don't auto-retry
       });
+    }
+    // Reset boot attempt flag when content changes (new project)
+    if (!projectStore.currentContent) {
+      bootAttempted.current = false;
     }
   }, [projectStore.currentContent, isBooted, projectStore.buildPhase]);
 
   const handleSend = async (prompt: string, attachments?: { name: string; content: string; type: string }[]) => {
+    if (prompt === "Deploy") {
+      handleDeploy();
+      return;
+    }
+
     if (showLanding && chatStore.messages.length > 0) {
       // Save current project first before starting a new one
       await saveCurrentProject();
@@ -660,17 +676,15 @@ const ChatInterface: React.FC = () => {
             {/* Secondary toolbar: Preview | Code toggle */}
             <div className="bg-white rounded-xl border border-[#e8e8e8] h-11 flex items-center justify-between px-3 shrink-0 shadow-sm">
               <div className="flex items-center gap-0.5 bg-[#f3f3f3] rounded-lg p-0.5">
-                {projectMode === "frontend" && (
-                  <button
-                    onClick={() => setWorkspaceTab("preview")}
-                    className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${workspaceTab === "preview"
-                        ? "bg-white text-[#111] shadow-sm"
-                        : "text-[#888] hover:text-[#333]"
-                      }`}
-                  >
-                    Preview
-                  </button>
-                )}
+                <button
+                  onClick={() => setWorkspaceTab("preview")}
+                  className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${workspaceTab === "preview"
+                      ? "bg-white text-[#111] shadow-sm"
+                      : "text-[#888] hover:text-[#333]"
+                    }`}
+                >
+                  Preview
+                </button>
                 <button
                   onClick={() => setWorkspaceTab("code")}
                   className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${workspaceTab === "code"
@@ -726,7 +740,7 @@ const ChatInterface: React.FC = () => {
                   </div>
                 }
               >
-                <div className={workspaceTab === "preview" && projectMode === "frontend" ? "h-full w-full block" : "h-full w-full hidden"}>
+                <div className={workspaceTab === "preview" ? "h-full w-full block" : "h-full w-full hidden"}>
                   <PreviewPanel
                     isVisualMode={isVisualMode}
                     setIsVisualMode={setIsVisualMode}

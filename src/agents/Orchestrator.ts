@@ -445,6 +445,22 @@ export class Orchestrator {
             chatStore.setState(CompanionState.IDLE);
             bus.setGenerating(false);
             
+            // Add completion message to chat with generated file list
+            const doneFiles = Object.keys(projectStore.currentContent?.files || {});
+            const doneFileList = doneFiles.length > 0
+              ? doneFiles.map(f => `  - \`${f}\``).join("\n")
+              : "  No files generated.";
+            chatStore.setMessages((prev: any[]) => [
+              ...prev,
+              {
+                id: `done_${jobId}`,
+                role: "assistant",
+                text: `✅ **Build Complete!** 🎉\n\n**${doneFiles.length} file${doneFiles.length !== 1 ? "s" : ""} generated:**\n${doneFileList}\n\nYour code is ready. Switch to the **Preview** tab to see it live, or the **Code** tab to edit files.`,
+                timestamp: Date.now(),
+                model: useAgentStore.getState().selectedModel
+              }
+            ]);
+            
             // Perform dependency compilation and boot local preview server
             await this.bootRuntime();
             toast.success("Build and preview ready! 🎉");
@@ -474,6 +490,23 @@ export class Orchestrator {
             projectStore.setBuildPhase("done");
             chatStore.setState(CompanionState.IDLE);
             bus.setGenerating(false);
+            
+            // Add completion message to chat with generated file list (only if not already present)
+            const histFiles = Object.keys(projectStore.currentContent?.files || {});
+            const hasDoneMsg = chatStore.messages?.some?.((m: any) => m.id === `done_${jobId}`);
+            if (!hasDoneMsg && histFiles.length > 0) {
+              const histFileList = histFiles.map(f => `  - \`${f}\``).join("\n");
+              chatStore.setMessages((prev: any[]) => [
+                ...prev,
+                {
+                  id: `done_${jobId}`,
+                  role: "assistant",
+                  text: `✅ **Build Complete!** 🎉\n\n**${histFiles.length} file${histFiles.length !== 1 ? "s" : ""} generated:**\n${histFileList}\n\nYour code is ready. Switch to the **Preview** tab to see it live, or the **Code** tab to edit files.`,
+                  timestamp: Date.now(),
+                  model: useAgentStore.getState().selectedModel
+                }
+              ]);
+            }
             
             await this.bootRuntime();
             
@@ -627,6 +660,24 @@ export class Orchestrator {
         projectStore.setBuildPhase("done");
         chatStore.setState(CompanionState.IDLE);
         AgentEventBus.getInstance().setGenerating(false);
+        
+        // Add completion message to chat with generated file list
+        const pollFiles = Object.keys(projectStore.currentContent?.files || {});
+        const hasPollDone = chatStore.messages?.some?.((m: any) => m.id === `done_${jobId}`);
+        if (!hasPollDone && pollFiles.length > 0) {
+          const pollFileList = pollFiles.map(f => `  - \`${f}\``).join("\n");
+          chatStore.setMessages((prev: any[]) => [
+            ...prev,
+            {
+              id: `done_${jobId}`,
+              role: "assistant",
+              text: `✅ **Build Complete!** 🎉\n\n**${pollFiles.length} file${pollFiles.length !== 1 ? "s" : ""} generated:**\n${pollFileList}\n\nYour code is ready. Switch to the **Preview** tab to see it live, or the **Code** tab to edit files.`,
+              timestamp: Date.now(),
+              model: useAgentStore.getState().selectedModel
+            }
+          ]);
+        }
+        
         await this.bootRuntime();
         toast.success("Build complete! 🎉");
         try {

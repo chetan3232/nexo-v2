@@ -270,10 +270,70 @@
       "cost": 0,
       "speed": 24,
       "durationMs": 217550
+    },
+    {
+      "timestamp": "2026-06-15T18:46:04.537Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1796,
+      "outputTokens": 180,
+      "tokens": 1976,
+      "cost": 0.000189,
+      "speed": 37,
+      "durationMs": 4833
+    },
+    {
+      "timestamp": "2026-06-15T18:46:08.629Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1520,
+      "outputTokens": 169,
+      "tokens": 1689,
+      "cost": 0.000165,
+      "speed": 42,
+      "durationMs": 4022
+    },
+    {
+      "timestamp": "2026-06-15T18:51:14.572Z",
+      "model": "nvidia/nemotron-3-super-120b-a12b:free",
+      "inputTokens": 1440,
+      "outputTokens": 8218,
+      "tokens": 9658,
+      "cost": 0,
+      "speed": 27,
+      "durationMs": 305910
+    },
+    {
+      "timestamp": "2026-06-16T11:28:01.136Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1797,
+      "outputTokens": 177,
+      "tokens": 1974,
+      "cost": 0.000188,
+      "speed": 57,
+      "durationMs": 3124
+    },
+    {
+      "timestamp": "2026-06-16T11:28:04.873Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1519,
+      "outputTokens": 187,
+      "tokens": 1706,
+      "cost": 0.00017,
+      "speed": 51,
+      "durationMs": 3688
+    },
+    {
+      "timestamp": "2026-06-16T11:28:59.821Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1439,
+      "outputTokens": 8065,
+      "tokens": 9504,
+      "cost": 0.002527,
+      "speed": 147,
+      "durationMs": 54927
     }
   ],
-  "totalTokens": 153143,
-  "totalInputTokens": 32971,
-  "totalOutputTokens": 46036,
-  "totalCost": 0.013342
+  "totalTokens": 179650,
+  "totalInputTokens": 42482,
+  "totalOutputTokens": 63032,
+  "totalCost": 0.016581
 }
