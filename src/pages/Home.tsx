@@ -303,10 +303,7 @@ const Home: React.FC = () => {
 
         <div className="relative z-10 grid md:grid-cols-2 gap-12 p-12 md:p-24 items-center">
           <div className="space-y-8">
-            <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-1 rounded-full text-sm font-medium text-sky-200">
-              <Sparkles className="w-4 h-4" />
-              <span>Autonomous Software Engineer</span>
-            </div>
+
             <h2 className="text-4xl md:text-6xl font-bold tracking-tight">
               Your AI
               <br />

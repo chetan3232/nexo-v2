@@ -5,21 +5,23 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nexo V2 — Autonomous Software Engineer</title>
-  <meta name="description" content="Nexo V2 is an autonomous AI software engineer in your browser. Turn natural language into complete, running applications — instantly with 16 AI agents, WebContainers, and cinematic code generation." />
+  <meta name="description"
+    content="Nexo V2 is an autonomous AI software engineer in your browser. Turn natural language into complete, running applications — instantly with 16 AI agents, WebContainers, and cinematic code generation." />
   <meta name="theme-color" content="#0c0c0e" />
   <meta property="og:title" content="Nexo V2 — Autonomous Software Engineer" />
-  <meta property="og:description" content="Turn natural language into complete applications. 16 AI agents. WebContainer runtime. Zero setup." />
+  <meta property="og:description"
+    content="Turn natural language into complete applications. 16 AI agents. WebContainer runtime. Zero setup." />
   <meta property="og:type" content="website" />
   <link rel="icon" type="image/png" href="/src/assets/NEXO-V2.png" />
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/tailwind.js"></script>
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
     rel="stylesheet">
   <!-- Polyfill for Buffer needed by E2B -->
-  <script src="https://bundle.run/buffer@6.0.3"></script>
+  <script src="https://bundle.run/buffer@6.0.3" crossorigin></script>
   <script>
     // Theme initialization — prevent flash of wrong theme
-    (function() {
+    (function () {
       const saved = localStorage.getItem('theme');
       if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
         document.documentElement.classList.add('dark');
@@ -58,7 +60,7 @@
               subtle: '#a8a29e',
               border: '#e7e5e4'
             },
-             studio: {
+            studio: {
               bg: '#FFFFFF',
               panel: '#F8FAFC',
               card: '#F1F5F9',
@@ -93,204 +95,256 @@
     }
   </script>
   <style>
-    /* ── CSS Custom Properties (Design Tokens) ── */
+    /* ── CSS Custom Properties (Design Tokens - Studio Aesthetic) ── */
     :root {
-      --nexo-bg: #f7f7f7;
+      --nexo-bg: #fafafa;
       --nexo-surface: #ffffff;
-      --nexo-surface-alt: #f3f3f3;
-      --nexo-text: #111111;
-      --nexo-text-secondary: #555555;
-      --nexo-text-muted: #888888;
-      --nexo-border: #e8e8e8;
-      --nexo-accent: #0ea5e9;
-      --nexo-accent-purple: #8b5cf6;
+      --nexo-surface-alt: #f4f4f5;
+      --nexo-text: #09090b;
+      --nexo-text-secondary: #52525b;
+      --nexo-text-muted: #71717a;
+      --nexo-border: #e4e4e7;
+      --nexo-accent: #09090b;
+      --nexo-accent-purple: #7c3aed;
       --nexo-accent-emerald: #10b981;
       --nexo-accent-amber: #f59e0b;
 
       /* Phase Colors */
-      --nexo-phase-planning: #3b82f6;
-      --nexo-phase-generating: #8b5cf6;
-      --nexo-phase-fixing: #f59e0b;
-      --nexo-phase-deploying: #14b8a6;
+      --nexo-phase-planning: #2563eb;
+      --nexo-phase-generating: #7c3aed;
+      --nexo-phase-fixing: #d97706;
+      --nexo-phase-deploying: #0d9488;
 
-      --nexo-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-      --nexo-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.08);
-      --nexo-radius: 12px;
-      --nexo-radius-lg: 16px;
+      --nexo-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --nexo-shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --nexo-radius: 6px;
+      --nexo-radius-lg: 8px;
     }
 
     html.dark {
-      --nexo-bg: #0c0c0e;
-      --nexo-surface: #121214;
-      --nexo-surface-alt: #1c1c20;
-      --nexo-text: #f1f5f9;
-      --nexo-text-secondary: #94a3b8;
-      --nexo-text-muted: #64748b;
-      --nexo-border: #222226;
-      --nexo-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-      --nexo-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.4);
+      --nexo-bg: #09090b;
+      --nexo-surface: #09090b;
+      --nexo-surface-alt: #18181b;
+      --nexo-text: #fafafa;
+      --nexo-text-secondary: #a1a1aa;
+      --nexo-text-muted: #71717a;
+      --nexo-border: #27272a;
+      --nexo-accent: #ffffff;
+      --nexo-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+      --nexo-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
     }
 
+    /* ── Global Theme & Layout Overrides ── */
     body {
-      background-color: var(--nexo-bg);
-      color: var(--nexo-text);
-      font-family: 'Inter', sans-serif;
-    }
-
-    /* ── Dark Mode Overrides ── */
-    html.dark body {
       background-color: var(--nexo-bg) !important;
       color: var(--nexo-text) !important;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      transition: background-color 0.15s ease, color 0.15s ease;
     }
-    
-    html.dark .bg-white {
+
+    /* Pro-tools compact density workspace layout overrides */
+    main.flex-1 [data-panel] {
+      padding: 0.25rem !important;
+      /* Extremely tight panel spacing (4px) */
+    }
+
+    main.flex-grow,
+    main.pt-0 {
+      padding-top: 0px !important;
+    }
+
+    /* Specific workspace split panel side paddings adjustments */
+    main.flex-1 [data-panel]:first-of-type {
+      padding-right: 0.125rem !important;
+    }
+
+    main.flex-1 [data-panel]:nth-of-type(3) {
+      padding-left: 0.125rem !important;
+      padding-right: 0.125rem !important;
+    }
+
+    main.flex-1 [data-panel]:last-of-type {
+      padding-left: 0.125rem !important;
+    }
+
+    /* Compact header/sub-header sizes */
+    .h-\[52px\] {
+      height: 40px !important;
+      /* Shrunk main navbar from 52px to 40px */
+    }
+
+    .h-11 {
+      height: 32px !important;
+      /* Shrunk secondary toolbar from 44px to 32px */
+    }
+
+    .pt-20 {
+      padding-top: 52px !important;
+      /* Adjusted top padding */
+    }
+
+    /* Pro-tools tight border-radius specifications */
+    .rounded-2xl,
+    .rounded-\[2rem\] {
+      border-radius: var(--nexo-radius-lg) !important;
+    }
+
+    .rounded-xl {
+      border-radius: var(--nexo-radius) !important;
+    }
+
+    .rounded-lg {
+      border-radius: 6px !important;
+    }
+
+    .rounded-md {
+      border-radius: 4px !important;
+    }
+
+    /* Dynamic UI Color Overrides for light & dark themes */
+    .bg-white,
+    [class*="bg-white"],
+    .bg-studio-bg {
       background-color: var(--nexo-surface) !important;
     }
-    
-    html.dark .bg-\[\#f8fafc\] {
+
+    .bg-\[\#f8fafc\],
+    .bg-\[\#f7f7f7\],
+    .bg-studio-panel {
       background-color: var(--nexo-bg) !important;
     }
-    
-    html.dark .bg-\[\#f7f7f7\] {
-      background-color: var(--nexo-bg) !important;
+
+    .bg-\[\#f3f3f3\],
+    .bg-stone-50,
+    .bg-studio-card {
+      background-color: var(--nexo-surface-alt) !important;
     }
-    
-    html.dark .border-\[\#e8e8e8\] {
+
+    .bg-stone-900 {
+      background-color: var(--nexo-accent) !important;
+      color: var(--nexo-bg) !important;
+    }
+
+    /* Borders */
+    .border-\[\#e8e8e8\],
+    .border-stone-200,
+    .border-studio-border {
       border-color: var(--nexo-border) !important;
     }
 
-    html.dark .border-stone-200 {
+    .border-stone-100 {
       border-color: var(--nexo-border) !important;
+      opacity: 0.6;
     }
 
-    html.dark .border-stone-100 {
-      border-color: rgba(255, 255, 255, 0.06) !important;
-    }
-    
-    html.dark .text-\[\#111\],
-    html.dark .text-stone-900 {
+    /* Text Colors */
+    .text-\[\#111\],
+    .text-\[\#333\],
+    .text-stone-900,
+    .text-stone-700,
+    .text-studio-text {
       color: var(--nexo-text) !important;
     }
-    
-    html.dark .text-\[\#333\] {
-      color: var(--nexo-text) !important;
-    }
-    
-    html.dark .text-\[\#555\] {
+
+    .text-\[\#555\],
+    .text-stone-600,
+    .text-stone-500,
+    .text-studio-muted {
       color: var(--nexo-text-secondary) !important;
     }
-    
-    html.dark .text-\[\#888\] {
+
+    .text-\[\#888\],
+    .text-stone-400 {
       color: var(--nexo-text-muted) !important;
     }
 
-    html.dark .text-stone-500 {
-      color: var(--nexo-text-secondary) !important;
-    }
-
-    html.dark .text-stone-600 {
-      color: var(--nexo-text-secondary) !important;
-    }
-
-    html.dark .text-stone-400 {
-      color: var(--nexo-text-muted) !important;
-    }
-
-    html.dark .text-stone-700 {
+    .hover\:text-\[\#111\]:hover {
       color: var(--nexo-text) !important;
     }
-    
-    html.dark .hover\:text-\[\#111\]:hover {
-      color: var(--nexo-text) !important;
-    }
-    
-    html.dark .hover\:bg-\[\#f3f3f3\]:hover {
-      background-color: var(--nexo-surface-alt) !important;
-    }
-    
-    html.dark .bg-\[\#f3f3f3\] {
+
+    .hover\:bg-\[\#f3f3f3\]:hover {
       background-color: var(--nexo-surface-alt) !important;
     }
 
-    html.dark .bg-stone-50 {
+    input:not([type="checkbox"]):not([type="radio"]),
+    select {
       background-color: var(--nexo-surface-alt) !important;
-    }
-
-    html.dark .bg-stone-900 {
-      background-color: #e2e8f0 !important;
-      color: #0f172a !important;
-    }
-    
-    html.dark input, html.dark textarea, html.dark select {
-      background-color: #161619 !important;
       color: var(--nexo-text) !important;
       border-color: var(--nexo-border) !important;
+      border-radius: var(--nexo-radius) !important;
     }
-    
-    html.dark .text-studio-text {
+
+    textarea:not(.bg-transparent) {
+      background-color: var(--nexo-surface-alt) !important;
       color: var(--nexo-text) !important;
-    }
-    
-    html.dark .text-studio-muted {
-      color: var(--nexo-text-secondary) !important;
-    }
-    
-    html.dark .bg-studio-bg {
-      background-color: var(--nexo-bg) !important;
-    }
-    
-    html.dark .bg-studio-panel {
-      background-color: rgba(255, 255, 255, 0.03) !important;
-    }
-    
-    html.dark .bg-studio-card {
-      background-color: rgba(255, 255, 255, 0.05) !important;
-    }
-    
-    html.dark .border-studio-border {
-      border-color: rgba(255, 255, 255, 0.08) !important;
-    }
-    
-    html.dark .shadow-sm {
-      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.4) !important;
-    }
-    
-    html.dark .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.12) !important;
-    }
-    
-    html.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: rgba(14, 165, 233, 0.4) !important;
+      border-color: var(--nexo-border) !important;
+      border-radius: var(--nexo-radius) !important;
     }
 
-    /* Feature card backgrounds in dark mode */
-    html.dark .bg-indigo-50 { background-color: rgba(99, 102, 241, 0.12) !important; }
-    html.dark .bg-purple-50 { background-color: rgba(139, 92, 246, 0.12) !important; }
-    html.dark .bg-emerald-50 { background-color: rgba(16, 185, 129, 0.12) !important; }
-    html.dark .bg-sky-50 { background-color: rgba(14, 165, 233, 0.12) !important; }
-    html.dark .bg-amber-50 { background-color: rgba(245, 158, 11, 0.12) !important; }
-    html.dark .bg-rose-50 { background-color: rgba(244, 63, 94, 0.12) !important; }
-    html.dark .bg-blue-50 { background-color: rgba(59, 130, 246, 0.12) !important; }
-    html.dark .bg-red-50 { background-color: rgba(239, 68, 68, 0.12) !important; }
-    html.dark .bg-green-50 { background-color: rgba(34, 197, 94, 0.12) !important; }
-
-    /* ── Premium custom scrollbar ── */
-    .custom-scrollbar::-webkit-scrollbar {
-      width: 4px;
-      height: 4px;
+    input:focus,
+    textarea:focus,
+    select:focus {
+      border-color: var(--nexo-accent-purple) !important;
+      outline: none;
     }
 
-    .custom-scrollbar::-webkit-scrollbar-track {
-      background: transparent;
+    .shadow-sm {
+      box-shadow: var(--nexo-shadow) !important;
     }
 
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: rgba(15, 23, 42, 0.12);
-      border-radius: 99px;
+    .shadow-md,
+    .shadow-xl,
+    .shadow-2xl {
+      box-shadow: var(--nexo-shadow-lg) !important;
     }
 
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: rgba(14, 165, 233, 0.35);
+    /* Clean separator lines for Resizable Panels */
+    [data-panel-resize-handle] {
+      width: 4px !important;
+      background-color: transparent !important;
+      position: relative;
+      transition: background-color 0.2s ease;
+    }
+
+    [data-panel-resize-handle]:hover,
+    [data-panel-resize-handle][data-active] {
+      background-color: rgba(124, 58, 237, 0.06) !important;
+    }
+
+    [data-panel-resize-handle]::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 1px;
+      transform: translateX(-50%);
+      background-color: var(--nexo-border);
+      transition: background-color 0.2s ease;
+    }
+
+    [data-panel-resize-handle]:hover::after,
+    [data-panel-resize-handle][data-active]::after {
+      background-color: var(--nexo-accent-purple);
+    }
+
+    /* High-density scrollbars */
+    ::-webkit-scrollbar {
+      width: 5px !important;
+      height: 5px !important;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent !important;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--nexo-border) !important;
+      border-radius: 99px !important;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--nexo-text-muted) !important;
     }
 
     /* Custom scrollbar for chat */
@@ -301,6 +355,43 @@
     .scrollbar-hide {
       -ms-overflow-style: none;
       scrollbar-width: none;
+    }
+
+    /* Feature card backgrounds in dark mode */
+    html.dark .bg-indigo-50 {
+      background-color: rgba(99, 102, 241, 0.12) !important;
+    }
+
+    html.dark .bg-purple-50 {
+      background-color: rgba(139, 92, 246, 0.12) !important;
+    }
+
+    html.dark .bg-emerald-50 {
+      background-color: rgba(16, 185, 129, 0.12) !important;
+    }
+
+    html.dark .bg-sky-50 {
+      background-color: rgba(14, 165, 233, 0.12) !important;
+    }
+
+    html.dark .bg-amber-50 {
+      background-color: rgba(245, 158, 11, 0.12) !important;
+    }
+
+    html.dark .bg-rose-50 {
+      background-color: rgba(244, 63, 94, 0.12) !important;
+    }
+
+    html.dark .bg-blue-50 {
+      background-color: rgba(59, 130, 246, 0.12) !important;
+    }
+
+    html.dark .bg-red-50 {
+      background-color: rgba(239, 68, 68, 0.12) !important;
+    }
+
+    html.dark .bg-green-50 {
+      background-color: rgba(34, 197, 94, 0.12) !important;
     }
 
     /* ── Cinematic Glassmorphism ── */
@@ -319,15 +410,26 @@
     }
 
     .glow-border:hover {
-      border-color: rgba(14, 165, 233, 0.4);
-      box-shadow: 0 0 15px rgba(14, 165, 233, 0.15);
+      border-color: rgba(124, 58, 237, 0.4);
+      box-shadow: 0 0 15px rgba(124, 58, 237, 0.15);
     }
 
     /* ── Phase Color Accents ── */
-    .phase-planning { --phase-color: var(--nexo-phase-planning); }
-    .phase-generating { --phase-color: var(--nexo-phase-generating); }
-    .phase-fixing { --phase-color: var(--nexo-phase-fixing); }
-    .phase-deploying { --phase-color: var(--nexo-phase-deploying); }
+    .phase-planning {
+      --phase-color: var(--nexo-phase-planning);
+    }
+
+    .phase-generating {
+      --phase-color: var(--nexo-phase-generating);
+    }
+
+    .phase-fixing {
+      --phase-color: var(--nexo-phase-fixing);
+    }
+
+    .phase-deploying {
+      --phase-color: var(--nexo-phase-deploying);
+    }
 
     @keyframes slideInBuild {
       0% {
