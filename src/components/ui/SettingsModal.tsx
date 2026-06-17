@@ -45,6 +45,39 @@ interface SettingsModalProps {
   initialTab?: string;
 }
 
+const PROVIDER_MODELS: Record<string, { id: string; name: string }[]> = {
+  "Google AI": [
+    { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
+    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" }
+  ],
+  "OpenRouter": [
+    { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B" },
+    { id: "openrouter/owl-alpha", name: "Owl Alpha" }
+  ],
+  "NVIDIA NIM": [
+    { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B" },
+    { id: "stepfun-ai/step-3.5-flash", name: "Step 3.5 Flash" }
+  ],
+  "Groq Cloud": [
+    { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B" }
+  ],
+  "Anthropic": [
+    { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet" }
+  ],
+  "OpenAI": [
+    { id: "openai/gpt-4o", name: "GPT-4o" }
+  ]
+};
+
+const getProviderForModel = (modelId: string) => {
+  for (const [provider, models] of Object.entries(PROVIDER_MODELS)) {
+    if (models.some((m) => m.id === modelId)) {
+      return provider;
+    }
+  }
+  return "Google AI";
+};
+
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   onDeploy,
@@ -69,6 +102,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setCustomApiKey,
   } = useAgentStore();
   const { preferences, history, setPreference } = useMemoryStore();
+
+  const [selectedProviderKey, setSelectedProviderKey] = useState(() => getProviderForModel(selectedModel));
+
+  React.useEffect(() => {
+    setSelectedProviderKey(getProviderForModel(selectedModel));
+  }, [selectedModel]);
+
 
   const [githubToken, setGithubToken] = useState(() => localStorage.getItem("nexo_gh_token") || "");
   const [repoUrl, setRepoUrl] = useState(() => localStorage.getItem("nexo_gh_repo") || "");
@@ -535,6 +575,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     cost: "$0.00 / Free"
                   },
                   {
+                    id: "openrouter/owl-alpha",
+                    name: "Owl Alpha",
+                    provider: "OpenRouter",
+                    desc: "OpenRouter's state-of-the-art owl reasoning model",
+                    badge: "Owl Alpha",
+                    badgeColor: "bg-emerald-50 text-emerald-750 border-emerald-100",
+                    speed: "Moderate (45 t/s)",
+                    cost: "$0.00 / Free"
+                  },
+                  {
                     id: "gemini-2.5-flash",
                     name: "Gemini 2.5 Flash",
                     provider: "Google AI",
@@ -553,16 +603,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     badgeColor: "bg-indigo-50 text-indigo-700 border-indigo-100",
                     speed: "Balanced (50 t/s)",
                     cost: "$1.25 / 1M input"
-                  },
-                  {
-                    id: "gemini-2.0-flash",
-                    name: "Gemini 2.0 Flash",
-                    provider: "Google AI",
-                    desc: "Balanced speed, latency & quality",
-                    badge: "Stable",
-                    badgeColor: "bg-blue-50 text-blue-700 border-blue-100",
-                    speed: "Fast (100 t/s)",
-                    cost: "$0.075 / 1M input"
                   },
                   {
                     id: "qwen/qwen3-coder-480b-a35b-instruct",
@@ -787,7 +827,42 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
-                    <p className="text-[10px] text-stone-450 leading-relaxed">
+
+                    {/* Provider & Model Dropdowns */}
+                    <div className="space-y-2.5 pt-2.5 border-t border-stone-200/60">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">API Provider</span>
+                        <select
+                          value={selectedProviderKey}
+                          onChange={(e) => {
+                            const newProv = e.target.value;
+                            setSelectedProviderKey(newProv);
+                            const firstModel = PROVIDER_MODELS[newProv]?.[0]?.id;
+                            if (firstModel) setSelectedModel(firstModel);
+                          }}
+                          className="bg-white border border-stone-200 rounded-lg px-2 py-1 outline-none text-[11px] font-bold cursor-pointer text-stone-800"
+                        >
+                          {Object.keys(PROVIDER_MODELS).map((prov) => (
+                            <option key={prov} value={prov}>{prov}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Provider Models</span>
+                        <select
+                          value={selectedModel}
+                          onChange={(e) => setSelectedModel(e.target.value)}
+                          className="bg-white border border-stone-200 rounded-lg px-2 py-1 outline-none text-[11px] font-bold cursor-pointer text-stone-800 max-w-[150px] truncate"
+                        >
+                          {PROVIDER_MODELS[selectedProviderKey]?.map((m) => (
+                            <option key={m.id} value={m.id}>{m.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <p className="text-[10px] text-stone-450 leading-relaxed font-semibold">
                       Custom keys remain encrypted inside your client browser space.
                     </p>
                   </div>

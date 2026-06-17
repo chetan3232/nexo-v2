@@ -8,10 +8,11 @@ import {
 } from "react-resizable-panels";
 import toast, { Toaster } from "react-hot-toast";
 
+import logoV2 from "../assets/NEXO-V2.png";
 import { ChatPanel } from "../components/chat/ChatPanel";
 import { InitialOverlay } from "../components/chat/InitialOverlay";
-import { auth, saveChatToFirebase, signInWithGoogle, logout } from "../services/firebase";
-import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
+import { auth, saveChatToFirebase, signInWithGoogle, logout, onAuthStateChanged } from "../services/firebase";
+import { User as FirebaseUser } from "firebase/auth";
 
 // Lazy load heavy components
 const EditorPanel = React.lazy(() =>
@@ -66,6 +67,9 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { StudioControls } from "../components/ui/StudioControls";
+import { AgentWorkflowOverlay } from "../components/chat/AgentWorkflowOverlay";
+import { QualityReviewOverlay } from "../components/chat/QualityReviewOverlay";
+import { PreviewTransferOverlay } from "../components/chat/PreviewTransferOverlay";
 import JSZip from "jszip";
 
 const ChatInterface: React.FC = () => {
@@ -135,15 +139,36 @@ const ChatInterface: React.FC = () => {
   const [isTokenDashboardOpen, setIsTokenDashboardOpen] = useState(false);
   const [showLanding, setShowLanding] = useState(chatStore.messages.length === 0);
   const prevBuildPhase = useRef(projectStore.buildPhase);
+  
+  const [showQualityReview, setShowQualityReview] = useState(false);
+  const [showPreviewTransfer, setShowPreviewTransfer] = useState(false);
+
+  // Reset overlay workflow states when a new build planning starts
+  useEffect(() => {
+    if (projectStore.buildPhase === "planning") {
+      setShowQualityReview(false);
+      setShowPreviewTransfer(false);
+    }
+  }, [projectStore.buildPhase]);
 
   useEffect(() => {
     if (prevBuildPhase.current !== "idle" && prevBuildPhase.current !== "done" && projectStore.buildPhase === "done") {
-      if (projectMode === "frontend") {
-        setWorkspaceTab("preview");
-      }
+      setShowQualityReview(true);
     }
     prevBuildPhase.current = projectStore.buildPhase;
-  }, [projectStore.buildPhase, projectMode]);
+  }, [projectStore.buildPhase]);
+
+  const handleQualityReviewComplete = () => {
+    setShowQualityReview(false);
+    setShowPreviewTransfer(true);
+  };
+
+  const handlePreviewTransferComplete = () => {
+    setShowPreviewTransfer(false);
+    if (projectMode === "frontend") {
+      setWorkspaceTab("preview");
+    }
+  };
 
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window !== "undefined") {
@@ -232,14 +257,23 @@ const ChatInterface: React.FC = () => {
 
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
-      if (event.data.type === "NEXO_ELEMENT_SELECTED") {
+      if (event.data.type === "NEXO_ELEMENT_SELECTED" || event.data.type === "ELEMENT_SELECTED") {
         setSelectedElement({
           id: event.data.id,
           tagName: event.data.tagName,
           text: event.data.text,
-          styles: {},
+          styles: event.data.styles || {},
         });
+        
+        // Sync to visualEditorStore
+        const { useVisualEditorStore } = await import("../stores/visualEditorStore");
+        useVisualEditorStore.getState().setSelectedElementId(event.data.id);
+        useVisualEditorStore.getState().updateStyle(event.data.id, event.data.styles || {});
+        
         setIsVisualMode(true);
+      } else if (event.data.type === "STYLE_SYNCED") {
+        const { useVisualEditorStore } = await import("../stores/visualEditorStore");
+        useVisualEditorStore.getState().updateStyle(event.data.id, event.data.styles);
       } else if (event.data.type === "NEXO_RUNTIME_ERROR") {
         console.error("Caught runtime error in iframe:", event.data);
         const { ErrorCaptureService } = await import("../services/runtime/errorCapture");
@@ -460,9 +494,24 @@ const ChatInterface: React.FC = () => {
 
   return (
     <div className="h-full w-full flex flex-col overflow-hidden font-sans bg-[#f7f7f7]">
-      {showLanding && (
-        <InitialOverlay onStart={handleSend} onResume={() => setShowLanding(false)} />
-      )}
+      <AnimatePresence>
+        {showLanding && (
+          <InitialOverlay onStart={handleSend} onResume={() => setShowLanding(false)} />
+        )}
+
+        {/* Cinematic 12-Phase Generation Experience Overlays */}
+        {projectStore.buildPhase !== "idle" && projectStore.buildPhase !== "done" && (
+          <AgentWorkflowOverlay />
+        )}
+
+        {showQualityReview && (
+          <QualityReviewOverlay onComplete={handleQualityReviewComplete} />
+        )}
+
+        {showPreviewTransfer && (
+          <PreviewTransferOverlay onComplete={handlePreviewTransferComplete} />
+        )}
+      </AnimatePresence>
 
       {/* ── Workspace Inner Header (Back + Title) ── */}
       <div className="h-[52px] bg-white border-b border-[#e8e8e8] flex items-center justify-between px-5 shrink-0 z-20 select-none">
@@ -493,6 +542,18 @@ const ChatInterface: React.FC = () => {
               <PanelLeft className="w-3.5 h-3.5" />
             )}
           </button>
+
+          <div className="h-4 w-px bg-[#e8e8e8]" />
+
+          {/* Nexo Logo & Title */}
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md overflow-hidden flex items-center justify-center shrink-0 bg-white border border-[#e8e8e8]">
+              <img src={logoV2} alt="Nexo Logo" className="w-full h-full object-cover" />
+            </div>
+            <span className="font-bold text-xs tracking-tight text-[#111] hidden sm:inline">Nexo v2</span>
+          </div>
+
+          <div className="h-4 w-px bg-[#e8e8e8]" />
 
 
           {isEditingTitle ? (

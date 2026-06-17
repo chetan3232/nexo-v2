@@ -24,6 +24,7 @@ import {
   Activity,
   Loader2
 } from "lucide-react";
+import logoV2 from "../../assets/NEXO-V2.png";
 import { useProjectStore } from "../../stores/projectStore";
 import { useChatStore } from "../../stores/chatStore";
 import { useAgentStore } from "../../stores/agentStore";
@@ -34,15 +35,48 @@ import {
   auth,
   loadChatsFromFirebase,
   deleteChatFromFirebase,
-  signInWithGoogle
+  signInWithGoogle,
+  onAuthStateChanged
 } from "../../services/firebase";
 import { DeploymentService } from "../../services/deploymentService";
-import { onAuthStateChanged } from "firebase/auth";
 import JSZip from "jszip";
 import toast from "react-hot-toast";
 import { BlockLibrary } from "../ui/BlockLibrary";
 
 type SidebarTab = "projects" | "chats" | "templates" | "assets" | "keys" | "deploy" | "settings" | "blocks";
+
+const PROVIDER_MODELS: Record<string, { id: string; name: string }[]> = {
+  "Google AI": [
+    { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
+    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" }
+  ],
+  "OpenRouter": [
+    { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B" },
+    { id: "openrouter/owl-alpha", name: "Owl Alpha" }
+  ],
+  "NVIDIA NIM": [
+    { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B" },
+    { id: "stepfun-ai/step-3.5-flash", name: "Step 3.5 Flash" }
+  ],
+  "Groq Cloud": [
+    { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B" }
+  ],
+  "Anthropic": [
+    { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet" }
+  ],
+  "OpenAI": [
+    { id: "openai/gpt-4o", name: "GPT-4o" }
+  ]
+};
+
+const getProviderForModel = (modelId: string) => {
+  for (const [provider, models] of Object.entries(PROVIDER_MODELS)) {
+    if (models.some((m) => m.id === modelId)) {
+      return provider;
+    }
+  }
+  return "Google AI";
+};
 
 export const WorkspaceSidebar: React.FC = () => {
   const [activeTab, setActiveTab] = useState<SidebarTab>("projects");
@@ -83,17 +117,23 @@ export const WorkspaceSidebar: React.FC = () => {
     temperature,
     setTemperature,
     topP,
-    setTopP
+    setTopP,
+    customApiKey,
+    setCustomApiKey
   } = useAgentStore();
 
   // Local Sidebar States
   const [chatHistory, setChatHistory] = useState<any[]>([]);
-  const [customApiKey, setCustomApiKey] = useState("");
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isDeploying, setIsDeploying] = useState(false);
   const [hoveredTab, setHoveredTab] = useState<string | null>(null);
+  const [selectedProviderKey, setSelectedProviderKey] = useState(() => getProviderForModel(selectedModel));
+
+  useEffect(() => {
+    setSelectedProviderKey(getProviderForModel(selectedModel));
+  }, [selectedModel]);
 
   // Auth monitoring & local fallback list
   useEffect(() => {
@@ -246,9 +286,9 @@ export const WorkspaceSidebar: React.FC = () => {
 
   const models = [
     { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B", desc: "Free OpenRouter reasoning model" },
+    { id: "openrouter/owl-alpha", name: "Owl Alpha", desc: "OpenRouter's state-of-the-art owl reasoning model" },
     { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", desc: "Fast reasoning, high quota" },
     { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", desc: "Best quality, deep reasoning" },
-    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", desc: "Balanced speed & quality" },
     { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B (Nvidia)", desc: "Deep coding capabilities" },
     { id: "stepfun-ai/step-3.5-flash", name: "Step 3.5 Flash (Nvidia)", desc: "StepFun generation model" },
     { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Groq)", desc: "Fast open source reasoning" },
@@ -271,10 +311,10 @@ export const WorkspaceSidebar: React.FC = () => {
       {/* Icon Sidebar (Vertical Action Strip) */}
       <div className="w-16 bg-studio-bg/95 flex flex-col items-center py-4 justify-between relative">
         <div className="flex flex-col items-center gap-4 w-full">
-          {/* AI Pulse Logo */}
+          {/* AI Pulse Logo -> Nexo Original Logo */}
           <div className="relative group cursor-pointer">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-studio-accent to-blue-500 flex items-center justify-center shadow-lg shadow-studio-accent/20 transition-transform duration-300 group-hover:scale-105 active:scale-95">
-              <Sparkles className="w-5 h-5 text-studio-text" />
+            <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shadow-lg shadow-studio-accent/25 transition-transform duration-300 group-hover:scale-105 active:scale-95 bg-white border border-studio-border">
+              <img src={logoV2} alt="Nexo Logo" className="w-full h-full object-cover" />
             </div>
             {/* Live pulsing glowing dot */}
             <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
@@ -403,6 +443,25 @@ export const WorkspaceSidebar: React.FC = () => {
             )}
           </AnimatePresence>
         </div>
+
+        {/* User Profile Avatar */}
+        {user && (
+          <div className="relative group mt-4">
+            <div className="w-10 h-10 rounded-xl overflow-hidden border border-studio-border/60 shadow-lg flex items-center justify-center bg-studio-panel/20 cursor-pointer hover:border-studio-accent transition-colors">
+              {user.photoURL ? (
+                <img src={user.photoURL} alt="User Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-studio-accent flex items-center justify-center text-white text-xs font-bold">
+                  {(user.displayName || user.email || "U")[0].toUpperCase()}
+                </div>
+              )}
+            </div>
+            {/* Tooltip with user name */}
+            <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4 bg-studio-card border border-studio-border px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-studio-text whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+              {user.displayName || user.email?.split("@")[0]}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Expanded Subpanel Panel */}
@@ -660,7 +719,7 @@ export const WorkspaceSidebar: React.FC = () => {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-studio-muted uppercase tracking-wider block">
-                      Google Gemini Key
+                      Custom API Key
                     </label>
                     <p className="text-[10px] text-studio-muted leading-relaxed">
                       Supply a private key to bypass workspace limits. Keys are stored in the client local storage browser frame.
@@ -669,10 +728,45 @@ export const WorkspaceSidebar: React.FC = () => {
                       type="password"
                       value={customApiKey}
                       onChange={(e) => setCustomApiKey(e.target.value)}
-                      placeholder="AIzaSy..."
+                      placeholder="Enter API Key (AIzaSy... or sk-...)"
                       className="w-full bg-studio-bg border border-studio-border rounded-xl px-3.5 py-2.5 text-xs text-studio-text outline-none focus:border-studio-accent transition-all font-mono"
                     />
                   </div>
+
+                  {/* Provider & Model Selector Dropdowns */}
+                  <div className="space-y-3 pt-3 border-t border-studio-border/60">
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-studio-muted uppercase tracking-wider block">API Provider</span>
+                      <select
+                        value={selectedProviderKey}
+                        onChange={(e) => {
+                          const newProv = e.target.value;
+                          setSelectedProviderKey(newProv);
+                          const firstModel = PROVIDER_MODELS[newProv]?.[0]?.id;
+                          if (firstModel) setSelectedModel(firstModel);
+                        }}
+                        className="w-full bg-studio-bg border border-studio-border rounded-xl px-3 py-2 text-xs text-studio-text outline-none focus:border-studio-accent transition-all cursor-pointer font-bold"
+                      >
+                        {Object.keys(PROVIDER_MODELS).map((prov) => (
+                          <option key={prov} value={prov}>{prov}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-studio-muted uppercase tracking-wider block">Active Model</span>
+                      <select
+                        value={selectedModel}
+                        onChange={(e) => setSelectedModel(e.target.value)}
+                        className="w-full bg-studio-bg border border-studio-border rounded-xl px-3 py-2 text-xs text-studio-text outline-none focus:border-studio-accent transition-all cursor-pointer font-bold"
+                      >
+                        {PROVIDER_MODELS[selectedProviderKey]?.map((m) => (
+                          <option key={m.id} value={m.id}>{m.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
                   <div className="flex gap-2">
                     <button
                       onClick={handleSaveApiKey}

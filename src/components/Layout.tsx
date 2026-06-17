@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Download, Share2, Sparkles, User, LogOut, Sun, Moon } from "lucide-react";
 import logoV2 from "../assets/NEXO-V2.png";
-import { auth, signInWithGoogle, logout } from "../services/firebase";
-import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
+import { auth, signInWithGoogle, logout, onAuthStateChanged } from "../services/firebase";
+import { User as FirebaseUser } from "firebase/auth";
 import { CommandPalette } from "./chat/CommandPalette";
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({

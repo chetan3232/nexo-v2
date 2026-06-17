@@ -196,7 +196,7 @@ router.post("/transcribe", async (req, res) => {
                 console.log("[STT] Attempting Gemini fallback transcription...");
                 const { GoogleGenerativeAI } = require("@google/generative-ai");
                 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-                const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
+                const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
                 const result = await model.generateContent([
                     {
@@ -237,7 +237,7 @@ router.post("/explore", async (req, res) => {
         }
         const { GoogleGenerativeAI } = require("@google/generative-ai");
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         const systemPrompt = `You are an AI Product Architect. Given a user prompt, extract the intent and generate TWO distinct UI/UX design concepts.
 Return ONLY valid JSON in the exact following format, without any markdown formatting or code blocks:
@@ -302,7 +302,7 @@ router.post("/blueprint", async (req, res) => {
         }
         const { GoogleGenerativeAI } = require("@google/generative-ai");
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         const systemPrompt = `You are an AI Software Architect. Your job is to create or update an Implementation Blueprint.
 Return ONLY valid JSON in the exact following format, without any markdown formatting or code blocks:

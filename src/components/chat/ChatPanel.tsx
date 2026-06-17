@@ -43,9 +43,9 @@ interface ChatPanelProps {
 // All supported models
 const ALL_MODELS = [
   { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B", badge: "Free" },
+  { id: "openrouter/owl-alpha", name: "Owl Alpha", badge: "New" },
   { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", badge: "Default" },
   { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", badge: "Pro" },
-  { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", badge: "New" },
   { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet", badge: "Premium" },
   { id: "openai/gpt-4o", name: "GPT-4o", badge: "Premium" },
   { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B", badge: "Nvidia" },

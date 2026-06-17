@@ -24,6 +24,7 @@ import {
   Radio,
   Loader2,
 } from "lucide-react";
+import logoV2 from "../../assets/NEXO-V2.png";
 import { useAgentStore } from "../../stores/agentStore";
 import { useChatStore } from "../../stores/chatStore";
 import { useProjectStore } from "../../stores/projectStore";
@@ -31,11 +32,13 @@ import {
   auth,
   loadChatsFromFirebase,
   deleteChatFromFirebase,
+  onAuthStateChanged,
+  signInWithGoogle,
 } from "../../services/firebase";
 import {
-  onAuthStateChanged,
-  signInWithPopup,
   GoogleAuthProvider,
+  signInWithPopup,
+  User as FirebaseUser,
 } from "firebase/auth";
 import JSZip from "jszip";
 
@@ -55,6 +58,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
   } = useAgentStore();
 
   const [prompt, setPrompt] = useState("");
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -89,9 +93,10 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
   }, []);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        loadChatsFromFirebase(user.uid).then((chats) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        loadChatsFromFirebase(currentUser.uid).then((chats) => {
           setChatHistory(chats);
         });
       } else {
@@ -111,8 +116,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
 
   const handleLogin = async () => {
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      await signInWithGoogle();
     } catch (error) {
       console.error("Login failed", error);
     }
@@ -450,6 +454,12 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
       desc: "Free OpenRouter high quality reasoning",
     },
     {
+      id: "openrouter/owl-alpha",
+      name: "Owl Alpha",
+      provider: "OpenRouter",
+      desc: "OpenRouter's state-of-the-art owl reasoning model",
+    },
+    {
       id: "gemini-2.5-flash",
       name: "Gemini 2.5 Flash",
       provider: "Google",
@@ -460,12 +470,6 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
       name: "Gemini 2.5 Pro",
       provider: "Google",
       desc: "Best quality, deep reasoning",
-    },
-    {
-      id: "gemini-2.0-flash",
-      name: "Gemini 2.0 Flash",
-      provider: "Google",
-      desc: "Balanced speed & quality, generous limits",
     },
     {
       id: "qwen/qwen3-coder-480b-a35b-instruct",
@@ -525,8 +529,8 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
       <div className="w-72 hidden lg:flex flex-col border-r border-studio-border bg-studio-panel/40 backdrop-blur-xl shrink-0 z-10">
         {/* Logo Header */}
         <div className="p-8 flex items-center gap-3 select-none">
-          <div className="w-10 h-10 bg-gradient-to-tr from-studio-accent to-blue-500 rounded-xl flex items-center justify-center shadow-lg shadow-studio-accent/25 shrink-0 transition-transform duration-300 hover:scale-105 active:scale-95 cursor-pointer">
-            <Sparkles className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shadow-lg shadow-studio-accent/25 shrink-0 transition-transform duration-300 hover:scale-105 active:scale-95 cursor-pointer bg-white border border-studio-border">
+            <img src={logoV2} alt="Nexo Logo" className="w-full h-full object-cover" />
           </div>
           <span className="font-black text-xl tracking-tighter text-studio-text truncate">
             NEXO WORKSPACE
@@ -657,11 +661,50 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
           </div>
         </div>
 
-        {/* Status Indicator */}
-        <div className="p-8 pb-10 flex flex-col gap-2 select-none shrink-0">
-          <div className="flex items-center gap-2 opacity-60">
-
-          </div>
+        {/* User Account / Sign In Widget */}
+        <div className="p-6 border-t border-studio-border/60 bg-studio-panel/10 select-none shrink-0 mt-auto">
+          {user ? (
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                {user.photoURL ? (
+                  <img
+                    src={user.photoURL}
+                    alt="User"
+                    className="w-9 h-9 rounded-full object-cover border border-studio-border shadow-sm"
+                  />
+                ) : (
+                  <div className="w-9 h-9 rounded-full bg-studio-accent flex items-center justify-center text-white text-xs font-bold border border-studio-border">
+                    {(user.displayName || user.email || "U")[0].toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0 flex flex-col">
+                  <span className="text-xs font-bold text-studio-text truncate">
+                    {user.displayName || user.email?.split("@")[0]}
+                  </span>
+                  <span className="text-[10px] text-studio-muted truncate">
+                    {user.email}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  const { logout } = await import("../../services/firebase");
+                  await logout();
+                }}
+                className="p-2 bg-studio-card hover:bg-red-950/20 text-studio-muted hover:text-red-400 rounded-lg border border-studio-border hover:border-red-900/30 transition-all"
+                title="Logout"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleLogin}
+              className="w-full py-2.5 bg-studio-accent hover:bg-studio-accent/90 text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-studio-accent/20"
+            >
+              <User className="w-4.5 h-4.5" /> Sign In
+            </button>
+          )}
         </div>
       </div>
 
@@ -669,8 +712,8 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
       <div className="flex-1 flex flex-col items-center p-6 relative min-w-0 z-10 overflow-y-auto scrollbar-none">
         {/* Mobile Logo Fallback */}
         <div className="absolute top-8 left-8 flex items-center gap-3 lg:hidden select-none">
-          <div className="w-9 h-9 bg-gradient-to-tr from-studio-accent to-blue-500 rounded-xl flex items-center justify-center shadow-lg">
-            <Sparkles className="w-5 h-5 text-white" />
+          <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center shadow-lg bg-white border border-studio-border">
+            <img src={logoV2} alt="Nexo Logo" className="w-full h-full object-cover" />
           </div>
           <span className="font-black text-lg tracking-tighter text-studio-text">
             NEXO WORKSPACE
