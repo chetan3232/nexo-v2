@@ -117,7 +117,7 @@ export async function compileAndBundle(): Promise<string> {
   
   // Find all <script src="..."></script> tags (including permissive end tags like </script >)
   // codeql[js/bad-tag-filter]
-  const scriptRegex = /<script\s+[^>]*?src=["']([^"']+)["'][^>]*?>\s*<\/script\s*>/gi;
+  const scriptRegex = /<script\s+[^>]*?src=["']([^"']+)["'][^>]*?>\s*<\/script\b[^>]*>/gi;
   while ((match = scriptRegex.exec(html)) !== null) {
     const tag = match[0];
     const src = match[1];
