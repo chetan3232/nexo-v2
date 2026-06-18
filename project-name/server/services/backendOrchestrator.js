@@ -234,17 +234,271 @@ Example output:
                     ? routeModel('refactor', options.model)
                     : routeModel('ui_generation', options.model);
 
-            let implementationPrompt;
+            let finalFiles = {};
+            const isFullstack = options.projectMode === 'fullstack';
+            const hasBackendFiles = planData.files.some(f => !f.startsWith('src/') && f !== 'index.html' && f !== 'package.json' && f !== 'vite.config.ts' && f !== 'tsconfig.json');
 
-            if (isRefactor && Object.keys(existingFiles).length > 0) {
-                // Refactor: provide existing code as context
-                const existingCodeContext = Object.entries(existingFiles)
-                    .filter(([f]) => planData.files.includes(f))
-                    .slice(0, 8) // Limit to 8 files to avoid token overflow
-                    .map(([f, c]) => `---EXISTING FILE: ${f}---\n${c}\n---END EXISTING FILE---`)
-                    .join('\n\n');
+            if (isFullstack && hasBackendFiles && !isRefactor && !hasImage) {
+                job.addReasoningStep('🤝 Multi-Agent Collaboration: Splitting build into Frontend and Backend phases...');
+                
+                const frontendFiles = planData.files.filter(f => f.startsWith('src/') || f === 'index.html' || f === 'package.json');
+                const backendFiles = planData.files.filter(f => !frontendFiles.includes(f));
 
-                implementationPrompt = `You are a deep AI refactoring engineer.
+                job.addReasoningStep(`🎨 Frontend Agent: Starting UI construction for: ${frontendFiles.join(', ')}...`);
+                
+                const frontendPrompt = `You are a deep coding Frontend Agent.
+We have planned the following frontend files to implement the user request "${finalPrompt}":
+${frontendFiles.map(f => `- ${f}`).join('\n')}
+
+Follow the Nexo Protocol: write complete files enclosed in ---FILE: path--- and ---END FILE--- markers.
+CRITICAL: If you need any backend API endpoints (like custom REST routes, database actions, etc.), state them clearly in your code comments or response text as:
+"BACKEND_REQUEST: Create /api/[route] endpoint for [reason]"
+Ensure the frontend is fully responsive and modern.`;
+
+                const frontendMessages = [
+                    ...messages,
+                    { role: 'user', content: frontendPrompt }
+                ];
+
+                let streamedText = "";
+                let scanIndex = 0;
+                let currentFile = null;
+                let currentFileContent = "";
+
+                const frontendOutput = await AIGateway.streamCompletion({
+                    messages: frontendMessages,
+                    model: codeModel,
+                    temperature: options.temperature || 0.8,
+                    top_p: options.topP || 1.0,
+                    projectMode: options.projectMode,
+                    techStack: options.techStack,
+                    systemPrompt: options.systemPrompt,
+                    enabledTools: options.enabledTools,
+                    customApiKey: options.customApiKey,
+                    userId
+                }, (chunk) => {
+                    streamedText += chunk;
+                    job.log(chunk);
+
+                    while (scanIndex < streamedText.length) {
+                        const remaining = streamedText.substring(scanIndex);
+
+                        if (!currentFile) {
+                            const fileStartMatch = remaining.match(/^[\s\S]*?---FILE:\s*([^\s\n\-]+?)\s*---/i);
+                            if (fileStartMatch) {
+                                const matchStr = fileStartMatch[0];
+                                const filename = fileStartMatch[1].trim().replace(/`/g, "");
+                                
+                                scanIndex += matchStr.length;
+                                currentFile = filename;
+                                currentFileContent = "";
+                                
+                                jobEvents.emit(job.id, { type: 'create_file', path: filename });
+                                continue;
+                            } else {
+                                break;
+                            }
+                        }
+
+                        if (currentFile) {
+                            const fileEndIdx = remaining.indexOf("---END FILE---");
+                            if (fileEndIdx !== -1) {
+                                const codeChunk = remaining.substring(0, fileEndIdx);
+                                currentFileContent += codeChunk;
+                                
+                                if (codeChunk.length > 0) {
+                                    jobEvents.emit(job.id, { 
+                                        type: 'write_code', 
+                                        path: currentFile, 
+                                        chunk: codeChunk 
+                                    });
+                                }
+
+                                const updatedFiles = { [currentFile]: currentFileContent };
+                                job.updateFiles(updatedFiles);
+                                jobEvents.emit(job.id, { 
+                                    type: 'update_file', 
+                                    path: currentFile, 
+                                    content: currentFileContent 
+                                });
+
+                                scanIndex += fileEndIdx + "---END FILE---".length;
+                                currentFile = null;
+                                currentFileContent = "";
+                                continue;
+                            } else {
+                                const safetyMargin = Math.max(0, remaining.length - 20);
+                                if (safetyMargin > 0) {
+                                    const codeChunk = remaining.substring(0, safetyMargin);
+                                    currentFileContent += codeChunk;
+                                    
+                                    jobEvents.emit(job.id, { 
+                                        type: 'write_code', 
+                                        path: currentFile, 
+                                        chunk: codeChunk 
+                                    });
+                                    
+                                    scanIndex += safetyMargin;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                });
+
+                const parsedFrontend = extractCodeFromText(frontendOutput);
+                const finalFrontendFiles = parsedFrontend.website ? parsedFrontend.website.files : {};
+                if (Object.keys(finalFrontendFiles).length > 0) {
+                    job.updateFiles(finalFrontendFiles);
+                }
+
+                // Scan Collaboration Bus requests from Frontend
+                const backendRequests = [];
+                const requestRegex = /BACKEND_REQUEST:\s*([^\n\r"]+)/gi;
+                let match;
+                while ((match = requestRegex.exec(frontendOutput)) !== null) {
+                    backendRequests.push(match[1].trim());
+                }
+
+                if (backendRequests.length > 0) {
+                    job.addReasoningStep(`🤝 Collaboration Bus: Frontend Agent requested ${backendRequests.length} backend API endpoint(s):\n${backendRequests.map(r => `  - ${r}`).join('\n')}`);
+                } else {
+                    job.addReasoningStep('🤝 Collaboration Bus: Frontend Agent requested no custom API endpoints. Proceeding with default backend routes.');
+                    backendRequests.push("Create standard CRUD database routes and server setup matching the front-end features");
+                }
+
+                // Backend Agent Generation
+                job.addReasoningStep(`⚙️ Backend Agent: Starting logic & API implementation for: ${backendFiles.join(', ')}...`);
+
+                const backendPrompt = `You are a deep coding Backend Agent.
+We need to generate the backend code for the user request "${finalPrompt}".
+The planned backend files to implement are:
+${backendFiles.map(f => `- ${f}`).join('\n')}
+
+COLLABORATION CONTEXT (REQUESTS FROM FRONTEND AGENT):
+${backendRequests.map((req, i) => `REQUEST ${i+1}: ${req}`).join('\n')}
+
+Follow the Nexo Protocol: write complete files enclosed in ---FILE: path--- and ---END FILE--- markers.
+Implement these files completely, ensuring they fulfill the requests made by the Frontend Agent.`;
+
+                const backendMessages = [
+                    ...messages,
+                    { role: 'user', content: backendPrompt }
+                ];
+
+                streamedText = "";
+                scanIndex = 0;
+                currentFile = null;
+                currentFileContent = "";
+
+                const backendOutput = await AIGateway.streamCompletion({
+                    messages: backendMessages,
+                    model: codeModel,
+                    temperature: options.temperature || 0.8,
+                    top_p: options.topP || 1.0,
+                    projectMode: options.projectMode,
+                    techStack: options.techStack,
+                    systemPrompt: options.systemPrompt,
+                    enabledTools: options.enabledTools,
+                    customApiKey: options.customApiKey,
+                    userId
+                }, (chunk) => {
+                    streamedText += chunk;
+                    job.log(chunk);
+
+                    while (scanIndex < streamedText.length) {
+                        const remaining = streamedText.substring(scanIndex);
+
+                        if (!currentFile) {
+                            const fileStartMatch = remaining.match(/^[\s\S]*?---FILE:\s*([^\s\n\-]+?)\s*---/i);
+                            if (fileStartMatch) {
+                                const matchStr = fileStartMatch[0];
+                                const filename = fileStartMatch[1].trim().replace(/`/g, "");
+                                
+                                scanIndex += matchStr.length;
+                                currentFile = filename;
+                                currentFileContent = "";
+                                
+                                jobEvents.emit(job.id, { type: 'create_file', path: filename });
+                                continue;
+                            } else {
+                                break;
+                            }
+                        }
+
+                        if (currentFile) {
+                            const fileEndIdx = remaining.indexOf("---END FILE---");
+                            if (fileEndIdx !== -1) {
+                                const codeChunk = remaining.substring(0, fileEndIdx);
+                                currentFileContent += codeChunk;
+                                
+                                if (codeChunk.length > 0) {
+                                    jobEvents.emit(job.id, { 
+                                        type: 'write_code', 
+                                        path: currentFile, 
+                                        chunk: codeChunk 
+                                    });
+                                }
+
+                                const updatedFiles = { [currentFile]: currentFileContent };
+                                job.updateFiles(updatedFiles);
+                                jobEvents.emit(job.id, { 
+                                    type: 'update_file', 
+                                    path: currentFile, 
+                                    content: currentFileContent 
+                                });
+
+                                scanIndex += fileEndIdx + "---END FILE---".length;
+                                currentFile = null;
+                                currentFileContent = "";
+                                continue;
+                            } else {
+                                const safetyMargin = Math.max(0, remaining.length - 20);
+                                if (safetyMargin > 0) {
+                                    const codeChunk = remaining.substring(0, safetyMargin);
+                                    currentFileContent += codeChunk;
+                                    
+                                    jobEvents.emit(job.id, { 
+                                        type: 'write_code', 
+                                        path: currentFile, 
+                                        chunk: codeChunk 
+                                    });
+                                    
+                                    scanIndex += safetyMargin;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                });
+
+                const parsedBackend = extractCodeFromText(backendOutput);
+                const finalBackendFiles = parsedBackend.website ? parsedBackend.website.files : {};
+                if (Object.keys(finalBackendFiles).length > 0) {
+                    job.updateFiles(finalBackendFiles);
+                }
+
+                finalFiles = { ...finalFrontendFiles, ...finalBackendFiles };
+                if (Object.keys(finalFiles).length > 0) {
+                    job.updateFiles(finalFiles);
+                }
+
+                job.addReasoningStep('Application layers (Frontend & Backend) compiled collaboratively.');
+                tasks[1].status = 'done';
+                job.updateTasks(tasks);
+                job.updateProgress(75);
+            } else {
+                let implementationPrompt;
+
+                if (isRefactor && Object.keys(existingFiles).length > 0) {
+                    // Refactor: provide existing code as context
+                    const existingCodeContext = Object.entries(existingFiles)
+                        .filter(([f]) => planData.files.includes(f))
+                        .slice(0, 8) // Limit to 8 files to avoid token overflow
+                        .map(([f, c]) => `---EXISTING FILE: ${f}---\n${c}\n---END EXISTING FILE---`)
+                        .join('\n\n');
+
+                    implementationPrompt = `You are a deep AI refactoring engineer.
 User wants to: "${prompt}"
 ${memoryContext}
 
@@ -256,8 +510,8 @@ ${planData.plan.map((step, i) => `${i+1}. ${step}`).join('\n')}
 Modify ONLY the necessary files. Keep unchanged sections intact.
 Use the Nexo Protocol: write complete modified files enclosed in ---FILE: path--- and ---END FILE--- markers.
 Ensure the refactored code is better than the original.`;
-            } else if (hasImage) {
-                implementationPrompt = `You are a deep AI UI reconstruction engineer specializing in design-to-code.
+                } else if (hasImage) {
+                    implementationPrompt = `You are a deep AI UI reconstruction engineer specializing in design-to-code.
 User wants to recreate this UI: "${finalPrompt}"
 ${memoryContext}
 
@@ -268,8 +522,8 @@ ${planData.files.map(f => `- ${f}`).join('\n')}
 Follow the Nexo Protocol: write complete files enclosed in ---FILE: path--- and ---END FILE--- markers.
 Recreate the exact layout, colors, spacing, and components visible in the design.
 Use modern React with Tailwind CSS. Make it pixel-perfect.`;
-            } else {
-                implementationPrompt = `You are a deep coding AI engineer.
+                } else {
+                    implementationPrompt = `You are a deep coding AI engineer.
 We have planned the following file structure for the user request: "${finalPrompt}".
 ${memoryContext}
 Please generate the complete production-ready source code for these files:
@@ -277,113 +531,114 @@ ${planData.files.map(f => `- ${f}`).join('\n')}
 
 Follow the Nexo Protocol: write complete files enclosed in ---FILE: path--- and ---END FILE--- markers.
 Do not truncate or omit any files. Ensure package.json has all necessary dependencies.`;
-            }
+                }
 
-            const implementationMessages = [
-                ...messages,
-                { role: 'user', content: implementationPrompt }
-            ];
+                const implementationMessages = [
+                    ...messages,
+                    { role: 'user', content: implementationPrompt }
+                ];
 
-            let streamedText = "";
-            let scanIndex = 0;
-            let currentFile = null;
-            let currentFileContent = "";
+                let streamedText = "";
+                let scanIndex = 0;
+                let currentFile = null;
+                let currentFileContent = "";
 
-            const implementationOutput = await AIGateway.streamCompletion({
-                messages: implementationMessages,
-                model: codeModel,
-                temperature: options.temperature || 0.8,
-                top_p: options.topP || 1.0,
-                projectMode: options.projectMode,
-                techStack: options.techStack,
-                systemPrompt: options.systemPrompt,
-                enabledTools: options.enabledTools,
-                customApiKey: options.customApiKey,
-                userId
-            }, (chunk) => {
-                streamedText += chunk;
-                job.log(chunk);
+                const implementationOutput = await AIGateway.streamCompletion({
+                    messages: implementationMessages,
+                    model: codeModel,
+                    temperature: options.temperature || 0.8,
+                    top_p: options.topP || 1.0,
+                    projectMode: options.projectMode,
+                    techStack: options.techStack,
+                    systemPrompt: options.systemPrompt,
+                    enabledTools: options.enabledTools,
+                    customApiKey: options.customApiKey,
+                    userId
+                }, (chunk) => {
+                    streamedText += chunk;
+                    job.log(chunk);
 
-                // Live event-based stream parsing
-                while (scanIndex < streamedText.length) {
-                    const remaining = streamedText.substring(scanIndex);
+                    // Live event-based stream parsing
+                    while (scanIndex < streamedText.length) {
+                        const remaining = streamedText.substring(scanIndex);
 
-                    // A. Look for FILE start marker
-                    if (!currentFile) {
-                        const fileStartMatch = remaining.match(/^[\s\S]*?---FILE:\s*([^\s\n\-]+?)\s*---/i);
-                        if (fileStartMatch) {
-                            const matchStr = fileStartMatch[0];
-                            const filename = fileStartMatch[1].trim().replace(/`/g, "");
-                            
-                            scanIndex += matchStr.length;
-                            currentFile = filename;
-                            currentFileContent = "";
-                            
-                            jobEvents.emit(job.id, { type: 'create_file', path: filename });
-                            continue;
-                        } else {
-                            break;
-                        }
-                    }
-
-                    // B. Look for FILE end marker
-                    if (currentFile) {
-                        const fileEndIdx = remaining.indexOf("---END FILE---");
-                        if (fileEndIdx !== -1) {
-                            const codeChunk = remaining.substring(0, fileEndIdx);
-                            currentFileContent += codeChunk;
-                            
-                            if (codeChunk.length > 0) {
-                                jobEvents.emit(job.id, { 
-                                    type: 'write_code', 
-                                    path: currentFile, 
-                                    chunk: codeChunk 
-                                });
+                        // A. Look for FILE start marker
+                        if (!currentFile) {
+                            const fileStartMatch = remaining.match(/^[\s\S]*?---FILE:\s*([^\s\n\-]+?)\s*---/i);
+                            if (fileStartMatch) {
+                                const matchStr = fileStartMatch[0];
+                                const filename = fileStartMatch[1].trim().replace(/`/g, "");
+                                
+                                scanIndex += matchStr.length;
+                                currentFile = filename;
+                                currentFileContent = "";
+                                
+                                jobEvents.emit(job.id, { type: 'create_file', path: filename });
+                                continue;
+                            } else {
+                                break;
                             }
+                        }
 
-                            const finalFiles = { [currentFile]: currentFileContent };
-                            job.updateFiles(finalFiles);
-                            jobEvents.emit(job.id, { 
-                                type: 'update_file', 
-                                path: currentFile, 
-                                content: currentFileContent 
-                            });
-
-                            scanIndex += fileEndIdx + "---END FILE---".length;
-                            currentFile = null;
-                            currentFileContent = "";
-                            continue;
-                        } else {
-                            const safetyMargin = Math.max(0, remaining.length - 20);
-                            if (safetyMargin > 0) {
-                                const codeChunk = remaining.substring(0, safetyMargin);
+                        // B. Look for FILE end marker
+                        if (currentFile) {
+                            const fileEndIdx = remaining.indexOf("---END FILE---");
+                            if (fileEndIdx !== -1) {
+                                const codeChunk = remaining.substring(0, fileEndIdx);
                                 currentFileContent += codeChunk;
                                 
+                                if (codeChunk.length > 0) {
+                                    jobEvents.emit(job.id, { 
+                                        type: 'write_code', 
+                                        path: currentFile, 
+                                        chunk: codeChunk 
+                                    });
+                                }
+
+                                const updatedFiles = { [currentFile]: currentFileContent };
+                                job.updateFiles(updatedFiles);
                                 jobEvents.emit(job.id, { 
-                                    type: 'write_code', 
+                                    type: 'update_file', 
                                     path: currentFile, 
-                                    chunk: codeChunk 
+                                    content: currentFileContent 
                                 });
-                                
-                                scanIndex += safetyMargin;
+
+                                scanIndex += fileEndIdx + "---END FILE---".length;
+                                currentFile = null;
+                                currentFileContent = "";
+                                continue;
+                            } else {
+                                const safetyMargin = Math.max(0, remaining.length - 20);
+                                if (safetyMargin > 0) {
+                                    const codeChunk = remaining.substring(0, safetyMargin);
+                                    currentFileContent += codeChunk;
+                                    
+                                    jobEvents.emit(job.id, { 
+                                        type: 'write_code', 
+                                        path: currentFile, 
+                                        chunk: codeChunk 
+                                    });
+                                    
+                                    scanIndex += safetyMargin;
+                                }
+                                break;
                             }
-                            break;
                         }
                     }
+                });
+
+                // Final parse sanity check
+                const finalParsed = extractCodeFromText(streamedText);
+                finalFiles = finalParsed.website ? finalParsed.website.files : {};
+                if (Object.keys(finalFiles).length > 0) {
+                    job.updateFiles(finalFiles);
                 }
-            });
 
-            // Final parse sanity check
-            const finalParsed = extractCodeFromText(streamedText);
-            const finalFiles = finalParsed.website ? finalParsed.website.files : {};
-            if (Object.keys(finalFiles).length > 0) {
-                job.updateFiles(finalFiles);
+                job.addReasoningStep('Application layer generated successfully.');
+                tasks[1].status = 'done';
+                job.updateTasks(tasks);
+                job.updateProgress(75);
             }
-
-            job.addReasoningStep('Application layer generated successfully.');
-            tasks[1].status = 'done';
-            job.updateTasks(tasks);
-            job.updateProgress(75);
 
             // ==========================================
             // 3. BUILD & FIXER AGENT (VERIFICATION PHASE)

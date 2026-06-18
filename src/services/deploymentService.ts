@@ -1,4 +1,6 @@
 import toast from "react-hot-toast";
+import { createClient } from "@insforge/sdk";
+import { compileAndBundle } from "../utils/bundler";
 
 export class DeploymentService {
   private static instance: DeploymentService;
@@ -8,6 +10,42 @@ export class DeploymentService {
       DeploymentService.instance = new DeploymentService();
     }
     return DeploymentService.instance;
+  }
+
+  /**
+   * Compiles the project, bundles it into a single HTML file,
+   * uploads it to InsForge database, and returns the live preview URL.
+   */
+  async deployProject(): Promise<string> {
+    toast.loading("Compiling and bundling project...", { id: "deploy-status" });
+    
+    // 1. Compile and bundle the HTML/CSS/JS/React files
+    const bundledHtml = await compileAndBundle();
+    
+    toast.loading("Uploading to InsForge edge hosting...", { id: "deploy-status" });
+
+    // 2. Insert to InsForge database table 'user_deployments'
+    const client = createClient({
+      baseUrl: "https://g7nugnui.ap-southeast.insforge.app",
+      anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3OC0xMjM0LTU2NzgtOTBhYi1jZGVmMTIzNDU2NzgiLCJlbWFpbCI6ImFub25AaW5zZm9yZ2UuY29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxMjI4OTh9.M-ENCUD91CkhHdFKT03HoalGjfqRkI9uhiOLO1FC1o8",
+    });
+
+    const deploymentId = crypto.randomUUID();
+    const { error } = await client.database.from("user_deployments").insert({
+      id: deploymentId,
+      html: bundledHtml,
+      created_at: new Date().toISOString(),
+    });
+
+    if (error) {
+      console.error("[DeploymentService] InsForge database error:", error);
+      toast.error(`Deploy failed: ${error.message}`, { id: "deploy-status" });
+      throw new Error(`Deployment database insertion failed: ${error.message}`);
+    }
+
+    const deployUrl = `https://g7nugnui.ap-southeast.insforge.app/api/serve-deployment?id=${deploymentId}`;
+    toast.success("Deployment live! 🚀", { id: "deploy-status" });
+    return deployUrl;
   }
 
   async generateConfig(platform: "vercel" | "netlify" | "docker") {
@@ -48,3 +86,4 @@ export class DeploymentService {
     return { url: `https://${projectId}.vercel.app` };
   }
 }
+

@@ -15,12 +15,18 @@ import {
   Paperclip,
   Image as ImageIcon,
   Loader2,
-  Radio
+  Radio,
+  Zap,
+  Lock,
+  Smartphone,
+  Rocket
 } from "lucide-react";
 import { useChatStore } from "../../stores/chatStore";
 import { useProjectStore } from "../../stores/projectStore";
 import { useAgentStore } from "../../stores/agentStore";
 import toast from "react-hot-toast";
+
+import { DesignExploration } from "./DesignExploration";
 
 // Web Speech API types
 declare global {
@@ -36,9 +42,10 @@ interface ChatPanelProps {
 
 // All supported models
 const ALL_MODELS = [
+  { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B", badge: "Free" },
+  { id: "openrouter/owl-alpha", name: "Owl Alpha", badge: "New" },
   { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", badge: "Default" },
   { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", badge: "Pro" },
-  { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", badge: "New" },
   { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet", badge: "Premium" },
   { id: "openai/gpt-4o", name: "GPT-4o", badge: "Premium" },
   { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B", badge: "Nvidia" },
@@ -105,7 +112,7 @@ const SkeletonLoader: React.FC = () => {
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
   const { messages, input, setInput } = useChatStore();
-  const { buildPhase, subStatus, tasks } = useProjectStore();
+  const { buildPhase, subStatus, tasks, buildingFiles } = useProjectStore();
   const { selectedModel, setSelectedModel } = useAgentStore();
 
   const getLoaderTheme = () => {
@@ -130,11 +137,22 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
   const [attachments, setAttachments] = useState<{ name: string; content: string; type: string }[]>([]);
   const [isListening, setIsListening] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState("");
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [micVolume, setMicVolume] = useState<number>(0);
+
+  // Design Exploration State
+  const [exploringPrompt, setExploringPrompt] = useState<string | null>(null);
+
   const recognitionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<any>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const initialTextRef = useRef<string>("");
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, buildPhase]);
+  }, [messages, buildPhase, exploringPrompt]);
 
   // Close model menu on outside click
   useEffect(() => {
@@ -146,66 +164,188 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
     return () => document.removeEventListener("mousedown", close);
   }, []);
 
-  // Voice-to-App: Web Speech API
-  const toggleVoice = useCallback(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toast.error("Voice input not supported in this browser.");
-      return;
-    }
+  // Voice-to-App: Web Audio Recording & Speech API
+  const toggleVoice = useCallback(async () => {
+    if (isTranscribing) return;
 
     if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-      setLiveTranscript("");
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          console.error("Error stopping SpeechRecognition:", e);
+        }
+      }
+
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      } else {
+        setIsListening(false);
+      }
+
+      // Cleanup visualizer
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      if (audioContextRef.current) {
+        try {
+          audioContextRef.current.close();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      setMicVolume(0);
       return;
     }
 
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-    recognitionRef.current = recognition;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunksRef.current = [];
+      
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      mediaRecorderRef.current = mediaRecorder;
 
-    recognition.onstart = () => {
-      setIsListening(true);
-      toast.success("🎙️ Listening... Speak your idea!", { duration: 2000 });
-    };
+      // Track initial text to append to it
+      initialTextRef.current = useChatStore.getState().input;
 
-    recognition.onresult = (event: any) => {
-      let interim = "";
-      let final = "";
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          final += event.results[i][0].transcript;
-        } else {
-          interim += event.results[i][0].transcript;
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
         }
-      }
-      setLiveTranscript(interim);
-      if (final) {
-        const { input, setInput } = useChatStore.getState();
-        setInput((input + " " + final).trim());
-        setLiveTranscript("");
-      }
-    };
+      };
 
-    recognition.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error);
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(track => track.stop());
+
+        if (audioChunksRef.current.length === 0) {
+          toast.error("No audio captured.");
+          return;
+        }
+
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        setIsTranscribing(true);
+        const toastId = toast.loading("🤖 Transcribing voice...");
+
+        try {
+          const reader = new FileReader();
+          reader.readAsDataURL(audioBlob);
+          reader.onloadend = async () => {
+            const base64Data = (reader.result as string).split(",")[1];
+            
+            try {
+              const res = await fetch("/api/ai/transcribe", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ audio: base64Data })
+              });
+
+              if (!res.ok) {
+                throw new Error("STT server error");
+              }
+
+              const data = await res.json();
+              if (data.text) {
+                // Overwrite the real-time preview with the high-quality final transcript
+                const { setInput } = useChatStore.getState();
+                setInput((initialTextRef.current + " " + data.text).trim());
+                toast.success("🎙️ Voice transcribed!", { id: toastId });
+              } else {
+                toast.error("Could not transcribe audio.", { id: toastId });
+              }
+            } catch (err) {
+              console.error("STT transcription fetch failed:", err);
+              toast.error("Transcription failed.", { id: toastId });
+            } finally {
+              setIsTranscribing(false);
+              setIsListening(false);
+              setLiveTranscript("");
+              setMicVolume(0);
+            }
+          };
+        } catch (err) {
+          console.error("Failed to read audio blob:", err);
+          toast.error("Failed to process audio.", { id: toastId });
+          setIsTranscribing(false);
+          setIsListening(false);
+          setMicVolume(0);
+        }
+      };
+
+      // Set up AudioContext volume analyser
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioContextRef.current = audioContext;
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 64;
+      source.connect(analyser);
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      
+      const updateVolume = () => {
+        if (mediaRecorder.state === "inactive") return;
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / bufferLength;
+        setMicVolume(average);
+        animationFrameRef.current = requestAnimationFrame(updateVolume);
+      };
+
+      mediaRecorder.start();
+      setIsListening(true);
+      updateVolume();
+      toast.success("🎙️ Mic active... Speak your idea!", { duration: 2000 });
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        
+        // Auto fallback user's browser language if not en-US
+        recognition.lang = navigator.language || "en-US";
+        recognitionRef.current = recognition;
+
+        recognition.onresult = (event: any) => {
+          let interim = "";
+          let final = "";
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              final += event.results[i][0].transcript;
+            } else {
+              interim += event.results[i][0].transcript;
+            }
+          }
+          setLiveTranscript(interim || final || "Listening...");
+          
+          // Append text in real-time to the text area
+          const textToAdd = (final + " " + interim).trim();
+          if (textToAdd) {
+            const { setInput } = useChatStore.getState();
+            setInput((initialTextRef.current + " " + textToAdd).trim());
+          }
+        };
+
+        recognition.onerror = (event: any) => {
+          console.warn("SpeechRecognition interim error:", event.error);
+        };
+
+        recognition.start();
+      } else {
+        setLiveTranscript("Recording...");
+      }
+
+    } catch (err: any) {
+      console.error("Failed to access microphone:", err);
+      toast.error("Could not access microphone. Check browser permissions.");
       setIsListening(false);
-      setLiveTranscript("");
-      if (event.error !== "no-speech") {
-        toast.error(`Voice error: ${event.error}`);
-      }
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-      setLiveTranscript("");
-    };
-
-    recognition.start();
-  }, [isListening]);
+      setIsTranscribing(false);
+      setMicVolume(0);
+    }
+  }, [isListening, isTranscribing]);
 
   const handleSend = () => {
     if (!input.trim() && attachments.length === 0) return;
@@ -224,9 +364,29 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
       finalText = finalText ? `${finalText}${attachText}` : attachText.trim();
     }
 
-    onSend(finalText, attachments);
+    // Intercept generation flow and start design exploration
+    setExploringPrompt(finalText);
+    
+    // Add user message to chat UI immediately
+    const userMsg = {
+      role: "user",
+      text: finalText,
+      timestamp: Date.now(),
+      model: selectedModel,
+    };
+    useChatStore.getState().setMessages((prev: any) => [...prev, userMsg]);
+    
     setInput("");
     setAttachments([]);
+  };
+
+  const handleExplorationConfirm = (enrichedPrompt: string) => {
+    setExploringPrompt(null);
+    onSend(enrichedPrompt); // Now it passes the enriched prompt back to ChatInterface's handleSend
+  };
+
+  const handleExplorationCancel = () => {
+    setExploringPrompt(null);
   };
 
   // Handle file/image upload
@@ -422,7 +582,55 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                       })}
                     </div>
                   )}
+
+                  {/* File Generation Progress */}
+                  {buildingFiles && Object.keys(buildingFiles).length > 0 && (
+                    <div className="flex flex-col gap-1.5 border-l-2 border-[#e8e8e8] ml-3 pl-4 py-1.5 select-none max-h-48 overflow-y-auto scrollbar-hide">
+                      <div className="text-[8px] font-black uppercase tracking-[0.15em] text-[#888] mb-1">
+                        📁 File Operations
+                      </div>
+                      {Object.entries(buildingFiles).map(([fpath, progress]) => {
+                        const isWriting = progress.status === "writing";
+                        const isDone = progress.status === "done";
+                        return (
+                          <motion.div
+                            key={fpath}
+                            initial={{ opacity: 0, x: -4 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="flex items-center justify-between gap-2 text-[10px]"
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              {isWriting ? (
+                                <Loader2 className="w-2.5 h-2.5 animate-spin text-[#0ea5e9] shrink-0" />
+                              ) : (
+                                <span className="text-emerald-500 font-bold text-[10px] shrink-0 select-none">✓</span>
+                              )}
+                              <span className={`font-mono truncate leading-tight ${
+                                isDone ? "text-[#aaa]" : "text-[#111] font-medium"
+                              }`}>
+                                {fpath}
+                              </span>
+                            </div>
+                            {isWriting && progress.charCount > 0 && (
+                              <span className="text-[8px] text-[#aaa] font-semibold shrink-0">
+                                {progress.charCount} chars
+                              </span>
+                            )}
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </motion.div>
+              )}
+              
+              {/* Intent & Design Exploration UI */}
+              {exploringPrompt && (
+                <DesignExploration 
+                  prompt={exploringPrompt} 
+                  onConfirm={handleExplorationConfirm} 
+                  onCancel={handleExplorationCancel} 
+                />
               )}
             </AnimatePresence>
           </div>
@@ -459,16 +667,60 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
             </div>
           )}
 
+          {/* Post Build AI Quick Actions */}
+          {buildPhase === "done" && (
+            <div className="flex flex-wrap gap-2 px-3 mt-3 mb-1">
+              {[
+                { label: "Improve UI", icon: <Sparkles className="w-3 h-3 text-purple-500" /> },
+                { label: "Improve Performance", icon: <Zap className="w-3 h-3 text-amber-500" /> },
+                { label: "Improve Security", icon: <Lock className="w-3 h-3 text-emerald-500" /> },
+                { label: "Mobile Optimization", icon: <Smartphone className="w-3 h-3 text-blue-500" /> },
+                { label: "Deploy", icon: <Rocket className="w-3 h-3 text-indigo-500" /> }
+              ].map((action, i) => (
+                <button
+                  key={i}
+                  onClick={() => onSend(action.label)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-[#e8e8e8] rounded-lg text-[10px] font-bold text-[#555] hover:text-[#111] hover:bg-[#f3f3f3] transition-colors whitespace-nowrap shadow-sm"
+                >
+                  {action.icon}
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Live transcript overlay */}
           <AnimatePresence>
-            {isListening && liveTranscript && (
+            {isListening && (
               <motion.div
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
-                className="mx-3 mt-2.5 px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg text-[10px] text-red-600 font-medium italic"
+                className="mx-3 mt-2.5 px-3 py-2 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between text-[10px] text-red-600 font-medium select-none"
               >
-                🎙️ {liveTranscript}
+                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                  <span className="relative flex h-1.5 w-1.5 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
+                  </span>
+                  <span className="italic truncate">
+                    {liveTranscript || "Listening..."}
+                  </span>
+                </div>
+                {/* Dancing voice bars */}
+                <div className="flex items-end gap-0.5 h-3.5 pl-2 shrink-0">
+                  {[1, 2, 3, 4, 5].map((i) => {
+                    const factor = 0.4 + Math.sin((i * Math.PI) / 6) * 0.6;
+                    const height = Math.max(3, Math.min(14, (micVolume / 15) * factor));
+                    return (
+                      <div
+                        key={i}
+                        className="w-0.5 bg-red-500 rounded-full transition-all duration-75"
+                        style={{ height: `${height}px` }}
+                      />
+                    );
+                  })}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -483,8 +735,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                 handleSend();
               }
             }}
-            placeholder={isListening ? "🎙️ Listening... speak your idea" : "Make changes, add new features, ask for anything"}
-            className="w-full bg-transparent py-3 px-4 text-xs text-[#111] placeholder:text-[#aaa] resize-none h-[58px] outline-none leading-relaxed"
+            placeholder={
+              isTranscribing 
+                ? "🤖 Transcribing voice..." 
+                : isListening 
+                  ? "🎙️ Listening... speak your idea" 
+                  : "Make changes, add new features, ask for anything"
+            }
+            disabled={isTranscribing}
+            className="w-full bg-transparent py-3 px-4 text-xs text-[#111] placeholder:text-[#aaa] resize-none h-[58px] outline-none leading-relaxed disabled:opacity-50"
           />
 
           {/* Toolbar */}
@@ -564,14 +823,19 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
               <button
                 type="button"
                 onClick={toggleVoice}
+                disabled={isTranscribing}
                 className={`relative p-1.5 rounded-lg transition-all ${
-                  isListening
-                    ? "text-red-500 bg-red-50 hover:bg-red-100 ring-2 ring-red-300"
-                    : "text-[#aaa] hover:text-[#555] hover:bg-[#f3f3f3]"
+                  isTranscribing
+                    ? "text-[#0ea5e9] bg-sky-50 hover:bg-sky-100 ring-2 ring-sky-300"
+                    : isListening
+                      ? "text-red-500 bg-red-50 hover:bg-red-100 ring-2 ring-red-300"
+                      : "text-[#aaa] hover:text-[#555] hover:bg-[#f3f3f3]"
                 }`}
-                title={isListening ? "Stop voice input" : "Voice-to-App: Speak your idea"}
+                title={isTranscribing ? "Transcribing..." : isListening ? "Stop voice input" : "Voice-to-App: Speak your idea"}
               >
-                {isListening ? (
+                {isTranscribing ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : isListening ? (
                   <>
                     <Radio className="w-3.5 h-3.5 animate-pulse" />
                     <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full animate-ping" />

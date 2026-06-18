@@ -21,31 +21,92 @@ import {
   Compass,
   Database,
   Layers,
-  Activity
+  Activity,
+  Loader2
 } from "lucide-react";
+import logoV2 from "../../assets/NEXO-V2.png";
 import { useProjectStore } from "../../stores/projectStore";
 import { useChatStore } from "../../stores/chatStore";
 import { useAgentStore } from "../../stores/agentStore";
+import { useAgentEventStore } from "../../stores/agentEventStore";
+import { useTeamStore } from "../../stores/teamStore";
 import { PROJECT_TEMPLATES } from "../../lib/templates";
 import {
   auth,
   loadChatsFromFirebase,
   deleteChatFromFirebase,
-  signInWithGoogle
+  signInWithGoogle,
+  onAuthStateChanged
 } from "../../services/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { DeploymentService } from "../../services/deploymentService";
 import JSZip from "jszip";
 import toast from "react-hot-toast";
+import { BlockLibrary } from "../ui/BlockLibrary";
 
-type SidebarTab = "projects" | "chats" | "templates" | "assets" | "keys" | "deploy" | "settings";
+type SidebarTab = "projects" | "chats" | "templates" | "assets" | "keys" | "deploy" | "settings" | "blocks";
+
+const PROVIDER_MODELS: Record<string, { id: string; name: string }[]> = {
+  "Google AI": [
+    { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
+    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" }
+  ],
+  "OpenRouter": [
+    { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B" },
+    { id: "openrouter/owl-alpha", name: "Owl Alpha" }
+  ],
+  "NVIDIA NIM": [
+    { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B" },
+    { id: "stepfun-ai/step-3.5-flash", name: "Step 3.5 Flash" }
+  ],
+  "Groq Cloud": [
+    { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B" }
+  ],
+  "Anthropic": [
+    { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet" }
+  ],
+  "OpenAI": [
+    { id: "openai/gpt-4o", name: "GPT-4o" }
+  ]
+};
+
+const getProviderForModel = (modelId: string) => {
+  for (const [provider, models] of Object.entries(PROVIDER_MODELS)) {
+    if (models.some((m) => m.id === modelId)) {
+      return provider;
+    }
+  }
+  return "Google AI";
+};
 
 export const WorkspaceSidebar: React.FC = () => {
   const [activeTab, setActiveTab] = useState<SidebarTab>("projects");
   const [isExpanded, setIsExpanded] = useState(true);
 
   // States from stores
-  const { currentContent, selectedFileName, setSelectedFileName, deployStatus, deployUrl, setDeployStatus, setDeployUrl } = useProjectStore();
+  const { currentContent, selectedFileName, setSelectedFileName, deployStatus, deployUrl, setDeployStatus, setDeployUrl, buildPhase } = useProjectStore();
   const { messages, setMessages, currentChatId, setCurrentChatId, setHasStarted } = useChatStore();
+  
+  // Event stores
+  const { activeFiles } = useAgentEventStore();
+  const { members } = useTeamStore();
+
+  const getIsMemberActiveForPhase = (role: string, phase: string) => {
+    if (phase === "idle" || phase === "done") return false;
+    switch (role) {
+      case "pm":
+        return phase === "planning";
+      case "designer":
+        return phase === "planning";
+      case "developer":
+        return phase === "generating" || phase === "building";
+      case "qa-agent":
+        return phase === "fixing";
+      case "devops-agent":
+        return phase === "deploying";
+      default:
+        return false;
+    }
+  };
   const {
     selectedModel,
     setSelectedModel,
@@ -56,19 +117,25 @@ export const WorkspaceSidebar: React.FC = () => {
     temperature,
     setTemperature,
     topP,
-    setTopP
+    setTopP,
+    customApiKey,
+    setCustomApiKey
   } = useAgentStore();
 
   // Local Sidebar States
   const [chatHistory, setChatHistory] = useState<any[]>([]);
-  const [customApiKey, setCustomApiKey] = useState("");
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isDeploying, setIsDeploying] = useState(false);
   const [hoveredTab, setHoveredTab] = useState<string | null>(null);
+  const [selectedProviderKey, setSelectedProviderKey] = useState(() => getProviderForModel(selectedModel));
 
-  // Auth monitoring
+  useEffect(() => {
+    setSelectedProviderKey(getProviderForModel(selectedModel));
+  }, [selectedModel]);
+
+  // Auth monitoring & local fallback list
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -77,7 +144,15 @@ export const WorkspaceSidebar: React.FC = () => {
           setChatHistory(chats);
         });
       } else {
-        setChatHistory([]);
+        fetch("/api/chats/list")
+          .then((res) => res.json())
+          .then((chats) => {
+            setChatHistory(chats || []);
+          })
+          .catch((err) => {
+            console.error("Failed to load local chats:", err);
+            setChatHistory([]);
+          });
       }
     });
     return () => unsubscribe();
@@ -194,22 +269,26 @@ export const WorkspaceSidebar: React.FC = () => {
     toast.success(`Applied starter template: ${template.name}`);
   };
 
-  const handleDeploy = () => {
+  const handleDeploy = async () => {
     setIsDeploying(true);
     setDeployStatus("deploying");
-    setTimeout(() => {
-      setIsDeploying(false);
+    try {
+      const url = await DeploymentService.getInstance().deployProject();
+      setDeployUrl(url);
       setDeployStatus("done");
-      const mockUrl = `https://nexo-preview-${Math.random().toString(36).substring(2, 7)}.vercel.app`;
-      setDeployUrl(mockUrl);
-      toast.success("Project deployed live!");
-    }, 3000);
+    } catch (e) {
+      console.error("[WorkspaceSidebar] Deployment error:", e);
+      setDeployStatus("error");
+    } finally {
+      setIsDeploying(false);
+    }
   };
 
   const models = [
+    { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B", desc: "Free OpenRouter reasoning model" },
+    { id: "openrouter/owl-alpha", name: "Owl Alpha", desc: "OpenRouter's state-of-the-art owl reasoning model" },
     { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", desc: "Fast reasoning, high quota" },
     { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", desc: "Best quality, deep reasoning" },
-    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", desc: "Balanced speed & quality" },
     { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B (Nvidia)", desc: "Deep coding capabilities" },
     { id: "stepfun-ai/step-3.5-flash", name: "Step 3.5 Flash (Nvidia)", desc: "StepFun generation model" },
     { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Groq)", desc: "Fast open source reasoning" },
@@ -221,6 +300,7 @@ export const WorkspaceSidebar: React.FC = () => {
     { id: "projects", icon: FolderOpen, label: "Explorer" },
     { id: "chats", icon: MessageSquare, label: "Chats" },
     { id: "templates", icon: Compass, label: "Starters" },
+    { id: "blocks", icon: Layers, label: "Blocks" },
     { id: "assets", icon: Image, label: "Assets" },
     { id: "keys", icon: Key, label: "API Keys" },
     { id: "deploy", icon: Globe, label: "Deployments" },
@@ -231,10 +311,10 @@ export const WorkspaceSidebar: React.FC = () => {
       {/* Icon Sidebar (Vertical Action Strip) */}
       <div className="w-16 bg-studio-bg/95 flex flex-col items-center py-4 justify-between relative">
         <div className="flex flex-col items-center gap-4 w-full">
-          {/* AI Pulse Logo */}
+          {/* AI Pulse Logo -> Nexo Original Logo */}
           <div className="relative group cursor-pointer">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-studio-accent to-blue-500 flex items-center justify-center shadow-lg shadow-studio-accent/20 transition-transform duration-300 group-hover:scale-105 active:scale-95">
-              <Sparkles className="w-5 h-5 text-studio-text" />
+            <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shadow-lg shadow-studio-accent/25 transition-transform duration-300 group-hover:scale-105 active:scale-95 bg-white border border-studio-border">
+              <img src={logoV2} alt="Nexo Logo" className="w-full h-full object-cover" />
             </div>
             {/* Live pulsing glowing dot */}
             <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
@@ -247,7 +327,7 @@ export const WorkspaceSidebar: React.FC = () => {
 
           {/* Floating Create Button */}
           <button
-            onClick={() => {
+            onClick={async () => {
               const name = prompt("Enter new filename:");
               if (name) {
                 useProjectStore.getState().setCurrentContent((prev) => {
@@ -259,6 +339,23 @@ export const WorkspaceSidebar: React.FC = () => {
                   };
                 });
                 setSelectedFileName(name);
+
+                // Write new file to WebContainer dynamically
+                try {
+                  const { WebContainerService } = await import("../../services/runtime/webcontainer");
+                  const wc = WebContainerService.getInstance().getWebContainer();
+                  if (wc) {
+                    if (name.includes("/")) {
+                      const parts = name.split("/");
+                      parts.pop();
+                      await wc.fs.mkdir(parts.join("/"), { recursive: true });
+                    }
+                    await wc.fs.writeFile(name, `// New file ${name}`);
+                    toast.success(`File ${name} created in runtime!`);
+                  }
+                } catch (e) {
+                  console.error("[WorkspaceSidebar] Failed to write new file to WebContainer:", e);
+                }
               }
             }}
             className="w-10 h-10 rounded-xl bg-studio-panel border border-studio-border hover:border-studio-accent text-studio-muted hover:text-studio-text flex items-center justify-center transition-all duration-300 shadow-md group hover:bg-studio-panel/80 hover:shadow-studio-accent/5"
@@ -346,6 +443,25 @@ export const WorkspaceSidebar: React.FC = () => {
             )}
           </AnimatePresence>
         </div>
+
+        {/* User Profile Avatar */}
+        {user && (
+          <div className="relative group mt-4">
+            <div className="w-10 h-10 rounded-xl overflow-hidden border border-studio-border/60 shadow-lg flex items-center justify-center bg-studio-panel/20 cursor-pointer hover:border-studio-accent transition-colors">
+              {user.photoURL ? (
+                <img src={user.photoURL} alt="User Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-studio-accent flex items-center justify-center text-white text-xs font-bold">
+                  {(user.displayName || user.email || "U")[0].toUpperCase()}
+                </div>
+              )}
+            </div>
+            {/* Tooltip with user name */}
+            <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4 bg-studio-card border border-studio-border px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-studio-text whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+              {user.displayName || user.email?.split("@")[0]}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Expanded Subpanel Panel */}
@@ -359,13 +475,23 @@ export const WorkspaceSidebar: React.FC = () => {
             className="w-72 bg-studio-panel/30 border-r border-studio-border/60 flex flex-col overflow-hidden backdrop-blur-xl"
           >
             {/* Expanded Header */}
-            <div className="h-14 border-b border-studio-border/60 px-6 flex items-center justify-between shrink-0 bg-studio-panel/10">
-              <span className="text-[10px] font-black text-studio-accent uppercase tracking-[0.2em]">
-                {activeTab}
-              </span>
+            <div className="h-14 border-b border-studio-border/60 px-5 flex items-center justify-between shrink-0 bg-studio-panel/10 gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-[10px] font-black text-studio-accent uppercase tracking-[0.2em] truncate">
+                  {activeTab}
+                </span>
+                {buildPhase !== "idle" && buildPhase !== "done" && (
+                  <span 
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-mono font-bold text-white shrink-0 shadow-sm bg-studio-accent"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                    <span className="capitalize">{buildPhase}</span>
+                  </span>
+                )}
+              </div>
               <button
                 onClick={() => setIsExpanded(false)}
-                className="text-studio-muted hover:text-studio-text text-[10px] font-bold tracking-wider px-2 py-1 rounded-md border border-studio-border/60 hover:bg-studio-panel/50 transition-all"
+                className="text-studio-muted hover:text-studio-text text-[10px] font-bold tracking-wider px-2 py-1 rounded-md border border-studio-border/60 hover:bg-studio-panel/50 transition-all shrink-0"
               >
                 Collapse
               </button>
@@ -375,32 +501,87 @@ export const WorkspaceSidebar: React.FC = () => {
             <div className="flex-grow overflow-y-auto p-5 space-y-5 custom-scrollbar bg-studio-panel/5">
               {/* PROJECTS / EXPLORER VIEW */}
               {activeTab === "projects" && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-studio-muted font-black uppercase tracking-wider">WORKSPACE FILES</span>
+                <div className="space-y-5 flex flex-col h-full">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-studio-muted font-black uppercase tracking-wider">WORKSPACE FILES</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {currentContent?.files && Object.keys(currentContent.files).length > 0 ? (
+                        Object.keys(currentContent.files).map((filename) => {
+                          const isWriting = activeFiles.has(filename);
+                          return (
+                            <button
+                              key={filename}
+                              onClick={() => setSelectedFileName(filename)}
+                              className={`w-full px-3 py-2 flex items-center gap-2.5 rounded-xl text-xs font-semibold tracking-wide text-left transition-all border ${
+                                selectedFileName === filename
+                                  ? "bg-studio-accent/10 text-studio-text border-studio-accent/25 shadow-md shadow-studio-accent/5"
+                                  : isWriting
+                                    ? "bg-indigo-500/5 text-indigo-400 border-indigo-500/20 animate-pulse"
+                                    : "bg-transparent border-transparent text-studio-muted hover:text-studio-text hover:bg-studio-panel/40"
+                              }`}
+                            >
+                              {isWriting ? (
+                                <Loader2 className="w-3.5 h-3.5 shrink-0 text-indigo-500 animate-spin" />
+                              ) : (
+                                <FileCode className="w-3.5 h-3.5 shrink-0 text-studio-accent/80" />
+                              )}
+                              <span className="truncate flex-1">{filename}</span>
+                              {isWriting && (
+                                <span className="text-[8px] font-mono font-bold bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded">
+                                  Writing
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="text-studio-muted text-xs italic text-center py-10 bg-studio-card/20 rounded-2xl border border-studio-border border-dashed">
+                          No files generated yet
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    {currentContent?.files && Object.keys(currentContent.files).length > 0 ? (
-                      Object.keys(currentContent.files).map((filename) => (
-                        <button
-                          key={filename}
-                          onClick={() => setSelectedFileName(filename)}
-                          className={`w-full px-3 py-2.5 flex items-center gap-2.5 rounded-xl text-xs font-semibold tracking-wide text-left transition-all border ${
-                            selectedFileName === filename
-                              ? "bg-studio-accent/10 text-studio-text border-studio-accent/25 shadow-md shadow-studio-accent/5"
-                              : "bg-transparent border-transparent text-studio-muted hover:text-studio-text hover:bg-studio-panel/40"
-                          }`}
-                        >
-                          <FileCode className="w-4 h-4 shrink-0 text-studio-accent/80 animate-pulse" />
-                          <span className="truncate">{filename}</span>
-                        </button>
-                      ))
-                    ) : (
-                      <div className="text-studio-muted text-xs italic text-center py-10 bg-studio-card/20 rounded-2xl border border-studio-border border-dashed">
-                        No files generated yet
+
+                  {/* Active AI Squad Panel */}
+                  {buildPhase !== "idle" && buildPhase !== "done" && (
+                    <div className="border-t border-studio-border/60 pt-4 space-y-3 mt-auto">
+                      <div className="flex items-center justify-between text-[10px] text-studio-muted font-black uppercase tracking-wider">
+                        <span>Active AI Squad</span>
+                        <Activity className="w-3.5 h-3.5 text-studio-accent animate-pulse" />
                       </div>
-                    )}
-                  </div>
+                      <div className="space-y-2 max-h-[190px] overflow-y-auto pr-1">
+                        {members.map((member) => {
+                          const isMemberActive = getIsMemberActiveForPhase(member.role, buildPhase);
+                          return (
+                            <div 
+                              key={member.id} 
+                              className={`flex items-center gap-2 p-2 rounded-xl border transition-all ${
+                                isMemberActive 
+                                  ? "bg-studio-accent/5 border-studio-accent/20" 
+                                  : "opacity-40 border-transparent bg-transparent"
+                              }`}
+                            >
+                              <img src={member.avatar} alt={member.name} className="w-6 h-6 rounded bg-studio-card border border-studio-border/60" />
+                              <div className="flex-1 min-w-0">
+                                <div className="text-[10px] font-bold truncate text-studio-text flex items-center gap-1.5">
+                                  {member.name}
+                                  {isMemberActive && <span className="w-1 h-1 rounded-full bg-emerald-500 animate-ping" />}
+                                </div>
+                                <div className="text-[8px] text-studio-muted font-medium capitalize">{member.role}</div>
+                              </div>
+                              {isMemberActive && (
+                                <span className="text-[8px] font-mono text-studio-accent font-bold animate-pulse">
+                                  {buildPhase === "generating" ? "Writing" : "Thinking"}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -423,9 +604,9 @@ export const WorkspaceSidebar: React.FC = () => {
                     </div>
                   ) : (
                     <div className="space-y-2.5">
-                      {chatHistory.map((chat) => (
+                      {chatHistory.map((chat, index) => (
                         <div
-                          key={chat.id}
+                          key={chat.id || index}
                           onClick={() => handleLoadChat(chat)}
                           className={`group p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col gap-2 relative overflow-hidden ${
                             currentChatId === chat.id
@@ -495,6 +676,14 @@ export const WorkspaceSidebar: React.FC = () => {
                 </div>
               )}
 
+              {/* BLOCKS LIBRARY VIEW */}
+              {activeTab === "blocks" && (
+                <div className="space-y-4 h-full flex flex-col">
+                  <span className="text-xs text-studio-muted block">Browse layout libraries or save current code as custom blocks:</span>
+                  <BlockLibrary />
+                </div>
+              )}
+
               {/* ASSETS VIEW */}
               {activeTab === "assets" && (
                 <div className="space-y-4">
@@ -530,7 +719,7 @@ export const WorkspaceSidebar: React.FC = () => {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-studio-muted uppercase tracking-wider block">
-                      Google Gemini Key
+                      Custom API Key
                     </label>
                     <p className="text-[10px] text-studio-muted leading-relaxed">
                       Supply a private key to bypass workspace limits. Keys are stored in the client local storage browser frame.
@@ -539,10 +728,45 @@ export const WorkspaceSidebar: React.FC = () => {
                       type="password"
                       value={customApiKey}
                       onChange={(e) => setCustomApiKey(e.target.value)}
-                      placeholder="AIzaSy..."
+                      placeholder="Enter API Key (AIzaSy... or sk-...)"
                       className="w-full bg-studio-bg border border-studio-border rounded-xl px-3.5 py-2.5 text-xs text-studio-text outline-none focus:border-studio-accent transition-all font-mono"
                     />
                   </div>
+
+                  {/* Provider & Model Selector Dropdowns */}
+                  <div className="space-y-3 pt-3 border-t border-studio-border/60">
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-studio-muted uppercase tracking-wider block">API Provider</span>
+                      <select
+                        value={selectedProviderKey}
+                        onChange={(e) => {
+                          const newProv = e.target.value;
+                          setSelectedProviderKey(newProv);
+                          const firstModel = PROVIDER_MODELS[newProv]?.[0]?.id;
+                          if (firstModel) setSelectedModel(firstModel);
+                        }}
+                        className="w-full bg-studio-bg border border-studio-border rounded-xl px-3 py-2 text-xs text-studio-text outline-none focus:border-studio-accent transition-all cursor-pointer font-bold"
+                      >
+                        {Object.keys(PROVIDER_MODELS).map((prov) => (
+                          <option key={prov} value={prov}>{prov}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-studio-muted uppercase tracking-wider block">Active Model</span>
+                      <select
+                        value={selectedModel}
+                        onChange={(e) => setSelectedModel(e.target.value)}
+                        className="w-full bg-studio-bg border border-studio-border rounded-xl px-3 py-2 text-xs text-studio-text outline-none focus:border-studio-accent transition-all cursor-pointer font-bold"
+                      >
+                        {PROVIDER_MODELS[selectedProviderKey]?.map((m) => (
+                          <option key={m.id} value={m.id}>{m.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
                   <div className="flex gap-2">
                     <button
                       onClick={handleSaveApiKey}
@@ -675,36 +899,38 @@ export const WorkspaceSidebar: React.FC = () => {
                   </div>
 
                   {/* Language Selector */}
-                  <div className="space-y-2 relative">
-                    <label className="text-[10px] font-black text-studio-muted uppercase tracking-wider block">Source Language</label>
-                    <button
-                      onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
-                      className="w-full flex items-center justify-between px-3.5 py-2.5 bg-studio-bg border border-studio-border rounded-xl text-xs text-studio-text hover:border-studio-accent transition-all"
-                    >
-                      <span>{selectedLanguage}</span>
-                      <ChevronDown className="w-3 h-3 text-studio-muted" />
-                    </button>
-                    {isLangDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-studio-card border border-studio-border rounded-xl shadow-2xl p-1 z-50">
-                        {languages.map((lang) => (
-                          <button
-                            key={lang}
-                            onClick={() => {
-                              setSelectedLanguage(lang);
-                              setIsLangDropdownOpen(false);
-                            }}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
-                              selectedLanguage === lang
-                                ? "bg-studio-accent text-white"
-                                : "hover:bg-studio-panel text-studio-muted"
-                            }`}
-                          >
-                            {lang}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  {projectMode === "frontend" && (
+                    <div className="space-y-2 relative">
+                      <label className="text-[10px] font-black text-studio-muted uppercase tracking-wider block">Source Language</label>
+                      <button
+                        onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
+                        className="w-full flex items-center justify-between px-3.5 py-2.5 bg-studio-bg border border-studio-border rounded-xl text-xs text-studio-text hover:border-studio-accent transition-all"
+                      >
+                        <span>{selectedLanguage}</span>
+                        <ChevronDown className="w-3 h-3 text-studio-muted" />
+                      </button>
+                      {isLangDropdownOpen && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-studio-card border border-studio-border rounded-xl shadow-2xl p-1 z-50">
+                          {languages.map((lang) => (
+                            <button
+                              key={lang}
+                              onClick={() => {
+                                setSelectedLanguage(lang);
+                                setIsLangDropdownOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
+                                selectedLanguage === lang
+                                  ? "bg-studio-accent text-white"
+                                  : "hover:bg-studio-panel text-studio-muted"
+                              }`}
+                            >
+                              {lang}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Temperature slider */}
                   <div className="space-y-2 pt-2">

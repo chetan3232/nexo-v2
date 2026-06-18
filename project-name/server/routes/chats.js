@@ -32,21 +32,40 @@ router.post('/new', (req, res) => {
 // --- Save/Update Chat Messages ---
 router.post('/save/:id', (req, res) => {
     try {
-        const { messages, title } = req.body;
+        const { messages, title, content, model, projectMode } = req.body;
         const chatsData = store.readChats();
-        const chatIndex = chatsData.chats.findIndex(c => c.id === req.params.id);
+        if (!chatsData.chats) chatsData.chats = [];
+
+        let chatIndex = chatsData.chats.findIndex(c => c.id === req.params.id);
 
         if (chatIndex === -1) {
-            return res.status(404).json({ error: 'Chat not found' });
+            // Upsert / Create new chat session if not found
+            const newChat = {
+                id: req.params.id,
+                title: title || 'Untitled Project',
+                messages: messages || [],
+                content: content || null,
+                model: model || '',
+                projectMode: projectMode || '',
+                createdAt: new Date().toISOString(),
+                updatedAt: Date.now()
+            };
+            chatsData.chats.push(newChat);
+            chatIndex = chatsData.chats.length - 1;
+        } else {
+            // Update fields
+            if (messages !== undefined) chatsData.chats[chatIndex].messages = messages;
+            if (title !== undefined) chatsData.chats[chatIndex].title = title;
+            if (content !== undefined) chatsData.chats[chatIndex].content = content;
+            if (model !== undefined) chatsData.chats[chatIndex].model = model;
+            if (projectMode !== undefined) chatsData.chats[chatIndex].projectMode = projectMode;
+            chatsData.chats[chatIndex].updatedAt = Date.now();
         }
-
-        // Update fields
-        if (messages) chatsData.chats[chatIndex].messages = messages;
-        if (title) chatsData.chats[chatIndex].title = title;
 
         store.writeChats(chatsData);
         res.json(chatsData.chats[chatIndex]);
     } catch (err) {
+        console.error("[Backend Chats] Save chat error:", err);
         res.status(500).json({ error: 'Failed to save chat' });
     }
 });

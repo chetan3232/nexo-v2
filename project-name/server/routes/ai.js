@@ -149,4 +149,195 @@ router.get("/job/:jobId", (req, res) => {
     res.json(job);
 });
 
+// 4. Speech to Text (STT) Transcription API
+router.post("/transcribe", async (req, res) => {
+    try {
+        const { audio } = req.body;
+        if (!audio) {
+            return res.status(400).json({ error: "Missing audio data" });
+        }
+
+        // 1. Try Groq Whisper API (primary, extremely fast and multilingual)
+        if (process.env.GROQ_API_KEY) {
+            try {
+                console.log("[STT] Attempting Groq Whisper transcription...");
+                const formData = new FormData();
+                const buffer = Buffer.from(audio, "base64");
+                const file = new Blob([buffer], { type: "audio/webm" });
+                formData.append("file", file, "audio.webm");
+                formData.append("model", "whisper-large-v3");
+
+                const response = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
+                    },
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.text) {
+                        console.log("[STT] Groq transcription successful:", data.text);
+                        return res.json({ text: data.text });
+                    }
+                } else {
+                    const errText = await response.text();
+                    console.error("[STT] Groq transcription failed with response:", errText);
+                }
+            } catch (groqErr) {
+                console.error("[STT] Groq transcription error, falling back to Gemini:", groqErr.message);
+            }
+        }
+
+        // 2. Try Gemini 2.5 Flash API (fallback, natively processes audio)
+        if (process.env.GEMINI_API_KEY) {
+            try {
+                console.log("[STT] Attempting Gemini fallback transcription...");
+                const { GoogleGenerativeAI } = require("@google/generative-ai");
+                const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+                const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+                const result = await model.generateContent([
+                    {
+                        inlineData: {
+                            data: audio,
+                            mimeType: "audio/webm"
+                        }
+                    },
+                    "Provide a clean transcription of this audio. Output only the transcription text, nothing else."
+                ]);
+
+                const text = result.response.text();
+                if (text) {
+                    console.log("[STT] Gemini transcription successful:", text);
+                    return res.json({ text: text.trim() });
+                }
+            } catch (geminiErr) {
+                console.error("[STT] Gemini transcription error:", geminiErr.message);
+            }
+        }
+
+        res.status(500).json({ error: "Failed to transcribe audio. No available STT providers." });
+    } catch (err) {
+        console.error("[STT] General transcription error:", err);
+        res.status(500).json({ error: err.message || "Failed to transcribe audio" });
+    }
+});
+
+// 5. Intent and Design Exploration API
+router.post("/explore", async (req, res) => {
+    try {
+        const { prompt } = req.body;
+        if (!prompt) return res.status(400).json({ error: "Missing prompt" });
+        
+        console.log("[Routes AI] Starting Intent & Design Exploration for:", prompt);
+        if (!process.env.GEMINI_API_KEY) {
+             return res.status(500).json({ error: "API Key missing" });
+        }
+        const { GoogleGenerativeAI } = require("@google/generative-ai");
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+        const systemPrompt = `You are an AI Product Architect. Given a user prompt, extract the intent and generate TWO distinct UI/UX design concepts.
+Return ONLY valid JSON in the exact following format, without any markdown formatting or code blocks:
+{
+  "intent": {
+    "appType": "String",
+    "targetUsers": "String",
+    "platform": "String",
+    "features": ["Feature 1", "Feature 2", "Feature 3", "Feature 4"]
+  },
+  "concepts": [
+    {
+      "id": "A",
+      "title": "String (e.g. Modern SaaS Style)",
+      "description": "Short description of the concept",
+      "styles": {
+        "primaryColor": "Hex code e.g. #0ea5e9",
+        "borderRadius": "px value e.g. 12px",
+        "typography": "Font name e.g. Inter",
+        "animation": "Normal or Premium"
+      }
+    },
+    {
+      "id": "B",
+      "title": "String (e.g. Bold Startup Style)",
+      "description": "Short description of the concept",
+      "styles": {
+        "primaryColor": "Hex code e.g. #ff4b3a",
+        "borderRadius": "px value e.g. 24px",
+        "typography": "Font name e.g. Outfit",
+        "animation": "Normal or Premium"
+      }
+    }
+  ]
+}`;
+
+        const result = await model.generateContent([
+            { text: systemPrompt },
+            { text: `User Prompt: ${prompt}` }
+        ]);
+
+        const text = result.response.text();
+        const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const json = JSON.parse(cleanedText);
+        
+        res.json(json);
+    } catch (err) {
+        console.error("[Routes AI] Explore API failed:", err);
+        res.status(500).json({ error: "Failed to generate design concepts" });
+    }
+});
+
+// 6. Blueprint Generation & Editing API
+router.post("/blueprint", async (req, res) => {
+    try {
+        const { prompt, modifications, currentBlueprint } = req.body;
+        if (!prompt && !modifications) return res.status(400).json({ error: "Missing prompt or modifications" });
+        
+        console.log("[Routes AI] Generating Implementation Blueprint...");
+        if (!process.env.GEMINI_API_KEY) {
+             return res.status(500).json({ error: "API Key missing" });
+        }
+        const { GoogleGenerativeAI } = require("@google/generative-ai");
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+        const systemPrompt = `You are an AI Software Architect. Your job is to create or update an Implementation Blueprint.
+Return ONLY valid JSON in the exact following format, without any markdown formatting or code blocks:
+{
+  "pages": ["Page 1", "Page 2"],
+  "backend": ["Backend Feature 1", "Backend Feature 2"],
+  "integrations": ["Integration 1"]
+}
+Keep the items concise (1-3 words each).`;
+
+        let userMessage = `Generate an implementation blueprint for this app idea: "${prompt}"`;
+        if (modifications && currentBlueprint) {
+            userMessage = `Current Blueprint:
+${JSON.stringify(currentBlueprint, null, 2)}
+
+User Modifications Requested: "${modifications}"
+
+Please update the blueprint based on these modifications and return the full updated JSON.`;
+        }
+
+        const result = await model.generateContent([
+            { text: systemPrompt },
+            { text: userMessage }
+        ]);
+
+        const text = result.response.text();
+        const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const json = JSON.parse(cleanedText);
+        
+        res.json(json);
+    } catch (err) {
+        console.error("[Routes AI] Blueprint API failed:", err);
+        res.status(500).json({ error: "Failed to generate blueprint" });
+    }
+});
+
 module.exports = router;
+

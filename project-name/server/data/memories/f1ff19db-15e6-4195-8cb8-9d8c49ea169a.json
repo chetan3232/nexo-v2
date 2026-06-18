@@ -1,0 +1,19 @@
+{
+  "chatId": "f1ff19db-15e6-4195-8cb8-9d8c49ea169a",
+  "createdAt": 1781498886759,
+  "updatedAt": 1781498886761,
+  "buildHistory": [
+    {
+      "timestamp": 1781498886759,
+      "prompt": "Build a stunning, modern weather dashboard with a dark, glassmorphic UI featuring real-time current weather conditions (temperature, humidity, wind speed, pressure, \"feels like\" temperature, weather d",
+      "fileCount": 2,
+      "techStack": "Vanilla",
+      "projectMode": "frontend",
+      "model": "gemini-2.5-flash"
+    }
+  ],
+  "bugsFixed": [],
+  "detectedStack": "Vanilla HTML",
+  "detectedDependencies": [],
+  "userPreferences": {}
+}

@@ -1,11 +1,12 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
   signOut,
-  onAuthStateChanged,
+  onAuthStateChanged as fbOnAuthStateChanged,
 } from "firebase/auth";
+
 import {
   getDatabase,
   ref,
@@ -16,21 +17,54 @@ import {
   update,
   serverTimestamp,
 } from "firebase/database";
+import toast from "react-hot-toast";
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+const hasFirebaseConfig = !!import.meta.env.VITE_FIREBASE_API_KEY;
+
+const mockAuth = {
+  currentUser: null,
+  onAuthStateChanged: (callback: any) => {
+    callback(null);
+    return () => {};
+  }
 };
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const provider = new GoogleAuthProvider();
-export const db = getDatabase(app);
+let app: any = null;
+let auth: any = mockAuth as any;
+let provider: any = null;
+let db: any = null;
+
+if (hasFirebaseConfig) {
+  try {
+    const firebaseConfig = {
+      apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+      databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+      appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    };
+    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    auth = getAuth(app);
+    provider = new GoogleAuthProvider();
+    db = getDatabase(app);
+  } catch (err) {
+    console.error("Failed to initialize Firebase:", err);
+  }
+} else {
+  console.warn("Firebase configuration is missing! App running in offline local-only fallback mode.");
+}
+
+export const onAuthStateChanged = (authInstance: any, callback: (user: any) => void) => {
+  if (!authInstance || authInstance === mockAuth) {
+    callback(null);
+    return () => {};
+  }
+  return fbOnAuthStateChanged(authInstance, callback);
+};
+
+export { auth, provider, db };
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -69,6 +103,8 @@ export interface ChatSaveData {
   fileCount: number;
 }
 
+const LOCAL_CHATS_KEY = "nexo_local_chats";
+
 /**
  * Save a full chat session to Firebase Realtime Database.
  * Path: users/{uid}/chats/{chatId}
@@ -78,6 +114,26 @@ export const saveChatToFirebase = async (
   uid: string,
   chatData: ChatSaveData,
 ) => {
+  if (uid === "mock-local-user-id") {
+    try {
+      const localChats = JSON.parse(localStorage.getItem(LOCAL_CHATS_KEY) || "{}");
+      localChats[chatData.id] = {
+        ...chatData,
+        updatedAt: Date.now(),
+        content: chatData.content
+          ? {
+              ...chatData.content,
+              files: chatData.content.files || {},
+            }
+          : null,
+      };
+      localStorage.setItem(LOCAL_CHATS_KEY, JSON.stringify(localChats));
+      return;
+    } catch (e) {
+      console.error("Error saving local chat:", e);
+    }
+  }
+
   try {
     const chatRef = ref(db, `users/${uid}/chats/${chatData.id}`);
     await set(chatRef, {
@@ -102,6 +158,18 @@ export const saveChatToFirebase = async (
 export const loadChatsFromFirebase = async (
   uid: string,
 ): Promise<ChatSaveData[]> => {
+  if (uid === "mock-local-user-id") {
+    try {
+      const localChats = JSON.parse(localStorage.getItem(LOCAL_CHATS_KEY) || "{}");
+      return (Object.values(localChats) as ChatSaveData[]).sort((a, b) => {
+        return (b.updatedAt || 0) - (a.updatedAt || 0);
+      });
+    } catch (e) {
+      console.error("Error loading local chats:", e);
+      return [];
+    }
+  }
+
   try {
     const dbRef = ref(db);
     const snapshot = await get(child(dbRef, `users/${uid}/chats`));
@@ -122,6 +190,17 @@ export const loadChatsFromFirebase = async (
  * Delete a specific chat from Firebase.
  */
 export const deleteChatFromFirebase = async (uid: string, chatId: string) => {
+  if (uid === "mock-local-user-id") {
+    try {
+      const localChats = JSON.parse(localStorage.getItem(LOCAL_CHATS_KEY) || "{}");
+      delete localChats[chatId];
+      localStorage.setItem(LOCAL_CHATS_KEY, JSON.stringify(localChats));
+      return;
+    } catch (e) {
+      console.error("Error deleting local chat:", e);
+    }
+  }
+
   try {
     const chatRef = ref(db, `users/${uid}/chats/${chatId}`);
     await remove(chatRef);
@@ -231,6 +310,10 @@ export const shareProject = async ({
   ownerName: string;
 }): Promise<string> => {
   const shareId = crypto.randomUUID();
+  if (!db) {
+    toast.error("Sharing is unavailable in offline mode.");
+    throw new Error("Database not initialized");
+  }
   const shareRef = ref(db, `shares/${shareId}`);
   await set(shareRef, {
     id: shareId,
@@ -270,6 +353,9 @@ export const remixProject = async (
   remixerName: string,
 ): Promise<string> => {
   const newChatId = crypto.randomUUID();
+  if (!db) {
+    throw new Error("Database not initialized");
+  }
   const title = `${(shared as any).title || "Project"} (Remix)`;
   const chatRef = ref(db, `users/${uid}/chats/${newChatId}`);
   await set(chatRef, {

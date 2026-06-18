@@ -1,4 +1,4 @@
-name: NodeJS with Webpack
+name: Node.js CI with Vite
 
 on:
   push:
@@ -15,7 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x, 20.x, 22.x]
+        node-version: [20.x, 22.x]
 
     steps:
     - uses: actions/checkout@v4
@@ -27,5 +27,7 @@ jobs:
 
     - name: Build
       run: |
-        npm install
-        npx webpack
+        node -v
+        npm -v
+        npm ci
+        npm run build

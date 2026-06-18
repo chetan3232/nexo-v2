@@ -35,6 +35,7 @@ metadata.json
 nexo.md
 upgread.md
 WORKSPACE_UI_OVERVIEW.md
+nexo_v2_features_manifest.md
 
 # Database / Mock Storage
 project-name/server/data/allowances.json

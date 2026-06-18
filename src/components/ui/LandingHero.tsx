@@ -9,9 +9,10 @@ import {
 } from "lucide-react";
 
 const AVAILABLE_MODELS = [
+  { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B" },
+  { id: "openrouter/owl-alpha", name: "Owl Alpha" },
   { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
   { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" },
-  { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash" },
   { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B" },
   { id: "stepfun-ai/step-3.5-flash", name: "Step 3.5 Flash" },
   { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Groq)" },
@@ -170,9 +171,9 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
                 </button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {recentChats.map((chat) => (
+                {recentChats.map((chat, index) => (
                   <button
-                    key={chat.id}
+                    key={chat.id || index}
                     onClick={() => onRestoreChat(chat)}
                     className="text-left bg-white/5 hover:bg-white/10 border border-white/10 hover:border-indigo-400/40 rounded-2xl p-4 transition-all group"
                   >

@@ -34,9 +34,9 @@ export const SavedChatsModal: React.FC<SavedChatsModalProps> = ({
               No saved chats found.
             </p>
           ) : (
-            savedChatsList.map((chat) => (
+            savedChatsList.map((chat, index) => (
               <div
-                key={chat.id}
+                key={chat.id || index}
                 className="flex items-center justify-between p-4 bg-stone-50 rounded-xl border border-stone-200 hover:border-indigo-300 transition-all cursor-pointer group hover:shadow-md"
                 onClick={() => onRestoreChat(chat)}
               >

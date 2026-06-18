@@ -2,6 +2,11 @@ export const config = {
     maxDuration: 120,
 };
 
+const PRODUCTION_RULES = `
+PRODUCTION CODE ONLY — DO NOT use mock data, demo data, placeholder responses, hardcoded API responses, fake backend logic, simulated API calls, sample JSON, TODO stubs, or in-memory arrays as databases.
+ALWAYS use real API integrations, actual HTTP requests, environment variables for secrets, complete CRUD, error handling, and loading states.
+If credentials or endpoints are missing, STOP and ask — never invent fake data.`;
+
 const AGENTS = {
     planner: `You are the NEXO Master Planner, an elite AI Software Architect.
 Your task is to analyze the user's request and architect a complete, production-ready application. You must think like a CTO.
@@ -51,7 +56,9 @@ BANNED: Placeholders. You MUST use real Unsplash IDs for all images:
 ### RESPONSE FORMATTING
 1. Provide a concise, 1-sentence overview of what you are building.
 2. Deliver the complete files using the ---FILE--- markers.
-3. Ensure absolute syntactic perfection.`,
+3. Ensure absolute syntactic perfection.
+
+${PRODUCTION_RULES}`,
 
     debugger: `You are the NEXO Debugger, an elite system reliability engineer.
 You are given a runtime error log and the source code of a broken file. Your ONLY job is to identify the root cause and output the corrected file.

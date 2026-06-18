@@ -11,8 +11,8 @@ interface ProjectStore {
   ) => void;
   selectedFileName: string | null;
   setSelectedFileName: (name: string | null) => void;
-  buildPhase: "idle" | "planning" | "generating" | "building" | "fixing" | "deploying" | "done";
-  setBuildPhase: (phase: "idle" | "planning" | "generating" | "building" | "fixing" | "deploying" | "done") => void;
+  buildPhase: "idle" | "design_selection" | "planning" | "generating" | "building" | "fixing" | "deploying" | "done";
+  setBuildPhase: (phase: "idle" | "design_selection" | "planning" | "generating" | "building" | "fixing" | "deploying" | "done") => void;
   buildingFiles: Record<string, FileProgress>;
   setBuildingFiles: (
     files:
@@ -46,6 +46,8 @@ interface ProjectStore {
   setProductionChecks: (checks: any[]) => void;
   setHealthData: (score: number, metrics: any[]) => void;
   updateTask: (id: string, updates: Partial<BuildTask>) => void;
+  pendingPrompt: string | null;
+  setPendingPrompt: (prompt: string | null) => void;
   resetProject: () => void;
 }
 
@@ -106,6 +108,8 @@ export const useProjectStore = create<ProjectStore>((set) => ({
     set((state) => ({
       tasks: state.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
     })),
+  pendingPrompt: null,
+  setPendingPrompt: (pendingPrompt) => set({ pendingPrompt }),
   resetProject: () =>
     set({
       currentContent: null,
@@ -122,5 +126,6 @@ export const useProjectStore = create<ProjectStore>((set) => ({
       snapshots: [],
       reasoningSteps: [],
       productionChecks: [],
+      pendingPrompt: null,
     }),
 }));

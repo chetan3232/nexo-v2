@@ -23,14 +23,49 @@ import toast from "react-hot-toast";
 
 // Models list including Claude, GPT, Gemini
 const STUDIO_MODELS = [
+  { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B", provider: "OpenRouter", badge: "Free", desc: "Free OpenRouter reasoning model" },
+  { id: "openrouter/owl-alpha", name: "Owl Alpha", provider: "OpenRouter", badge: "New", desc: "OpenRouter state-of-the-art owl reasoning" },
   { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", provider: "Google AI", badge: "Default", desc: "Fast & highly versatile" },
   { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", provider: "Google AI", badge: "Pro", desc: "Complex code reasoning" },
-  { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Google AI", badge: "Stable", desc: "Balanced performance" },
   { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet", provider: "Anthropic", badge: "Premium", desc: "Industry benchmark for coding" },
   { id: "openai/gpt-4o", name: "GPT-4o", provider: "OpenAI", badge: "Premium", desc: "High reasoning & speed" },
   { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B", provider: "Groq Cloud", badge: "Fast", desc: "Open-source high speed reasoning" },
   { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B", provider: "NVIDIA NIM", badge: "NVIDIA", desc: "State-of-the-art coding" },
+  { id: "stepfun-ai/step-3.5-flash", name: "Step 3.5 Flash", provider: "NVIDIA NIM", badge: "NVIDIA", desc: "High speed reasoning and structures" },
 ];
+
+const PROVIDER_MODELS: Record<string, { id: string; name: string }[]> = {
+  "Google AI": [
+    { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
+    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" }
+  ],
+  "OpenRouter": [
+    { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B" },
+    { id: "openrouter/owl-alpha", name: "Owl Alpha" }
+  ],
+  "NVIDIA NIM": [
+    { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B" },
+    { id: "stepfun-ai/step-3.5-flash", name: "Step 3.5 Flash" }
+  ],
+  "Groq Cloud": [
+    { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B" }
+  ],
+  "Anthropic": [
+    { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet" }
+  ],
+  "OpenAI": [
+    { id: "openai/gpt-4o", name: "GPT-4o" }
+  ]
+};
+
+const getProviderForModel = (modelId: string) => {
+  for (const [provider, models] of Object.entries(PROVIDER_MODELS)) {
+    if (models.some((m) => m.id === modelId)) {
+      return provider;
+    }
+  }
+  return "Google AI";
+};
 
 export const StudioControls: React.FC = () => {
   const {
@@ -52,6 +87,11 @@ export const StudioControls: React.FC = () => {
 
   const [isPromptExpanded, setIsPromptExpanded] = useState(true);
   const [showKey, setShowKey] = useState(false);
+  const [selectedProviderKey, setSelectedProviderKey] = useState(() => getProviderForModel(selectedModel));
+
+  React.useEffect(() => {
+    setSelectedProviderKey(getProviderForModel(selectedModel));
+  }, [selectedModel]);
 
   // Default system prompt
   const DEFAULT_PROMPT = `You are NEXO Brain, an elite AI software engineering agent.
@@ -428,7 +468,7 @@ You are NEXO Brain.`;
             <Key className="w-3.5 h-3.5 text-stone-600" />
             Custom API Key
           </label>
-          <div className="relative bg-stone-50 border border-stone-200/60 p-3 rounded-xl">
+          <div className="relative bg-stone-50 border border-stone-200/60 p-3 rounded-xl space-y-3">
             <div className="flex items-center gap-2 bg-white border border-stone-200 rounded-lg px-2.5 py-2.5 shadow-sm">
               <input
                 type={showKey ? "text" : "password"}
@@ -445,6 +485,41 @@ You are NEXO Brain.`;
                 {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+
+            {/* Provider & Model Dropdowns */}
+            <div className="space-y-2.5 pt-2.5 border-t border-stone-200/65">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">API Provider</span>
+                <select
+                  value={selectedProviderKey}
+                  onChange={(e) => {
+                    const newProv = e.target.value;
+                    setSelectedProviderKey(newProv);
+                    const firstModel = PROVIDER_MODELS[newProv]?.[0]?.id;
+                    if (firstModel) setSelectedModel(firstModel);
+                  }}
+                  className="bg-white border border-stone-200 rounded-lg px-2.5 py-1 outline-none text-[10px] font-bold cursor-pointer text-stone-800"
+                >
+                  {Object.keys(PROVIDER_MODELS).map((prov) => (
+                    <option key={prov} value={prov}>{prov}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Provider Models</span>
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  className="bg-white border border-stone-200 rounded-lg px-2.5 py-1 outline-none text-[10px] font-bold cursor-pointer text-stone-800 max-w-[150px] truncate"
+                >
+                  {PROVIDER_MODELS[selectedProviderKey]?.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             <p className="text-[9px] text-stone-450 mt-1.5 leading-relaxed">
               Provides API key encapsulation for GPT or Claude models. Keys are stored locally in your browser.
             </p>
