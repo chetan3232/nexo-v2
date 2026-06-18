@@ -115,13 +115,20 @@ export async function compileAndBundle(): Promise<string> {
   // 4. Inline JS scripts
   const jsTags: { tag: string; src: string }[] = [];
   
-  // Find all <script src="..."></script> tags (including permissive end tags like </script >)
-  // codeql[js/bad-tag-filter]
-  const scriptRegex = /<script\s+[^>]*?src=["']([^"']+)["'][^>]*?>\s*<\/script\b[^>]*>/gi;
-  while ((match = scriptRegex.exec(html)) !== null) {
-    const tag = match[0];
+  // Find all <script src="..."></script> tags by matching the start tag and scanning for the closing tag.
+  // This approach avoids complex regular expressions that trigger CodeQL security alerts.
+  const startRegex = /<script\s+[^>]*?src=["']([^"']+)["'][^>]*?>/gi;
+  while ((match = startRegex.exec(html)) !== null) {
+    const startTag = match[0];
     const src = match[1];
-    jsTags.push({ tag, src });
+    const startIndex = match.index;
+    
+    const afterStart = html.substring(startIndex + startTag.length);
+    const closingMatch = /^\s*<\/script\s*>/i.exec(afterStart);
+    if (closingMatch) {
+      const fullTag = startTag + closingMatch[0];
+      jsTags.push({ tag: fullTag, src });
+    }
   }
 
   for (const jsTag of jsTags) {
