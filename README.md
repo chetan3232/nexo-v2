@@ -49,7 +49,7 @@ NEXO V2 is built on a **Multi-Agent Parallel Engine** designed to handle full-st
 ## 🚀 Quick Start
 
 ### Prerequisites
-- [Node.js](https://nodejs.org/) (v18 or higher)
+- [Node.js](https://nodejs.org/) (v20 or higher)
 - A Gemini API Key (or OpenRouter/NVIDIA API Key)
 
 ### Installation
