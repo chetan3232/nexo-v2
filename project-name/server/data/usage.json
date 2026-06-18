@@ -330,10 +330,60 @@
       "cost": 0.002527,
       "speed": 147,
       "durationMs": 54927
+    },
+    {
+      "timestamp": "2026-06-17T06:51:17.035Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1476,
+      "outputTokens": 94,
+      "tokens": 1570,
+      "cost": 0.000139,
+      "speed": 14,
+      "durationMs": 6804
+    },
+    {
+      "timestamp": "2026-06-17T06:53:55.130Z",
+      "model": "openrouter/owl-alpha",
+      "inputTokens": 1421,
+      "outputTokens": 5091,
+      "tokens": 6512,
+      "cost": 0.001669,
+      "speed": 32,
+      "durationMs": 157817
+    },
+    {
+      "timestamp": "2026-06-17T07:02:02.149Z",
+      "model": "openrouter/owl-alpha",
+      "inputTokens": 1424,
+      "outputTokens": 17673,
+      "tokens": 19097,
+      "cost": 0.005444,
+      "speed": 36,
+      "durationMs": 486899
+    },
+    {
+      "timestamp": "2026-06-17T07:09:13.152Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1376,
+      "outputTokens": 210,
+      "tokens": 1586,
+      "cost": 0.000166,
+      "speed": 21,
+      "durationMs": 9825
+    },
+    {
+      "timestamp": "2026-06-17T07:15:44.395Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1296,
+      "outputTokens": 71,
+      "tokens": 1367,
+      "cost": 0.000118,
+      "speed": 4,
+      "durationMs": 16510
     }
   ],
-  "totalTokens": 179650,
-  "totalInputTokens": 42482,
-  "totalOutputTokens": 63032,
-  "totalCost": 0.016581
+  "totalTokens": 209782,
+  "totalInputTokens": 49475,
+  "totalOutputTokens": 86171,
+  "totalCost": 0.024118
 }

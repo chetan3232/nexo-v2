@@ -3,10 +3,12 @@ import { Monitor, Loader2, Zap, Code2 } from "lucide-react";
 import { useRuntimeStore } from "../../stores/runtimeStore";
 import { useProjectStore } from "../../stores/projectStore";
 import { VisualDesignPanel } from "../editor/VisualDesignPanel";
+import { DesignSelector } from "./DesignSelector";
 
 interface PreviewPanelProps {
   isVisualMode: boolean;
   setIsVisualMode?: (val: boolean) => void;
+  onDesignSelect?: (designName: string) => void;
 }
 
 /**
@@ -147,20 +149,25 @@ function buildSrcdocFromFiles(
 export const PreviewPanel: React.FC<PreviewPanelProps> = ({
   isVisualMode,
   setIsVisualMode,
+  onDesignSelect,
 }) => {
   const { url, isBooted } = useRuntimeStore();
-  const { previewKey, currentContent } = useProjectStore();
+  const { previewKey, currentContent, buildPhase } = useProjectStore();
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const currentUrl = url || "http://localhost:5173/";
 
-  // Build fallback srcdoc from project files
-  const srcdocHtml = useMemo(() => {
-    if (currentContent?.files) {
-      return buildSrcdocFromFiles(currentContent.files);
+  // Keep track of the last stable srcdoc to avoid constantly reloading the iframe during generation
+  const [srcdocHtml, setSrcdocHtml] = React.useState<string | null>(null);
+
+  useEffect(() => {
+    // Only update the srcdoc when we are not actively generating/planning/building/fixing
+    const isGenerating = ["planning", "generating", "building", "fixing"].includes(buildPhase);
+    if (!isGenerating && currentContent?.files) {
+      const html = buildSrcdocFromFiles(currentContent.files);
+      setSrcdocHtml(html);
     }
-    return null;
-  }, [currentContent?.files, previewKey]);
+  }, [currentContent?.files, buildPhase, previewKey]);
 
   // Sync visual mode state to iframe
   useEffect(() => {
@@ -180,8 +187,26 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
 
   return (
     <div className="h-full w-full relative overflow-hidden bg-white">
+      {/* Premium Glassmorphic Overlay during code updates */}
+      {["planning", "generating", "building", "fixing"].includes(buildPhase) && srcdocHtml && (
+        <div className="absolute inset-0 bg-white/40 dark:bg-stone-950/40 backdrop-blur-[2px] flex flex-col items-center justify-center gap-3 z-30 select-none animate-in fade-in duration-300">
+          <div className="bg-white/80 dark:bg-stone-900/90 border border-stone-200/50 dark:border-stone-800/80 px-4.5 py-3 rounded-2xl shadow-xl flex items-center gap-3">
+            <Loader2 className="w-4 h-4 text-studio-accent animate-spin" />
+            <span className="text-xs font-bold text-studio-muted">
+              Generating updates...
+            </span>
+          </div>
+        </div>
+      )}
+      {/* Design Selection Phase */}
+      {buildPhase === "design_selection" && onDesignSelect && (
+        <div className="absolute inset-0 z-50 bg-white">
+          <DesignSelector onSelect={onDesignSelect} />
+        </div>
+      )}
+
       {/* Priority 1: WebContainer live iframe */}
-      {hasWebContainerPreview && (
+      {hasWebContainerPreview && buildPhase !== "design_selection" && (
         <>
           <iframe
             key={`wc-${previewKey}`}
@@ -199,7 +224,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
       )}
 
       {/* Priority 2: Fallback srcdoc preview from generated code */}
-      {hasFallbackPreview && (
+      {hasFallbackPreview && buildPhase !== "design_selection" && (
         <>
           <iframe
             key={`srcdoc-${previewKey}`}
@@ -225,7 +250,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
       )}
 
       {/* Loading: WebContainer booted but dev server URL not ready yet */}
-      {isLoading && !hasFallbackPreview && (
+      {isLoading && !hasFallbackPreview && buildPhase !== "design_selection" && (
         <div className="h-full w-full flex flex-col items-center justify-center gap-4 bg-white">
           <Loader2 className="w-8 h-8 text-[#0ea5e9] animate-spin" />
           <span className="text-[10px] font-bold text-[#bbb] uppercase tracking-[0.25em]">
@@ -235,7 +260,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
       )}
 
       {/* Empty: Nothing to show at all */}
-      {isEmpty && (
+      {isEmpty && buildPhase !== "design_selection" && (
         <div className="h-full w-full flex flex-col items-center justify-center gap-5 bg-white">
           <div className="relative">
             <div className="absolute inset-0 bg-sky-100 rounded-2xl blur-xl opacity-40" />
@@ -254,7 +279,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
         </div>
       )}
 
-      {isVisualMode && <VisualDesignPanel />}
+      {isVisualMode && buildPhase !== "design_selection" && <VisualDesignPanel />}
     </div>
   );
 };

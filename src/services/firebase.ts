@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import {
   getAuth,
   GoogleAuthProvider,
@@ -6,6 +6,7 @@ import {
   signOut,
   onAuthStateChanged as fbOnAuthStateChanged,
 } from "firebase/auth";
+
 import {
   getDatabase,
   ref,
@@ -18,119 +19,68 @@ import {
 } from "firebase/database";
 import toast from "react-hot-toast";
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+const hasFirebaseConfig = !!import.meta.env.VITE_FIREBASE_API_KEY;
+
+const mockAuth = {
+  currentUser: null,
+  onAuthStateChanged: (callback: any) => {
+    callback(null);
+    return () => {};
+  }
 };
 
-const app = initializeApp(firebaseConfig);
-const nativeAuth = getAuth(app);
-export const provider = new GoogleAuthProvider();
-export const db = getDatabase(app);
+let app: any = null;
+let auth: any = mockAuth as any;
+let provider: any = null;
+let db: any = null;
 
-// Mock Auth Fallback System
-let mockUser: any = null;
-const authListeners = new Set<(user: any) => void>();
-
-try {
-  const saved = localStorage.getItem("nexo_mock_user");
-  if (saved) {
-    mockUser = JSON.parse(saved);
+if (hasFirebaseConfig) {
+  try {
+    const firebaseConfig = {
+      apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+      databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+      appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    };
+    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    auth = getAuth(app);
+    provider = new GoogleAuthProvider();
+    db = getDatabase(app);
+  } catch (err) {
+    console.error("Failed to initialize Firebase:", err);
   }
-} catch (e) {
-  console.error("Failed to parse saved mock user", e);
+} else {
+  console.warn("Firebase configuration is missing! App running in offline local-only fallback mode.");
 }
 
-// Proxied Auth Object
-export const auth = new Proxy(nativeAuth, {
-  get(target, prop, receiver) {
-    if (prop === "currentUser") {
-      return mockUser || target.currentUser;
-    }
-    if (prop === "onAuthStateChanged") {
-      return (callback: (user: any) => void) => {
-        authListeners.add(callback);
-        // Call immediately with active user
-        if (mockUser) {
-          callback(mockUser);
-        } else {
-          callback(target.currentUser);
-        }
-        return () => {
-          authListeners.delete(callback);
-        };
-      };
-    }
-    return Reflect.get(target, prop, receiver);
-  }
-});
-
-// Custom exported onAuthStateChanged
 export const onAuthStateChanged = (authInstance: any, callback: (user: any) => void) => {
-  authListeners.add(callback);
-  
-  // Also hook into native Firebase auth changes
-  const unsubscribeNative = fbOnAuthStateChanged(nativeAuth, (fbUser) => {
-    if (!mockUser) {
-      callback(fbUser);
-    }
-  });
-
-  if (mockUser) {
-    callback(mockUser);
-  } else {
-    callback(nativeAuth.currentUser);
+  if (!authInstance || authInstance === mockAuth) {
+    callback(null);
+    return () => {};
   }
-
-  return () => {
-    authListeners.delete(callback);
-    unsubscribeNative();
-  };
+  return fbOnAuthStateChanged(authInstance, callback);
 };
+
+export { auth, provider, db };
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export const signInWithGoogle = async () => {
   try {
-    const result = await signInWithPopup(nativeAuth, provider);
-    mockUser = null;
-    localStorage.removeItem("nexo_mock_user");
-    authListeners.forEach((cb) => cb(result.user));
+    const result = await signInWithPopup(auth, provider);
     return result.user;
   } catch (error) {
-    console.warn("Firebase Google Sign-In failed, falling back to local mock user:", error);
-    
-    // Create local mock user
-    const localUser = {
-      uid: "mock-local-user-id",
-      displayName: "Local Developer",
-      email: "local-developer@nexo.ai",
-      photoURL: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150",
-      providerId: "google.com",
-    };
-    
-    mockUser = localUser;
-    localStorage.setItem("nexo_mock_user", JSON.stringify(localUser));
-    
-    // Notify all listeners
-    authListeners.forEach((cb) => cb(localUser));
-    
-    toast.success("Signed in with local developer account!");
-    return localUser as any;
+    console.error("Error signing in with Google", error);
+    throw error;
   }
 };
 
 export const logout = async () => {
   try {
-    mockUser = null;
-    localStorage.removeItem("nexo_mock_user");
-    await signOut(nativeAuth);
-    authListeners.forEach((cb) => cb(null));
+    await signOut(auth);
   } catch (error) {
     console.error("Error logging out", error);
     throw error;
@@ -360,6 +310,10 @@ export const shareProject = async ({
   ownerName: string;
 }): Promise<string> => {
   const shareId = crypto.randomUUID();
+  if (!db) {
+    toast.error("Sharing is unavailable in offline mode.");
+    throw new Error("Database not initialized");
+  }
   const shareRef = ref(db, `shares/${shareId}`);
   await set(shareRef, {
     id: shareId,
@@ -399,6 +353,9 @@ export const remixProject = async (
   remixerName: string,
 ): Promise<string> => {
   const newChatId = crypto.randomUUID();
+  if (!db) {
+    throw new Error("Database not initialized");
+  }
   const title = `${(shared as any).title || "Project"} (Remix)`;
   const chatRef = ref(db, `users/${uid}/chats/${newChatId}`);
   await set(chatRef, {

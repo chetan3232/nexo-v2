@@ -899,36 +899,38 @@ export const WorkspaceSidebar: React.FC = () => {
                   </div>
 
                   {/* Language Selector */}
-                  <div className="space-y-2 relative">
-                    <label className="text-[10px] font-black text-studio-muted uppercase tracking-wider block">Source Language</label>
-                    <button
-                      onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
-                      className="w-full flex items-center justify-between px-3.5 py-2.5 bg-studio-bg border border-studio-border rounded-xl text-xs text-studio-text hover:border-studio-accent transition-all"
-                    >
-                      <span>{selectedLanguage}</span>
-                      <ChevronDown className="w-3 h-3 text-studio-muted" />
-                    </button>
-                    {isLangDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-studio-card border border-studio-border rounded-xl shadow-2xl p-1 z-50">
-                        {languages.map((lang) => (
-                          <button
-                            key={lang}
-                            onClick={() => {
-                              setSelectedLanguage(lang);
-                              setIsLangDropdownOpen(false);
-                            }}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
-                              selectedLanguage === lang
-                                ? "bg-studio-accent text-white"
-                                : "hover:bg-studio-panel text-studio-muted"
-                            }`}
-                          >
-                            {lang}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  {projectMode === "frontend" && (
+                    <div className="space-y-2 relative">
+                      <label className="text-[10px] font-black text-studio-muted uppercase tracking-wider block">Source Language</label>
+                      <button
+                        onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
+                        className="w-full flex items-center justify-between px-3.5 py-2.5 bg-studio-bg border border-studio-border rounded-xl text-xs text-studio-text hover:border-studio-accent transition-all"
+                      >
+                        <span>{selectedLanguage}</span>
+                        <ChevronDown className="w-3 h-3 text-studio-muted" />
+                      </button>
+                      {isLangDropdownOpen && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-studio-card border border-studio-border rounded-xl shadow-2xl p-1 z-50">
+                          {languages.map((lang) => (
+                            <button
+                              key={lang}
+                              onClick={() => {
+                                setSelectedLanguage(lang);
+                                setIsLangDropdownOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
+                                selectedLanguage === lang
+                                  ? "bg-studio-accent text-white"
+                                  : "hover:bg-studio-panel text-studio-muted"
+                              }`}
+                            >
+                              {lang}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Temperature slider */}
                   <div className="space-y-2 pt-2">

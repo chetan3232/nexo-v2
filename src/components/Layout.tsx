@@ -116,10 +116,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({
                       {(user.displayName || user.email || "U")[0].toUpperCase()}
                     </div>
                   )}
-                  <span className="text-xs font-semibold text-[#333] max-w-[80px] truncate">
-                    {user.displayName
-                      ? user.displayName.split(" ")[0]
-                      : user.email?.split("@")[0]}
+                  <span className="text-xs font-semibold text-[#333] max-w-[140px] truncate" title={user.displayName || user.email || ""}>
+                    {user.displayName || user.email?.split("@")[0]}
                   </span>
                   <button
                     onClick={logout}

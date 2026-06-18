@@ -8,10 +8,7 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       host: '0.0.0.0',
-      headers: {
-        'Cross-Origin-Opener-Policy': 'same-origin',
-        'Cross-Origin-Embedder-Policy': 'require-corp',
-      },
+
       proxy: {
         '/nvidia-api': {
           target: 'https://integrate.api.nvidia.com/v1',
