@@ -33,6 +33,6 @@ Instead, please follow this process:
 NEXO V2 uses **StackBlitz WebContainer technology** to execute code. This provides a high level of security:
 - **Process Isolation**: Generated code runs in a separate browser process.
 - **No System Access**: Code running in the sandbox cannot access your local file system or network outside of the browser's capabilities.
-- **Sensitive Data**: Your API keys are stored only in your local browser storage and are never sent to our servers except for proxying to the AI provider.
+- **Sensitive Data**: Your AI API keys are stored only in your local browser storage and are never sent to our servers except for proxying to the AI provider. If Firebase configuration is omitted or disabled, all database storage and user authentication operate strictly offline in your local browser storage (`LocalStorage`), ensuring no cloud databases or external auth networks are contacted.
 
 Thank you for helping keep NEXO V2 safe for everyone!

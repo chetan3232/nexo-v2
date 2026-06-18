@@ -22,6 +22,8 @@
 NEXO V2 is built on a **Multi-Agent Parallel Engine** designed to handle full-stack development autonomously.
 
 - **⚡ Dual AI Engine Architecture (V2.3.0)**: Split reasoning into a **Fast Thinker** (instant planning/file skeleton layout in < 1.5s) and a **Deep Thinker** (background deep coding and code chunk streaming).
+- **📱 Fully Responsive Workspace**: Responsive interface with dynamic bottom navigation tabs (Chat, Code, Preview, and Studio) and mobile slide-in drawers to build on the go.
+- **🔌 Offline/Local-only Fallback System**: Automatic configuration checks. If Firebase keys are absent, NEXO seamlessly falls back to a fully functional local-only mode with LocalStorage persistence.
 - **🎨 Dynamic Color-Coded State Machine**: Real-time progress loader that changes colors dynamically per phase (Planning 🔵, Generating 🟣, Fixing 🟡, Deploying 🟢).
 - **🧠 Autonomous Multi-Agent Parallel Engine**: Specialized agents (PM, Designer, Frontend, Backend, QA) work simultaneously to build your app layers in parallel.
 - **⚡ Virtual Browser Runtime**: Powered by **StackBlitz WebContainers**, NEXO runs your code in a secure, sandboxed environment directly in the browser. No local setup required.
@@ -64,10 +66,20 @@ NEXO V2 is built on a **Multi-Agent Parallel Engine** designed to handle full-st
    ```
 
 3. **Configure environment**:
-   Create a `.env.local` file in the root and add your API key:
+   Create a `.env.local` file in the root and add your API keys:
    ```env
    VITE_GEMINI_API_KEY=your_gemini_api_key_here
+
+   # Optional: Firebase Cloud Sync & Authentication
+   VITE_FIREBASE_API_KEY=your_firebase_api_key_here
+   VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain_here
+   VITE_FIREBASE_DATABASE_URL=your_database_url_here
+   VITE_FIREBASE_PROJECT_ID=your_project_id_here
+   VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket_here
+   VITE_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id_here
+   VITE_FIREBASE_APP_ID=your_app_id_here
    ```
+   *Note: If Firebase variables are omitted, NEXO V2 will automatically run in local-only offline mode using LocalStorage.*
 
 4. **Run the Studio**:
    ```bash
