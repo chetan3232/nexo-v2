@@ -1,4 +1,4 @@
-name: NodeJS with Webpack
+name: Node.js CI with Vite
 
 on:
   push:
@@ -27,5 +27,5 @@ jobs:
 
     - name: Build
       run: |
-        npm install
-        npx webpack
+        npm ci
+        npm run build
