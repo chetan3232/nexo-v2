@@ -115,8 +115,8 @@ export async function compileAndBundle(): Promise<string> {
   // 4. Inline JS scripts
   const jsTags: { tag: string; src: string }[] = [];
   
-  // Find all <script src="..."></script> tags
-  const scriptRegex = /<script\s+[^>]*?src=["']([^"']+)["'][^>]*?>\s*<\/script>/gi;
+  // Find all <script src="..."></script> tags (including permissive end tags like </script >)
+  const scriptRegex = /<script\s+[^>]*?src=["']([^"']+)["'][^>]*?>\s*<\s*\/\s*script\b[^>]*>/gi;
   while ((match = scriptRegex.exec(html)) !== null) {
     const tag = match[0];
     const src = match[1];
