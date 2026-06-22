@@ -5,6 +5,8 @@ const fs = require("fs");
 const path = require("path");
 const allowanceManager = require("./allowanceManager");
 const { PRODUCTION_DEVELOPMENT_RULES } = require("../constants/productionRules");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { Anthropic } = require("@anthropic-ai/sdk");
 
 // 1. Zod Request validation schema
 const chatRequestSchema = z.object({
@@ -32,33 +34,57 @@ const rateLimiter = new RateLimiterMemory({
   duration: 15 * 60,
 });
 
-const FRONTEND_SYSTEM_PROMPT = `You are Nexo V2 Frontend AI — an expert UI/UX & Frontend Developer.
-Your goal is to create stunning, responsive landing pages, portfolios, and marketing websites.
+const getMasterSystemPrompt = (projectMode) => {
+  const isFullstack = projectMode === "fullstack";
+  
+  const modeParams = {
+    MODE_NAME: isFullstack ? "Fullstack" : "Frontend",
+    MODE_ROLE: isFullstack ? "Senior Fullstack Engineer" : "expert UI/UX & Frontend Developer",
+    MODE_GOAL: isFullstack ? "scalable, production-ready web applications" : "stunning, responsive landing pages, portfolios, and marketing websites",
+    MODE_ARCHITECTURE_MANDATE: isFullstack 
+      ? `- Primary Stack: React with Vite, Next.js, Tailwind CSS, Node.js, and cloud databases (Firebase/Supabase).\n- Structure your response into multiple files: Components, Hooks, API routes, and Database schemas.\n- Implement proper authentication, state management, database schemas, and API handlers.\n- Ensure the code is production-ready, modular, and follows clean architecture principles.`
+      : `- Primary Stack: HTML5, CSS3 (Tailwind CDN), JavaScript (Vanilla).\n- Do not use complex frameworks like React/Next.js unless specifically asked.\n- Output should be a single-file solution or clear separate files for index.html, style.css, and script.js.\n- Focus on animations (GSAP/Animate.css, CSS keyframes) and modern UI aesthetics.\n- Ensure all styles are handled via Tailwind CSS CDN inside index.html for immediate browser preview.`,
+    MODE_PREVIEW_ENTRY: isFullstack ? "src/App.tsx" : "index.html"
+  };
+
+  return `You are an elite AI product designer and full-stack engineer, operating in 2026, building production-grade web experiences. You think like the lead designer at a studio that never ships templated, default-looking output.
+Your goal is to create ${modeParams.MODE_GOAL}.
 
 You are NOT a chatbot. You are an agentic IDE that BUILDS, FIXES, and DEPLOYS software.
 
-### 🧠 CORE BEHAVIOR: NARRATE EVERY ACTION
-Before EVERY action, you MUST explain what you are about to do. In the JSON output, provide this in the "explanation" field.
+### 🧠 THINKING PROCESS (MANDATORY)
+Before generating code, you MUST reason through design and architecture decisions, and document them in the "design_plan" block:
+1. Subject: What is this product/page, who is it for, what is its primary job.
+2. Colors: 4–6 named hex values, chosen specifically for this subject.
+3. Typography: A characterful display face used with restraint + a complementary body face.
+4. Layout Concept: One clear layout concept (one sentence + key structural idea).
+5. Signature Element: ONE memorable element this design will be remembered by.
+Ensure the design looks specific to the prompt, avoiding generic cream/terracotta or black/neon templates unless requested. Keep visual boldness focused in the signature element while maintaining disciplined layouts elsewhere.
 
 ### 🏗️ TECH STACK & ARCHITECTURE MANDATE
-- Primary Stack: HTML5, CSS3 (Tailwind CDN), JavaScript (Vanilla).
-- Do not use complex frameworks like React/Next.js unless specifically asked.
-- Output should be a single-file solution or clear separate files for index.html, style.css, and script.js.
-- Focus on animations (GSAP/Animate.css, CSS keyframes) and modern UI aesthetics.
-- Ensure all styles are handled via Tailwind CSS CDN inside index.html for immediate browser preview.
+${modeParams.MODE_ARCHITECTURE_MANDATE}
 
-### 🎨 DESIGN PHILOSOPHY (v0/Cursor STANDARDS)
-1. Premium Aesthetics: Use sophisticated color palettes — deep blacks, stone/slate neutrals, with ONE accent color (indigo-600, emerald-500, or violet-600)
-2. Typography: Always import Inter or Outfit from Google Fonts. Use fluid type scale.
-3. Micro-Interactions: Hover transforms, focus rings, smooth transitions on all interactive elements
-4. Glassmorphism: backdrop-blur, semi-transparent cards, 1px borders for depth
-5. CRITICAL: NEVER USE LOCAL OR RELATIVE PLACEHOLDER IMAGE PATHS. Always use high-quality, topic-relevant real online images from Unsplash or direct inline SVGs.
+### 🎨 DESIGN & QUALITY STANDARDS (v0/Cursor STANDARDS)
+1. Fully responsive down to mobile (deliberately designed for small screens).
+2. Visible keyboard focus states; respects prefers-reduced-motion.
+3. Motion used deliberately (one orchestrated moment > scattered effects everywhere).
+4. Copy is real and specific to the subject — never use lorem ipsum, never generic "Welcome to our website".
+5. No CSS selector specificity conflicts (e.g. .section vs .cta canceling padding/margin).
+6. Spend visual boldness in ONE place (the signature element); keep the rest disciplined and quiet.
+7. CRITICAL: NEVER USE LOCAL OR RELATIVE PLACEHOLDER IMAGE PATHS. Always use high-quality, topic-relevant real online images from Unsplash or direct inline SVGs.
 
 ### 📁 OUTPUT FORMAT MANDATE (JSON SCHEMA)
-You MUST respond with a single, valid JSON object containing your explanation, a list of file actions, and a preview entrypoint. Do NOT wrap your JSON in markdown blocks (e.g. \`\`\`json). Output raw JSON.
+You MUST respond with a single, valid JSON object containing your design plan, explanation, file actions, and a preview entrypoint. Do NOT wrap your JSON in markdown blocks (e.g. \`\`\`json). Output raw JSON.
 JSON Schema:
 {
-  "explanation": "Brief explanation of what you are doing and why.",
+  "design_plan": {
+    "subject": "what this is and who it's for",
+    "colors": ["#hex - role", "#hex - role", "..."],
+    "typography": "display face + body face + reasoning",
+    "layout_concept": "one sentence + key structural idea",
+    "signature_element": "the one memorable thing"
+  },
+  "explanation": "1-2 sentence plain-language summary of what was built/changed",
   "actions": [
     {
       "type": "create",
@@ -75,64 +101,18 @@ JSON Schema:
       "path": "path/to/file.ext"
     }
   ],
-  "preview_entry": "index.html"
+  "preview_entry": "${modeParams.MODE_PREVIEW_ENTRY}"
 }
 
 ${PRODUCTION_DEVELOPMENT_RULES}`;
-
-const FULLSTACK_SYSTEM_PROMPT = `You are Nexo V2 Fullstack AI — a Senior Fullstack Engineer operating like Google AI Studio's BUILD engine.
-Your goal is to create scalable, production-ready web applications.
-
-You are NOT a chatbot. You are an agentic IDE that BUILDS, FIXES, and DEPLOYS software.
-
-### 🧠 CORE BEHAVIOR: NARRATE EVERY ACTION
-Before EVERY action, you MUST explain what you are about to do. In the JSON output, provide this in the "explanation" field.
-
-### 🏗️ TECH STACK & ARCHITECTURE MANDATE
-- Primary Stack: React with Vite, Next.js, Tailwind CSS, Node.js, and cloud databases (Firebase/Supabase).
-- Structure your response into multiple files: Components, Hooks, API routes, and Database schemas.
-- Implement proper authentication, state management, database schemas, and API handlers.
-- Ensure the code is production-ready, modular, and follows clean architecture principles.
-
-### 🎨 DESIGN PHILOSOPHY (v0/Cursor STANDARDS)
-1. Premium Aesthetics: Use sophisticated color palettes — deep blacks, stone/slate neutrals, with ONE accent color (indigo-600, emerald-500, or violet-600)
-2. Typography: Always import Inter or Outfit from Google Fonts. Use fluid type scale.
-3. Micro-Interactions: Hover transforms, focus rings, smooth transitions on all interactive elements
-4. Glassmorphism: backdrop-blur, semi-transparent cards, 1px borders for depth
-5. CRITICAL: NEVER USE LOCAL OR RELATIVE PLACEHOLDER IMAGE PATHS. Always use high-quality, topic-relevant real online images from Unsplash or direct inline SVGs.
-
-### 📁 OUTPUT FORMAT MANDATE (JSON SCHEMA)
-You MUST respond with a single, valid JSON object containing your explanation, a list of file actions, and a preview entrypoint. Do NOT wrap your JSON in markdown blocks (e.g. \`\`\`json). Output raw JSON.
-JSON Schema:
-{
-  "explanation": "Brief explanation of what you are doing and why.",
-  "actions": [
-    {
-      "type": "create",
-      "path": "path/to/file.ext",
-      "content": "Full content of the file. Do not truncate. All lines of code must be included."
-    },
-    {
-      "type": "edit",
-      "path": "path/to/file.ext",
-      "content": "Full updated content of the file."
-    },
-    {
-      "type": "delete",
-      "path": "path/to/file.ext"
-    }
-  ],
-  "preview_entry": "src/App.tsx"
-}
-
-${PRODUCTION_DEVELOPMENT_RULES}`;
+};
 
 const buildSystemPrompt = (basePrompt, enabledTools, projectMode, techStack) => {
   const isGenericBase = !basePrompt || basePrompt.includes("NEXO Brain") || basePrompt.includes("NEXO AI Workspace Engine");
   let prompt;
   
   if (isGenericBase) {
-    prompt = projectMode === "fullstack" ? FULLSTACK_SYSTEM_PROMPT : FRONTEND_SYSTEM_PROMPT;
+    prompt = getMasterSystemPrompt(projectMode);
   } else {
     prompt = basePrompt;
   }
@@ -182,10 +162,17 @@ CRITICAL: Ensure your index.html contains a root element like <div id="app"></di
   // Append JSON actions protocol if not already explicitly present
   if (!prompt.includes('"actions"')) {
     prompt += `\n\n### 📁 OUTPUT FORMAT MANDATE (JSON SCHEMA)
-You MUST respond with a single, valid JSON object containing your explanation, a list of file actions, and a preview entrypoint. Do NOT wrap your JSON in markdown blocks (e.g. \`\`\`json). Output raw JSON.
+You MUST respond with a single, valid JSON object containing your design plan, explanation, a list of file actions, and a preview entrypoint. Do NOT wrap your JSON in markdown blocks (e.g. \`\`\`json). Output raw JSON.
 JSON Schema:
 {
-  "explanation": "Brief explanation of what you are doing and why.",
+  "design_plan": {
+    "subject": "what this is and who it's for",
+    "colors": ["#hex - role", "#hex - role", "..."],
+    "typography": "display face + body face + reasoning",
+    "layout_concept": "one sentence + key structural idea",
+    "signature_element": "the one memorable thing"
+  },
+  "explanation": "1-2 sentence plain-language summary of what was built/changed",
   "actions": [
     { "type": "create", "path": "path/to/file.ext", "content": "..." },
     { "type": "edit", "path": "path/to/file.ext", "content": "..." },
@@ -344,6 +331,8 @@ const getClient = (provider, customApiKey) => {
     provider === "nvidia" ? process.env.NVIDIA_API_KEY :
     provider === "groq" ? process.env.GROQ_API_KEY :
     provider === "openai" ? (process.env.OPENAI_API_KEY || customApiKey) :
+    provider === "anthropic" ? (process.env.ANTHROPIC_API_KEY || customApiKey) :
+    provider === "google" ? (process.env.GEMINI_API_KEY || customApiKey) :
     provider === "openrouter" ? (process.env.OPENROUTER_API_KEY || customApiKey || process.env.GEMINI_API_KEY) :
     process.env.GEMINI_API_KEY
   );
@@ -376,26 +365,50 @@ const getClient = (provider, customApiKey) => {
         "X-Title": "Nexo AI Workspace",
       }
     });
+  } else if (provider === "anthropic") {
+    return new Anthropic({
+      apiKey: apiKey,
+    });
+  } else if (provider === "google") {
+    return new GoogleGenerativeAI(apiKey);
   }
   return null;
 };
 
 // Define fallback list based on model requested
-const getFallbackChain = (requestedModel) => {
+const getFallbackChain = (requestedModel, customApiKey) => {
   const isNvidia = (requestedModel.startsWith("nvidia/") && requestedModel !== "nvidia/nemotron-3-super-120b-a12b:free") || requestedModel === "minimaxai/minimax-m2.7" || requestedModel.startsWith("stepfun-ai/") || requestedModel === "qwen/qwen3-coder-480b-a35b-instruct";
   const isGroq = !isNvidia && (requestedModel.startsWith("groq/") || requestedModel.includes("llama") || requestedModel.includes("mixtral"));
   const isOpenAI = requestedModel.startsWith("openai/") || requestedModel.startsWith("gpt-");
   const isAnthropic = requestedModel.startsWith("anthropic/") || requestedModel.startsWith("claude-");
+  const isGoogleDirect = requestedModel.startsWith("google/") || requestedModel.startsWith("gemini-");
   const isOpenRouter = requestedModel.includes("/");
 
   let possibleChain = [];
 
   if (isOpenAI) {
+    const actualModel = requestedModel.startsWith("openai/") ? requestedModel.replace("openai/", "") : requestedModel;
     possibleChain = [
-      { provider: "openai", model: requestedModel.replace("openai/", "") },
+      { provider: "openai", model: actualModel },
+      { provider: "openrouter", model: `openai/${actualModel}` },
       { provider: "gemini", model: "gemini-2.5-flash" }
     ];
-  } else if (isAnthropic || isOpenRouter) {
+  } else if (isAnthropic) {
+    const actualModel = requestedModel.startsWith("anthropic/") ? requestedModel.replace("anthropic/", "") : requestedModel;
+    possibleChain = [
+      { provider: "anthropic", model: actualModel },
+      { provider: "openrouter", model: requestedModel },
+      { provider: "gemini", model: "gemini-2.5-flash" }
+    ];
+  } else if (isGoogleDirect) {
+    const actualModel = requestedModel.startsWith("google/") ? requestedModel.replace("google/", "") : requestedModel;
+    possibleChain = [
+      { provider: "google", model: actualModel },
+      { provider: "gemini", model: actualModel },
+      { provider: "openrouter", model: `google/${actualModel}` },
+      { provider: "groq", model: "llama-3.3-70b-versatile" }
+    ];
+  } else if (isOpenRouter) {
     possibleChain = [
       { provider: "openrouter", model: requestedModel },
       { provider: "gemini", model: "gemini-2.5-flash" }
@@ -421,6 +434,7 @@ const getFallbackChain = (requestedModel) => {
     const actualModel = requestedModel.startsWith("google/") ? requestedModel.replace("google/", "") : requestedModel;
     possibleChain = [
       { provider: "gemini", model: actualModel },
+      { provider: "google", model: actualModel },
       { provider: "groq", model: "llama-3.3-70b-versatile" },
       { provider: "nvidia", model: "stepfun-ai/step-3.5-flash" },
     ];
@@ -429,18 +443,161 @@ const getFallbackChain = (requestedModel) => {
   // Filter possible steps by environment variable presence
   const finalChain = [];
   for (const step of possibleChain) {
-    if (step.provider === "nvidia" && (process.env.NVIDIA_API_KEY || process.env.GEMINI_API_KEY)) {
+    if (step.provider === "google" && (process.env.GEMINI_API_KEY || customApiKey)) {
       finalChain.push(step);
-    } else if (step.provider === "groq" && (process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY)) {
+    } else if (step.provider === "anthropic" && (process.env.ANTHROPIC_API_KEY || customApiKey)) {
       finalChain.push(step);
-    } else if (step.provider === "gemini" && process.env.GEMINI_API_KEY) {
+    } else if (step.provider === "openai" && (process.env.OPENAI_API_KEY || customApiKey)) {
       finalChain.push(step);
-    } else if (step.provider === "openai" || step.provider === "openrouter") {
+    } else if (step.provider === "nvidia" && (process.env.NVIDIA_API_KEY || customApiKey)) {
+      finalChain.push(step);
+    } else if (step.provider === "groq" && (process.env.GROQ_API_KEY || customApiKey)) {
+      finalChain.push(step);
+    } else if (step.provider === "gemini" && (process.env.GEMINI_API_KEY || customApiKey)) {
+      finalChain.push(step);
+    } else if (step.provider === "openrouter" && (process.env.OPENROUTER_API_KEY || customApiKey)) {
       finalChain.push(step);
     }
   }
 
   return finalChain.length > 0 ? finalChain : possibleChain;
+};
+
+// Structured JSON Schemas for guided_json binding (NVIDIA NIM / vLLM compatible)
+const ARCHITECT_JSON_SCHEMA = {
+  type: "object",
+  properties: {
+    design_plan: {
+      type: "object",
+      properties: {
+        subject: { type: "string" },
+        colors: { type: "array", items: { type: "string" } },
+        typography: { type: "string" },
+        layout_concept: { type: "string" },
+        signature_element: { type: "string" }
+      },
+      required: ["subject", "colors", "typography", "layout_concept", "signature_element"]
+    },
+    explanation: { type: "string" },
+    actions: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          type: { type: "string", enum: ["create", "edit", "delete"] },
+          path: { type: "string" },
+          content: { type: "string" }
+        },
+        required: ["type", "path"]
+      }
+    },
+    preview_entry: { type: "string" }
+  },
+  required: ["design_plan", "explanation", "actions", "preview_entry"]
+};
+
+const FAST_PLAN_JSON_SCHEMA = {
+  type: "object",
+  properties: {
+    plan: { type: "array", items: { type: "string" } },
+    files: { type: "array", items: { type: "string" } },
+    isRefactor: { type: "boolean" },
+    isDesignToCode: { type: "boolean" }
+  },
+  required: ["plan", "files"]
+};
+
+const ANALYST_JSON_SCHEMA = {
+  type: "object",
+  properties: {
+    requirement_analysis: {
+      type: "object",
+      properties: {
+        restated_request: { type: "string" },
+        explicit_requirements: { type: "array", items: { type: "string" } },
+        implied_requirements: { type: "array", items: { type: "string" } },
+        assumptions_made: { type: "array", items: { type: "string" } },
+        out_of_scope: { type: "array", items: { type: "string" } }
+      },
+      required: ["restated_request", "explicit_requirements", "implied_requirements", "assumptions_made", "out_of_scope"]
+    },
+    project_plan: {
+      type: "object",
+      properties: {
+        project_name: { type: "string" },
+        mode: { type: "string", enum: ["frontend", "fullstack"] },
+        core_purpose: { type: "string" },
+        target_audience: { type: "string" },
+        pages_or_screens: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              purpose: { type: "string" },
+              priority: { type: "string", enum: ["core", "secondary"] }
+            },
+            required: ["id", "purpose", "priority"]
+          }
+        },
+        key_features: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              description: { type: "string" },
+              complexity: { type: "string", enum: ["low", "medium", "high"] },
+              requires_backend: { type: "boolean" }
+            },
+            required: ["name", "description", "complexity", "requires_backend"]
+          }
+        },
+        data_entities: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              fields: { type: "array", items: { type: "string" } },
+              needed_only_if_fullstack: { type: "boolean" }
+            },
+            required: ["name", "fields", "needed_only_if_fullstack"]
+          }
+        },
+        execution_order: { type: "array", items: { type: "string" } }
+      },
+      required: ["project_name", "mode", "core_purpose", "target_audience", "pages_or_screens", "key_features", "data_entities", "execution_order"]
+    },
+    flags: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          type: { type: "string", enum: ["mode_mismatch", "scope_risk", "missing_critical_info"] },
+          message: { type: "string" }
+        },
+        required: ["type", "message"]
+      }
+    },
+    ready_for_design: { type: "boolean" },
+    blocking_question: { type: "string" }
+  },
+  required: ["requirement_analysis", "project_plan", "flags", "ready_for_design"]
+};
+
+const detectSchema = (systemPrompt, messages) => {
+  const fullText = ((systemPrompt || "") + " " + JSON.stringify(messages || [])).toLowerCase();
+  if (fullText.includes("nexo analyst") || fullText.includes("requirement_analysis")) {
+    return ANALYST_JSON_SCHEMA;
+  }
+  if (fullText.includes("actions") && fullText.includes("design_plan")) {
+    return ARCHITECT_JSON_SCHEMA;
+  }
+  if (fullText.includes("plan") && fullText.includes("files")) {
+    return FAST_PLAN_JSON_SCHEMA;
+  }
+  return null;
 };
 
 class AIGateway {
@@ -477,20 +634,89 @@ class AIGateway {
                 const maxTokens = provider === "nvidia" ? 8192 : 32768;
         
         const startTime = Date.now();
-        const responseStream = await callWithRetry(() => client.chat.completions.create({
-          model: targetModel,
-          messages: messagesPayload,
-          temperature: temperature !== undefined ? temperature : 0.7,
-          top_p: top_p || 1.0,
-          stream: true,
-          max_tokens: maxTokens,
-        }));
-
         let fullText = "";
-        for await (const chunk of responseStream) {
-          const content = chunk.choices?.[0]?.delta?.content || "";
-          fullText += content;
-          if (onChunk) onChunk(content);
+
+        if (provider === "google") {
+          const modelInstance = client.getGenerativeModel({
+            model: targetModel,
+            systemInstruction: currentSystemPrompt,
+          });
+          const googleContents = messages.map(m => ({
+            role: m.role === "model" || m.role === "assistant" ? "model" : "user",
+            parts: [{ text: m.content || m.text || "" }]
+          }));
+          const responseStream = await callWithRetry(() => modelInstance.generateContentStream({
+            contents: googleContents,
+            generationConfig: {
+              temperature: temperature !== undefined ? temperature : 0.7,
+              topP: top_p || 1.0,
+              maxOutputTokens: maxTokens,
+            }
+          }));
+          for await (const chunk of responseStream.stream) {
+            try {
+              const content = chunk.text();
+              if (content) {
+                fullText += content;
+                if (onChunk) onChunk(content);
+              }
+            } catch (e) {
+              console.warn("[Google GenAI Stream Chunk error]", e.message);
+            }
+          }
+        } else if (provider === "anthropic") {
+          let targetModelId = targetModel;
+          if (targetModel === "claude-3-5-sonnet") {
+            targetModelId = "claude-3-5-sonnet-20241022";
+          }
+          const anthropicMessages = messages.map((m) => ({
+            role: m.role === "model" || m.role === "assistant" ? "assistant" : "user",
+            content: m.content || m.text || "",
+          }));
+          const responseStream = await callWithRetry(() => client.messages.create({
+            model: targetModelId,
+            max_tokens: maxTokens,
+            system: currentSystemPrompt,
+            messages: anthropicMessages,
+            temperature: temperature !== undefined ? temperature : 0.7,
+            top_p: top_p || 1.0,
+            stream: true,
+          }));
+          for await (const chunk of responseStream) {
+            let content = "";
+            if (chunk.type === "content_block_delta" && chunk.delta && chunk.delta.text) {
+              content = chunk.delta.text;
+            } else if (chunk.delta && chunk.delta.text) {
+              content = chunk.delta.text;
+            }
+            if (content) {
+              fullText += content;
+              if (onChunk) onChunk(content);
+            }
+          }
+        } else {
+          const schema = detectSchema(currentSystemPrompt, messages);
+          const extraParams = {};
+          if (provider === "nvidia" && schema) {
+            extraParams.extra_body = {
+              guided_json: schema
+            };
+          }
+
+          const responseStream = await callWithRetry(() => client.chat.completions.create({
+            model: targetModel,
+            messages: messagesPayload,
+            temperature: temperature !== undefined ? temperature : 0.7,
+            top_p: top_p || 1.0,
+            stream: true,
+            max_tokens: maxTokens,
+            ...extraParams
+          }));
+          for await (const chunk of responseStream) {
+            const content = chunk.choices?.[0]?.delta?.content || "";
+            fullText += content;
+            if (onChunk) onChunk(content);
+          }
         }
         const durationMs = Date.now() - startTime;
 
@@ -622,20 +848,107 @@ class AIGateway {
           }
 
           const startTime = Date.now();
-          const responseStream = await callWithRetry(() => client.chat.completions.create({
-            model: targetModel,
-            messages: messagesPayload,
-            temperature: temperature,
-            top_p: top_p,
-            stream: true,
-            max_tokens: maxTokens,
-          }));
-
           let fullText = "";
-          for await (const chunk of responseStream) {
-            const content = chunk.choices?.[0]?.delta?.content || "";
-            fullText += content;
-            res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+
+          if (provider === "google") {
+            const modelInstance = client.getGenerativeModel({
+              model: targetModel,
+              systemInstruction: currentSystemPrompt,
+            });
+            const googleContents = messages.map(m => ({
+              role: m.role === "model" || m.role === "assistant" ? "model" : "user",
+              parts: [{ text: m.content || m.text || "" }]
+            }));
+            const responseStream = await callWithRetry(() => modelInstance.generateContentStream({
+              contents: googleContents,
+              generationConfig: {
+                temperature: temperature !== undefined ? temperature : 0.7,
+                topP: top_p || 1.0,
+                maxOutputTokens: maxTokens,
+              }
+            }));
+            for await (const chunk of responseStream.stream) {
+              try {
+                const content = chunk.text();
+                if (content) {
+                  fullText += content;
+                  const openAIChunk = {
+                    choices: [
+                      {
+                        delta: {
+                          content: content
+                        }
+                      }
+                    ]
+                  };
+                  res.write(`data: ${JSON.stringify(openAIChunk)}\n\n`);
+                }
+              } catch (e) {
+                console.warn("[Google GenAI Stream Chunk error]", e.message);
+              }
+            }
+          } else if (provider === "anthropic") {
+            let targetModelId = targetModel;
+            if (targetModel === "claude-3-5-sonnet") {
+              targetModelId = "claude-3-5-sonnet-20241022";
+            }
+            const anthropicMessages = messages.map((m) => ({
+              role: m.role === "model" || m.role === "assistant" ? "assistant" : "user",
+              content: m.content || m.text || "",
+            }));
+            const responseStream = await callWithRetry(() => client.messages.create({
+              model: targetModelId,
+              max_tokens: maxTokens,
+              system: currentSystemPrompt,
+              messages: anthropicMessages,
+              temperature: temperature !== undefined ? temperature : 0.7,
+              top_p: top_p || 1.0,
+              stream: true,
+            }));
+            for await (const chunk of responseStream) {
+              let content = "";
+              if (chunk.type === "content_block_delta" && chunk.delta && chunk.delta.text) {
+                content = chunk.delta.text;
+              } else if (chunk.delta && chunk.delta.text) {
+                content = chunk.delta.text;
+              }
+              if (content) {
+                fullText += content;
+                const openAIChunk = {
+                  choices: [
+                    {
+                      delta: {
+                        content: content
+                      }
+                    }
+                  ]
+                };
+                res.write(`data: ${JSON.stringify(openAIChunk)}\n\n`);
+              }
+            }
+          } else {
+            const schema = detectSchema(currentSystemPrompt, messages);
+            const extraParams = {};
+            if (provider === "nvidia" && schema) {
+              extraParams.extra_body = {
+                guided_json: schema
+              };
+            }
+
+            const responseStream = await callWithRetry(() => client.chat.completions.create({
+              model: targetModel,
+              messages: messagesPayload,
+              temperature: temperature,
+              top_p: top_p,
+              stream: true,
+              max_tokens: maxTokens,
+              ...extraParams
+            }));
+            for await (const chunk of responseStream) {
+              const content = chunk.choices?.[0]?.delta?.content || "";
+              fullText += content;
+              res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+            }
           }
           const durationMs = Date.now() - startTime;
 
@@ -647,16 +960,86 @@ class AIGateway {
           res.end();
         } else {
           const startTime = Date.now();
-          const completion = await callWithRetry(() => client.chat.completions.create({
-            model: targetModel,
-            messages: messagesPayload,
-            temperature: temperature,
-            top_p: top_p,
-            stream: false,
-            max_tokens: maxTokens,
-          }));
-          const durationMs = Date.now() - startTime;
+          let completion;
 
+          if (provider === "google") {
+            const modelInstance = client.getGenerativeModel({
+              model: targetModel,
+              systemInstruction: currentSystemPrompt,
+            });
+            const googleContents = messages.map(m => ({
+              role: m.role === "model" || m.role === "assistant" ? "model" : "user",
+              parts: [{ text: m.content || m.text || "" }]
+            }));
+            const result = await callWithRetry(() => modelInstance.generateContent({
+              contents: googleContents,
+              generationConfig: {
+                temperature: temperature !== undefined ? temperature : 0.7,
+                topP: top_p || 1.0,
+                maxOutputTokens: maxTokens,
+              }
+            }));
+            const text = result.response.text() || "";
+            completion = {
+              choices: [
+                {
+                  message: {
+                    role: "assistant",
+                    content: text
+                  }
+                }
+              ]
+            };
+          } else if (provider === "anthropic") {
+            let targetModelId = targetModel;
+            if (targetModel === "claude-3-5-sonnet") {
+              targetModelId = "claude-3-5-sonnet-20241022";
+            }
+            const anthropicMessages = messages.map((m) => ({
+              role: m.role === "model" || m.role === "assistant" ? "assistant" : "user",
+              content: m.content || m.text || "",
+            }));
+            const response = await callWithRetry(() => client.messages.create({
+              model: targetModelId,
+              max_tokens: maxTokens,
+              system: currentSystemPrompt,
+              messages: anthropicMessages,
+              temperature: temperature !== undefined ? temperature : 0.7,
+              top_p: top_p || 1.0,
+              stream: false,
+            }));
+            const text = response.content?.[0]?.text || "";
+            completion = {
+              choices: [
+                {
+                  message: {
+                    role: "assistant",
+                    content: text
+                  }
+                }
+              ]
+            };
+          } else {
+            const schema = detectSchema(currentSystemPrompt, messages);
+            const extraParams = {};
+            if (provider === "nvidia" && schema) {
+              extraParams.extra_body = {
+                guided_json: schema
+              };
+            }
+
+            completion = await callWithRetry(() => client.chat.completions.create({
+              model: targetModel,
+              messages: messagesPayload,
+              temperature: temperature,
+              top_p: top_p,
+              stream: false,
+              max_tokens: maxTokens,
+              ...extraParams
+            }));
+          }
+
+          const durationMs = Date.now() - startTime;
           const promptEst = Math.ceil(JSON.stringify(messagesPayload).length / 4);
           const text = completion.choices?.[0]?.message?.content || "";
           const respEst = Math.ceil(text.length / 4);

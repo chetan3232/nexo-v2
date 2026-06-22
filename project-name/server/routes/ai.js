@@ -5,6 +5,10 @@ const { z } = require("zod");
 const { RateLimiterMemory } = require("rate-limiter-flexible");
 const AIGateway = require("../services/aiGateway");
 const { addJob, jobEvents, getJob } = require("../services/queueManager");
+const NexoAnalyst = require("../services/nexoAnalyst");
+const NexoOrchestrator = require("../services/nexoOrchestrator");
+
+
 
 // Validation Schema for Trigger Build API
 const buildRequestSchema = z.object({
@@ -336,6 +340,58 @@ Please update the blueprint based on these modifications and return the full upd
     } catch (err) {
         console.error("[Routes AI] Blueprint API failed:", err);
         res.status(500).json({ error: "Failed to generate blueprint" });
+    }
+});
+
+// 7. Requirement Analysis & Planning API (Nexo Analyst)
+router.post("/analyze", async (req, res) => {
+    try {
+        const { user_prompt, mode, chat_uid, existing_plan, conversation_history } = req.body;
+        if (!user_prompt) {
+            return res.status(400).json({ error: "Missing user_prompt parameter" });
+        }
+
+        const customApiKey = req.body.customApiKey || null;
+
+        console.log(`[Routes AI] Running Nexo Analyst for chat_uid: ${chat_uid || 'new'}`);
+        const analysis = await NexoAnalyst.analyze(
+            user_prompt,
+            mode || "fullstack",
+            chat_uid || "",
+            existing_plan || null,
+            conversation_history || [],
+            customApiKey
+        );
+
+        res.json(analysis);
+    } catch (err) {
+        console.error("[Routes AI] Nexo Analyst API failed:", err);
+        res.status(500).json({ error: err.message || "Failed to analyze requirements" });
+    }
+});
+
+// 8. Orchestrator Reliability, Routing & Retry API
+router.post("/orchestrate", (req, res) => {
+    try {
+        const { requested_model, mode, stage, attempt_history, payload } = req.body;
+        
+        if (!requested_model || !stage || !mode) {
+            return res.status(400).json({ error: "Missing required parameters (requested_model, mode, stage)" });
+        }
+
+        console.log(`[Routes AI] Running Nexo Orchestrator for stage: ${stage}, model: ${requested_model}`);
+        const decision = NexoOrchestrator.decide(
+            requested_model,
+            mode,
+            stage,
+            attempt_history || [],
+            payload || {}
+        );
+
+        res.json(decision);
+    } catch (err) {
+        console.error("[Routes AI] Nexo Orchestrator API failed:", err);
+        res.status(500).json({ error: err.message || "Failed to make orchestration decision" });
     }
 });
 

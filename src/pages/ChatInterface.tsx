@@ -98,6 +98,7 @@ const ChatInterface: React.FC = () => {
   const setShowDeployModal = useProjectStore((s) => s.setShowDeployModal);
   const setDeployStatus = useProjectStore((s) => s.setDeployStatus);
   const setDeployUrl = useProjectStore((s) => s.setDeployUrl);
+  const incrementPreviewKey = useProjectStore((s) => s.incrementPreviewKey);
 
   const projectStore = {
     currentContent,
@@ -112,6 +113,7 @@ const ChatInterface: React.FC = () => {
     setShowDeployModal,
     setDeployStatus,
     setDeployUrl,
+    incrementPreviewKey,
   };
 
   const { setSelectedElement } = useDesignStore();
@@ -406,6 +408,13 @@ const ChatInterface: React.FC = () => {
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, []);
+
+  // Refresh preview when switching to the Preview tab
+  useEffect(() => {
+    if (workspaceTab === "preview" || activeMobileTab === "preview") {
+      projectStore.incrementPreviewKey();
+    }
+  }, [workspaceTab, activeMobileTab]);
 
   // Boot runtime automatically if currentContent exists but runtime is not booted
   const bootAttempted = useRef(false);

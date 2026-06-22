@@ -20,11 +20,13 @@ import {
   Lock,
   Smartphone,
   Rocket,
-  Check
+  Check,
+  Download
 } from "lucide-react";
 import { useChatStore } from "../../stores/chatStore";
 import { useProjectStore } from "../../stores/projectStore";
 import { useAgentStore } from "../../stores/agentStore";
+import { useAgentEventStore } from "../../stores/agentEventStore";
 import toast from "react-hot-toast";
 
 import { DesignExploration } from "./DesignExploration";
@@ -113,8 +115,9 @@ const SkeletonLoader: React.FC = () => {
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
   const { messages, input, setInput } = useChatStore();
-  const { buildPhase, subStatus, tasks, buildingFiles } = useProjectStore();
+  const { buildPhase, subStatus, tasks } = useProjectStore();
   const { selectedModel, setSelectedModel } = useAgentStore();
+  const { fileBuffers, activeFiles, createdFiles } = useAgentEventStore();
 
   const getLoaderTheme = () => {
     switch (buildPhase) {
@@ -448,16 +451,43 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
           <Sparkles className="w-3.5 h-3.5 text-[#0ea5e9]" />
           <span className="text-sm font-semibold text-[#111]">Nexo</span>
         </div>
-        <button
-          onClick={() => {
-            useChatStore.getState().resetChat();
-            useProjectStore.getState().setCurrentContent(null);
-          }}
-          className="p-1.5 hover:bg-[#f3f3f3] rounded-lg text-[#aaa] hover:text-[#111] transition-colors"
-          title="New Chat"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          {messages.length > 0 && (
+            <button
+              onClick={() => {
+                const log = messages
+                  .map(m => {
+                    const roleName = m.role === "user" ? "User" : "Nexo";
+                    return `[${roleName}]:\n${m.text}\n`;
+                  })
+                  .join("\n----------------------------------------\n\n");
+                
+                const blob = new Blob([log], { type: "text/plain;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `chat-history-${Date.now()}.txt`;
+                a.click();
+                URL.revokeObjectURL(url);
+                toast.success("Chat log downloaded! 📝");
+              }}
+              className="p-1.5 hover:bg-[#f3f3f3] rounded-lg text-[#aaa] hover:text-[#111] transition-colors"
+              title="Download Chat Log (.txt)"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={() => {
+              useChatStore.getState().resetChat();
+              useProjectStore.getState().setCurrentContent(null);
+            }}
+            className="p-1.5 hover:bg-[#f3f3f3] rounded-lg text-[#aaa] hover:text-[#111] transition-colors"
+            title="New Chat"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* ── Messages ── */}
@@ -585,14 +615,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                   )}
 
                   {/* File Generation Progress */}
-                  {buildingFiles && Object.keys(buildingFiles).length > 0 && (
+                  {createdFiles && createdFiles.length > 0 && (
                     <div className="flex flex-col gap-1.5 border-l-2 border-[#e8e8e8] ml-3 pl-4 py-1.5 select-none max-h-48 overflow-y-auto scrollbar-hide">
                       <div className="text-[8px] font-black uppercase tracking-[0.15em] text-[#888] mb-1">
                         📁 File Operations
                       </div>
-                      {Object.entries(buildingFiles).map(([fpath, progress]) => {
-                        const isWriting = progress.status === "writing";
-                        const isDone = progress.status === "done";
+                      {createdFiles.map((fpath) => {
+                        const isWriting = activeFiles.has(fpath);
+                        const isDone = !isWriting;
+                        const charCount = fileBuffers[fpath]?.length || 0;
                         return (
                           <motion.div
                             key={fpath}
@@ -612,9 +643,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                                 {fpath}
                               </span>
                             </div>
-                            {isWriting && progress.charCount > 0 && (
+                            {isWriting && charCount > 0 && (
                               <span className="text-[8px] text-[#aaa] font-semibold shrink-0">
-                                {progress.charCount} chars
+                                {charCount} chars
                               </span>
                             )}
                           </motion.div>

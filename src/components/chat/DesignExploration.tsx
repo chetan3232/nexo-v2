@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Palette, Layers, Cpu, Check, Sliders, Play, Move, MousePointer2 } from "lucide-react";
+import { 
+  Sparkles, 
+  Palette, 
+  Layers, 
+  Cpu, 
+  Check, 
+  Sliders, 
+  Play, 
+  Move, 
+  MousePointer2, 
+  AlertTriangle, 
+  HelpCircle, 
+  ArrowRight 
+} from "lucide-react";
 import toast from "react-hot-toast";
 
 interface DesignExplorationProps {
@@ -30,30 +43,91 @@ export const DesignExploration: React.FC<DesignExplorationProps> = ({ prompt, on
   const [blueprintLoading, setBlueprintLoading] = useState(false);
   const [blueprintInput, setBlueprintInput] = useState("");
 
+  // Nexo Analyst states
+  const [analysisData, setAnalysisData] = useState<any>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(true);
+  const [blockingAnswer, setBlockingAnswer] = useState("");
+  const [blockingSubmitting, setBlockingSubmitting] = useState(false);
+  const [conversationHistory, setConversationHistory] = useState<any[]>([]);
+
+  const fetchAnalysis = async (currentPrompt: string, history: any[] = []) => {
+    setAnalysisLoading(true);
+    try {
+      const res = await fetch("/api/ai/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_prompt: currentPrompt,
+          mode: "fullstack",
+          conversation_history: history
+        })
+      });
+      if (!res.ok) throw new Error("Failed to analyze requirements");
+      const json = await res.json();
+      setAnalysisData(json);
+      return json;
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to analyze requirements");
+    } finally {
+      setAnalysisLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchExploration = async () => {
+    const initData = async () => {
       try {
-        const res = await fetch("/api/ai/explore", {
+        setLoading(true);
+        // Trigger both in parallel
+        const explorePromise = fetch("/api/ai/explore", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ prompt })
+        }).then(res => {
+          if (!res.ok) throw new Error("Failed to explore design");
+          return res.json();
         });
-        if (!res.ok) throw new Error("Failed to explore design");
-        const json = await res.json();
-        setData(json);
-        
-        // Emulate thinking time
-        setTimeout(() => setPhase("concepts"), 2000);
+
+        const [exploreJson, analyzeJson] = await Promise.all([
+          explorePromise,
+          fetchAnalysis(prompt)
+        ]);
+
+        setData(exploreJson);
       } catch (err) {
         console.error(err);
-        toast.error("Failed to extract intent");
         onCancel();
       } finally {
         setLoading(false);
       }
     };
-    fetchExploration();
+    initData();
   }, [prompt, onCancel]);
+
+  const handleSubmitBlockingAnswer = async () => {
+    if (!blockingAnswer.trim() || !analysisData?.blocking_question) return;
+    
+    setBlockingSubmitting(true);
+    const updatedHistory = [
+      ...conversationHistory,
+      { role: "user", content: prompt },
+      { role: "assistant", content: JSON.stringify(analysisData) },
+      { role: "user", content: `Answer to blocking question: "${blockingAnswer}"` }
+    ];
+    setConversationHistory(updatedHistory);
+    
+    try {
+      const newAnalysis = await fetchAnalysis(prompt, updatedHistory);
+      setBlockingAnswer("");
+      if (newAnalysis?.ready_for_design !== false) {
+        toast.success("Requirements resolved! Ready for design.");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setBlockingSubmitting(false);
+    }
+  };
 
   const handleSelectConcept = (concept: any) => {
     setSelectedConcept(concept);
@@ -66,21 +140,31 @@ export const DesignExploration: React.FC<DesignExplorationProps> = ({ prompt, on
 
   const handleGenerateBlueprint = async () => {
     setPhase("blueprint");
-    setBlueprintLoading(true);
-    try {
-      const res = await fetch("/api/ai/blueprint", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt })
-      });
-      if (!res.ok) throw new Error("Failed to generate blueprint");
-      const json = await res.json();
-      setBlueprintData(json);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to generate blueprint");
-    } finally {
-      setBlueprintLoading(false);
+    if (analysisData?.project_plan) {
+      const plan = analysisData.project_plan;
+      const initialBlueprint = {
+        pages: plan.pages_or_screens?.map((p: any) => p.id + " - " + p.purpose) || [],
+        backend: plan.key_features?.filter((f: any) => f.requires_backend).map((f: any) => f.name + " (" + f.complexity + ")") || [],
+        integrations: plan.key_features?.filter((f: any) => !f.requires_backend && f.complexity === "high").map((f: any) => f.name) || ["Standard Integration"]
+      };
+      setBlueprintData(initialBlueprint);
+    } else {
+      setBlueprintLoading(true);
+      try {
+        const res = await fetch("/api/ai/blueprint", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt })
+        });
+        if (!res.ok) throw new Error("Failed to generate blueprint");
+        const json = await res.json();
+        setBlueprintData(json);
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to generate blueprint");
+      } finally {
+        setBlueprintLoading(false);
+      }
     }
   };
 
@@ -114,7 +198,7 @@ export const DesignExploration: React.FC<DesignExplorationProps> = ({ prompt, on
     const enrichedPrompt = `${prompt}
     
 === DESIGN CONSTRAINTS ===
-Concept: ${selectedConcept.title}
+Concept: ${selectedConcept?.title || "Default"}
 Theme Mode: ${themeMode}
 Primary Color: ${primaryColor}
 Background: ${bgColor}
@@ -136,27 +220,173 @@ Integrations: ${blueprintData?.integrations?.join(", ") || "Default"}
     <div className="w-full flex flex-col gap-4 py-4 px-2 select-none">
       <AnimatePresence mode="wait">
         
-        {/* PHASE 1: INTENT */}
-        {(phase === "intent" || loading) && (
+        {/* PHASE 1: INTENT & SPECIFICATION */}
+        {(phase === "intent" || loading || analysisLoading) && (
           <motion.div
             key="intent"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, height: 0 }}
-            className="flex flex-col gap-3"
+            className="flex flex-col gap-4 bg-white border border-[#e8e8e8] rounded-2xl p-4 shadow-sm"
           >
-            <div className="flex items-center gap-2 text-[#0ea5e9] text-xs font-bold uppercase tracking-wider">
-              <Cpu className="w-4 h-4 animate-pulse" />
-              <span>{loading ? "🧠 Understanding requirements..." : "🧠 Analyzing application type..."}</span>
+            <div className="flex items-center justify-between border-b border-[#f0f0f0] pb-2.5">
+              <div className="flex items-center gap-2 text-[#0ea5e9] text-xs font-bold uppercase tracking-wider">
+                <Cpu className="w-4 h-4 animate-pulse" />
+                <span>🧠 Nexo Analyst: Requirement & Project Plan</span>
+              </div>
+              {analysisData?.project_plan && (
+                <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-bold uppercase border border-emerald-100">
+                  {analysisData.project_plan.project_name}
+                </span>
+              )}
             </div>
-            
-            {data?.intent && (
-              <motion.div 
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="bg-[#111] text-stone-300 p-4 rounded-xl text-xs font-mono overflow-x-auto shadow-xl"
-              >
-                <pre>{JSON.stringify(data.intent, null, 2)}</pre>
-              </motion.div>
+
+            {/* Loading states */}
+            {(loading || analysisLoading) && (
+              <div className="flex flex-col items-center justify-center py-12 gap-3 text-stone-500">
+                <Cpu className="w-8 h-8 text-[#0ea5e9] animate-spin" />
+                <span className="text-xs font-semibold animate-pulse">Running pipeline requirement analysis & intent extraction...</span>
+              </div>
+            )}
+
+            {/* Display Analysis Data */}
+            {!loading && !analysisLoading && analysisData && (
+              <div className="flex flex-col gap-4 max-h-[450px] overflow-y-auto pr-1">
+                {/* Flags / Alerts */}
+                {analysisData.flags && analysisData.flags.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    {analysisData.flags.map((flag: any, i: number) => (
+                      <div key={i} className="flex gap-2.5 p-3 bg-amber-50 border border-amber-200/60 rounded-xl text-xs text-amber-900">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="font-bold capitalize">{flag.type.replace("_", " ")}: </strong>
+                          {flag.message}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Restated Request & Goals */}
+                <div className="bg-[#fcfcfc] border border-[#e8e8e8] rounded-xl p-3.5 space-y-2">
+                  <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Restated Goal & Target</div>
+                  <h4 className="text-sm font-bold text-stone-850 leading-snug">{analysisData.requirement_analysis?.restated_request}</h4>
+                  <p className="text-xs text-stone-500 leading-normal">
+                    <strong>Core Purpose: </strong>{analysisData.project_plan?.core_purpose}
+                    <br />
+                    <strong>Target Audience: </strong>{analysisData.project_plan?.target_audience}
+                  </p>
+                </div>
+
+                {/* Requirements Breakdown Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="border border-[#e8e8e8] rounded-xl p-3 space-y-2">
+                    <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Explicit Requirements</div>
+                    <ul className="space-y-1.5">
+                      {analysisData.requirement_analysis?.explicit_requirements?.map((req: string, i: number) => (
+                        <li key={i} className="text-xs text-stone-750 flex gap-2">
+                          <span className="text-emerald-550 font-bold shrink-0">✓</span>
+                          <span>{req}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="border border-[#e8e8e8] rounded-xl p-3 space-y-2">
+                    <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Implied & Assumptions</div>
+                    <ul className="space-y-1.5">
+                      {analysisData.requirement_analysis?.implied_requirements?.map((req: string, i: number) => (
+                        <li key={i} className="text-xs text-stone-600 flex gap-2">
+                          <span className="text-[#0ea5e9] font-bold shrink-0">✦</span>
+                          <span className="italic">{req}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Screens & Execution Order */}
+                <div className="border border-[#e8e8e8] rounded-xl p-3 space-y-3">
+                  <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Proposed Architecture ({analysisData.project_plan?.mode})</div>
+                  
+                  <div className="space-y-2">
+                    <div className="text-xs font-bold text-stone-700">Pages / Screens:</div>
+                    <div className="flex flex-wrap gap-2">
+                      {analysisData.project_plan?.pages_or_screens?.map((page: any, i: number) => (
+                        <div key={i} className="bg-stone-50 border border-[#e8e8e8] px-2.5 py-1 rounded-lg text-xs flex items-center gap-1.5">
+                          <span className={`w-1.5 h-1.5 rounded-full ${page.priority === "core" ? "bg-indigo-500" : "bg-stone-400"}`} />
+                          <span className="font-semibold text-stone-850">{page.id}</span>
+                          <span className="text-[10px] text-stone-450">({page.purpose})</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 pt-1 border-t border-[#f0f0f0]">
+                    <div className="text-xs font-bold text-stone-700">Planned Milestones & Steps:</div>
+                    <div className="space-y-1.5">
+                      {analysisData.project_plan?.execution_order?.map((step: string, i: number) => (
+                        <div key={i} className="flex gap-2 text-xs text-stone-650">
+                          <span className="font-mono text-[10px] bg-stone-100 px-1.5 py-0.5 rounded text-stone-500 shrink-0">{i + 1}</span>
+                          <span>{step}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Blocking Question Clarification */}
+                {analysisData.ready_for_design === false && analysisData.blocking_question && (
+                  <div className="p-4 bg-sky-50 border border-sky-200 rounded-xl space-y-3 mt-1 shrink-0">
+                    <div className="flex items-center gap-2 text-sky-850 font-semibold text-xs">
+                      <HelpCircle className="w-4 h-4 text-sky-600 shrink-0" />
+                      <span>Clarification Needed Before Building</span>
+                    </div>
+                    <p className="text-xs text-sky-700 font-medium leading-relaxed bg-white/70 p-2.5 rounded-lg border border-sky-100">
+                      {analysisData.blocking_question}
+                    </p>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Type your answer here..."
+                        value={blockingAnswer}
+                        onChange={(e) => setBlockingAnswer(e.target.value)}
+                        disabled={blockingSubmitting}
+                        className="flex-1 bg-white border border-[#e8e8e8] focus:border-[#0ea5e9] rounded-lg px-3 py-2 text-xs outline-none"
+                      />
+                      <button
+                        onClick={handleSubmitBlockingAnswer}
+                        disabled={blockingSubmitting || !blockingAnswer.trim()}
+                        className="px-4 py-2 bg-indigo-650 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold disabled:opacity-50 transition-all shrink-0"
+                      >
+                        {blockingSubmitting ? "Submitting..." : "Submit Answer"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Footer triggers */}
+            {!loading && !analysisLoading && analysisData && (
+              <div className="flex justify-end pt-2.5 border-t border-[#e8e8e8] mt-1">
+                {analysisData.ready_for_design !== false ? (
+                  <button
+                    onClick={() => setPhase("concepts")}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-lg active:scale-95"
+                  >
+                    Proceed to Design Style Cards
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={onCancel}
+                    className="px-4 py-2 text-stone-500 hover:text-stone-700 text-xs font-bold"
+                  >
+                    Cancel Build
+                  </button>
+                )}
+              </div>
             )}
           </motion.div>
         )}

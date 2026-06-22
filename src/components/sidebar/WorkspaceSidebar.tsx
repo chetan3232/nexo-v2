@@ -22,7 +22,8 @@ import {
   Database,
   Layers,
   Activity,
-  Loader2
+  Loader2,
+  Rocket
 } from "lucide-react";
 import logoV2 from "../../assets/NEXO-V2.png";
 import { useProjectStore } from "../../stores/projectStore";
@@ -619,6 +620,31 @@ export const WorkspaceSidebar: React.FC = () => {
                               {chat.name || "Untitled Project"}
                             </span>
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  handleLoadChat(chat);
+                                  
+                                  const pStore = useProjectStore.getState();
+                                  pStore.setShowDeployModal(true);
+                                  pStore.setDeployStatus("deploying");
+                                  pStore.setDeployUrl("");
+                                  
+                                  try {
+                                    const { DeploymentService } = await import("../../services/deploymentService");
+                                    const url = await DeploymentService.getInstance().deployProject();
+                                    pStore.setDeployUrl(url);
+                                    pStore.setDeployStatus("done");
+                                  } catch (err) {
+                                    console.error("[WorkspaceSidebar] Deploy failed:", err);
+                                    pStore.setDeployStatus("error");
+                                  }
+                                }}
+                                className="p-1 hover:bg-studio-panel rounded-md text-studio-muted hover:text-green-500"
+                                title="Deploy Live Site"
+                              >
+                                <Rocket className="w-3.5 h-3.5" />
+                              </button>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();

@@ -26,6 +26,7 @@ import {
   Loader2,
   Menu,
   X,
+  Rocket,
 } from "lucide-react";
 import logoV2 from "../../assets/NEXO-V2.png";
 import { useAgentStore } from "../../stores/agentStore";
@@ -38,6 +39,7 @@ import {
   onAuthStateChanged,
   signInWithGoogle,
 } from "../../services/firebase";
+import { DeploymentService } from "../../services/deploymentService";
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -156,6 +158,26 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
       setChatHistory((prev) => prev.filter((c) => c.id !== id));
     }
     setOpenMenuId(null);
+  };
+
+  const handleDeployChat = async (e: React.MouseEvent, chat: any) => {
+    e.stopPropagation();
+    setOpenMenuId(null);
+    handleLoadChat(chat);
+    
+    const pStore = useProjectStore.getState();
+    pStore.setShowDeployModal(true);
+    pStore.setDeployStatus("deploying");
+    pStore.setDeployUrl("");
+    
+    try {
+      const url = await DeploymentService.getInstance().deployProject();
+      pStore.setDeployUrl(url);
+      pStore.setDeployStatus("done");
+    } catch (err) {
+      console.error("[InitialOverlay] Deploy failed:", err);
+      pStore.setDeployStatus("error");
+    }
   };
 
   const handleDownloadZip = async (e: React.MouseEvent, chat: any) => {
@@ -671,6 +693,14 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
                             <span>Upload to Drive</span>
                           </>
                         )}
+                      </button>
+                      {/* Deploy Site */}
+                      <button
+                        onClick={(e) => handleDeployChat(e, chat)}
+                        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[11px] font-bold text-studio-muted hover:bg-green-500/10 hover:text-green-400 transition-colors"
+                      >
+                        <Rocket className="w-3.5 h-3.5" />
+                        <span>Deploy Site</span>
                       </button>
                       <div className="h-px bg-studio-border mx-2" />
                       {/* Delete */}
