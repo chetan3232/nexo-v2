@@ -75,7 +75,7 @@ const Home: React.FC = () => {
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
             <Link
-              to="/demo"
+              to="/chat"
               className="group bg-stone-900 text-white px-8 py-4 rounded-full font-semibold hover:bg-stone-800 transition-all flex items-center gap-2 shadow-xl hover:shadow-2xl hover:-translate-y-1 text-lg"
             >
               Start Building{" "}
@@ -315,7 +315,7 @@ const Home: React.FC = () => {
               your browser.
             </p>
             <Link
-              to="/demo"
+              to="/chat"
               className="inline-flex items-center gap-2 bg-white text-stone-900 px-6 py-3 rounded-xl font-bold hover:bg-stone-100 transition-colors"
             >
               Launch Workspace <ArrowRight className="w-4 h-4" />

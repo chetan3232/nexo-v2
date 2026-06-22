@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Panel,
@@ -11,7 +11,14 @@ import toast, { Toaster } from "react-hot-toast";
 import logoV2 from "../assets/NEXO-V2.png";
 import { ChatPanel } from "../components/chat/ChatPanel";
 import { InitialOverlay } from "../components/chat/InitialOverlay";
-import { auth, saveChatToFirebase, signInWithGoogle, logout, onAuthStateChanged } from "../services/firebase";
+import {
+  auth,
+  saveChatToFirebase,
+  signInWithGoogle,
+  logout,
+  onAuthStateChanged,
+  loadSingleChatFromFirebaseOrLocal,
+} from "../services/firebase";
 import { User as FirebaseUser } from "firebase/auth";
 
 // Lazy load heavy components
@@ -67,15 +74,16 @@ import {
   MessageSquare,
   MoreVertical,
   Menu,
+  Code,
 } from "lucide-react";
 import { StudioControls } from "../components/ui/StudioControls";
-import { QualityReviewOverlay } from "../components/chat/QualityReviewOverlay";
-import { PreviewTransferOverlay } from "../components/chat/PreviewTransferOverlay";
 import JSZip from "jszip";
 
 const ChatInterface: React.FC = () => {
   const navigate = useNavigate();
   const chatStore = useChatStore();
+  const { chatId } = useParams<{ chatId?: string }>();
+  const [loadingChat, setLoadingChat] = useState(false);
   
   // Optimize store subscriptions using selectors to avoid re-rendering on tasks/logs/reasoning streaming
   const currentContent = useProjectStore((s) => s.currentContent);
@@ -110,6 +118,7 @@ const ChatInterface: React.FC = () => {
   const isBooted = useRuntimeStore((state) => state.isBooted);
   const {
     selectedModel,
+    setSelectedModel,
     temperature,
     setTemperature,
     topP,
@@ -117,6 +126,7 @@ const ChatInterface: React.FC = () => {
     showStudioPanel,
     setShowStudioPanel,
     projectMode,
+    setProjectMode,
   } = useAgentStore();
 
   const [workspaceTab, setWorkspaceTab] = useState<"preview" | "code">(
@@ -199,38 +209,17 @@ const ChatInterface: React.FC = () => {
   const [showLanding, setShowLanding] = useState(chatStore.messages.length === 0);
   const prevBuildPhase = useRef(projectStore.buildPhase);
   
-  const [showQualityReview, setShowQualityReview] = useState(false);
-  const [showPreviewTransfer, setShowPreviewTransfer] = useState(false);
-
-  // Reset overlay workflow states when a new build planning starts
-  useEffect(() => {
-    if (projectStore.buildPhase === "planning") {
-      setShowQualityReview(false);
-      setShowPreviewTransfer(false);
-    }
-  }, [projectStore.buildPhase]);
-
   useEffect(() => {
     if (prevBuildPhase.current !== "idle" && prevBuildPhase.current !== "done" && projectStore.buildPhase === "done") {
-      setShowQualityReview(true);
+      if (projectMode === "frontend") {
+        setWorkspaceTab("preview");
+        if (isMobile) {
+          setActiveMobileTab("preview");
+        }
+      }
     }
     prevBuildPhase.current = projectStore.buildPhase;
   }, [projectStore.buildPhase]);
-
-  const handleQualityReviewComplete = () => {
-    setShowQualityReview(false);
-    setShowPreviewTransfer(true);
-  };
-
-  const handlePreviewTransferComplete = () => {
-    setShowPreviewTransfer(false);
-    if (projectMode === "frontend") {
-      setWorkspaceTab("preview");
-      if (isMobile) {
-        setActiveMobileTab("preview");
-      }
-    }
-  };
 
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window !== "undefined") {
@@ -251,17 +240,66 @@ const ChatInterface: React.FC = () => {
     }
   };
 
+  // Load chat on mount or when chatId parameter changes
+  useEffect(() => {
+    const loadChat = async () => {
+      if (chatId) {
+        if (chatStore.currentChatId !== chatId) {
+          setLoadingChat(true);
+          const currentUser = auth.currentUser;
+          const uid = currentUser ? currentUser.uid : "mock-local-user-id";
+          try {
+            const chatData = await loadSingleChatFromFirebaseOrLocal(uid, chatId);
+            if (chatData) {
+              chatStore.setMessages(chatData.messages || []);
+              projectStore.setCurrentContent(chatData.content || null);
+              chatStore.setCurrentChatId(chatData.id);
+              if (chatData.model) setSelectedModel(chatData.model);
+              if (chatData.projectMode) setProjectMode(chatData.projectMode as "frontend" | "fullstack");
+              if (chatData.messages?.length > 0) {
+                chatStore.setHasStarted(true);
+              }
+              setShowLanding(false);
+            } else {
+              toast.error("Project not found or failed to load");
+              navigate("/chat");
+            }
+          } catch (err) {
+            console.error("Error loading chat:", err);
+            toast.error("Failed to load project");
+            navigate("/chat");
+          } finally {
+            setLoadingChat(false);
+          }
+        } else {
+          setShowLanding(false);
+        }
+      } else {
+        if (chatStore.currentChatId) {
+          chatStore.resetChat();
+          projectStore.setCurrentContent(null);
+          useRuntimeStore.getState().setIsBooted(false);
+          useRuntimeStore.getState().setUrl(null);
+        }
+        setShowLanding(true);
+      }
+    };
+
+    loadChat();
+  }, [chatId]);
+
+  // Keep URL in sync with currentChatId state
   useEffect(() => {
     if (chatStore.currentChatId) {
-      setShowLanding(false);
+      if (chatId !== chatStore.currentChatId) {
+        navigate(`/nexostudio/${chatStore.currentChatId}`);
+      }
+    } else {
+      if (chatId) {
+        navigate("/chat");
+      }
     }
-  }, [chatStore.currentChatId]);
-
-  useEffect(() => {
-    if (chatStore.messages.length === 0) {
-      setShowLanding(true);
-    }
-  }, [chatStore.messages.length]);
+  }, [chatStore.currentChatId, chatId, navigate]);
 
   useEffect(() => {
     if (selectedFileName) setWorkspaceTab("code");
@@ -572,21 +610,25 @@ const ChatInterface: React.FC = () => {
     }
   };
 
+  if (loadingChat) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-studio-bg text-studio-text gap-4 select-none">
+        <div className="relative flex items-center justify-center">
+          <div className="w-12 h-12 border-2 border-studio-accent/20 border-t-studio-accent rounded-full animate-spin" />
+          <div className="absolute w-8 h-8 border border-studio-secondary/10 border-t-studio-secondary rounded-full animate-spin animate-reverse" style={{ animationDuration: "1.5s" }} />
+        </div>
+        <span className="text-[10px] font-bold tracking-[0.25em] text-studio-muted animate-pulse uppercase">
+          Loading Project Workspace...
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full w-full flex flex-col overflow-hidden font-sans bg-[#f7f7f7]">
       <AnimatePresence>
         {showLanding && (
-          <InitialOverlay onStart={handleSend} onResume={() => setShowLanding(false)} />
-        )}
-
-
-
-        {showQualityReview && (
-          <QualityReviewOverlay onComplete={handleQualityReviewComplete} />
-        )}
-
-        {showPreviewTransfer && (
-          <PreviewTransferOverlay onComplete={handlePreviewTransferComplete} />
+          <InitialOverlay onStart={handleSend} onResume={chatStore.currentChatId ? () => navigate(`/nexostudio/${chatStore.currentChatId}`) : undefined} />
         )}
       </AnimatePresence>
 

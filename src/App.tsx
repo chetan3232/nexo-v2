@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from "react";
-import { HashRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Layout } from "./components/Layout";
 
 // Route-level lazy loading for bundle optimization
@@ -29,6 +29,8 @@ const App: React.FC = () => {
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/chat" element={<ChatInterface />} />
+            <Route path="/nexostudio/:chatId" element={<ChatInterface />} />
             <Route path="/demo" element={<ChatInterface />} />
             <Route path="/build" element={<Build />} />
             <Route path="/s/:shareId" element={<SharedProjectPage />} />

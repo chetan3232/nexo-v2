@@ -509,3 +509,81 @@ export const remixProject = async (
   });
   return newChatId;
 };
+
+/**
+ * Load a single chat by its ID from Firestore or LocalStorage.
+ */
+export const loadSingleChatFromFirebaseOrLocal = async (
+  uid: string,
+  chatId: string
+): Promise<ChatSaveData | null> => {
+  if (uid === "mock-local-user-id" || !firestore) {
+    try {
+      const localChats = JSON.parse(localStorage.getItem(LOCAL_CHATS_KEY) || "{}");
+      const chat = localChats[chatId] as ChatSaveData;
+      if (!chat) return null;
+      
+      const filesMapStr = localStorage.getItem(`nexo_local_chat_files_${chatId}`);
+      if (filesMapStr) {
+        const filesMap = JSON.parse(filesMapStr);
+        const files: Record<string, string> = {};
+        for (const fileDoc of Object.values(filesMap) as any[]) {
+          files[fileDoc.path] = fileDoc.content;
+        }
+        chat.content = {
+          files,
+          patches: {},
+          mainFile: "index.html",
+          template: "web"
+        };
+      }
+      return chat;
+    } catch (e) {
+      console.error("Error loading local chat:", e);
+      return null;
+    }
+  }
+
+  try {
+    const chatDocRef = doc(firestore, `chats/${chatId}`);
+    const chatDoc = await getDoc(chatDocRef);
+    if (chatDoc.exists()) {
+      const chatData = chatDoc.data() as ChatSaveData;
+      
+      const filesColRef = collection(firestore, `chats/${chatId}/files`);
+      const filesSnap = await getDocs(filesColRef);
+      
+      const files: Record<string, string> = {};
+      filesSnap.forEach((fileDoc) => {
+        const fileData = fileDoc.data();
+        if (fileData.path && fileData.content !== undefined) {
+          files[fileData.path] = fileData.content;
+        }
+      });
+
+      chatData.content = {
+        files,
+        patches: {},
+        mainFile: "index.html",
+        template: "web"
+      };
+      return chatData;
+    }
+  } catch (error) {
+    console.error("Error loading chat from Firestore:", error);
+  }
+
+  // Fallback to RTDB
+  if (db) {
+    try {
+      const chatRef = ref(db, `users/${uid}/chats/${chatId}`);
+      const snapshot = await get(chatRef);
+      if (snapshot.exists()) {
+        return snapshot.val() as ChatSaveData;
+      }
+    } catch (rtdbErr) {
+      console.error("RTDB Load fallback failed:", rtdbErr);
+    }
+  }
+  return null;
+};
