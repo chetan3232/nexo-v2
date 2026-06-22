@@ -69,7 +69,6 @@ import {
   Menu,
 } from "lucide-react";
 import { StudioControls } from "../components/ui/StudioControls";
-import { AgentWorkflowOverlay } from "../components/chat/AgentWorkflowOverlay";
 import { QualityReviewOverlay } from "../components/chat/QualityReviewOverlay";
 import { PreviewTransferOverlay } from "../components/chat/PreviewTransferOverlay";
 import JSZip from "jszip";
@@ -580,10 +579,7 @@ const ChatInterface: React.FC = () => {
           <InitialOverlay onStart={handleSend} onResume={() => setShowLanding(false)} />
         )}
 
-        {/* Cinematic 12-Phase Generation Experience Overlays */}
-        {projectStore.buildPhase !== "idle" && projectStore.buildPhase !== "done" && (
-          <AgentWorkflowOverlay />
-        )}
+
 
         {showQualityReview && (
           <QualityReviewOverlay onComplete={handleQualityReviewComplete} />
