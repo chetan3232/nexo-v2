@@ -17,6 +17,17 @@ import {
   update,
   serverTimestamp,
 } from "firebase/database";
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  deleteDoc,
+  collection,
+  query,
+  where,
+} from "firebase/firestore";
 import toast from "react-hot-toast";
 
 const hasFirebaseConfig = !!import.meta.env.VITE_FIREBASE_API_KEY;
@@ -33,6 +44,7 @@ let app: any = null;
 let auth: any = mockAuth as any;
 let provider: any = null;
 let db: any = null;
+let firestore: any = null;
 
 if (hasFirebaseConfig) {
   try {
@@ -49,6 +61,11 @@ if (hasFirebaseConfig) {
     auth = getAuth(app);
     provider = new GoogleAuthProvider();
     db = getDatabase(app);
+    try {
+      firestore = getFirestore(app);
+    } catch (fsErr) {
+      console.error("Failed to initialize Firestore:", fsErr);
+    }
   } catch (err) {
     console.error("Failed to initialize Firebase:", err);
   }
@@ -114,20 +131,35 @@ export const saveChatToFirebase = async (
   uid: string,
   chatData: ChatSaveData,
 ) => {
-  if (uid === "mock-local-user-id") {
+  if (uid === "mock-local-user-id" || !firestore) {
     try {
       const localChats = JSON.parse(localStorage.getItem(LOCAL_CHATS_KEY) || "{}");
+      const metaData = { ...chatData, content: null };
       localChats[chatData.id] = {
-        ...chatData,
-        updatedAt: Date.now(),
-        content: chatData.content
-          ? {
-              ...chatData.content,
-              files: chatData.content.files || {},
-            }
-          : null,
+        ...metaData,
+        updatedAt: Date.now()
       };
       localStorage.setItem(LOCAL_CHATS_KEY, JSON.stringify(localChats));
+
+      if (chatData.content && chatData.content.files) {
+        const filesMap: Record<string, any> = {};
+        for (const [path, content] of Object.entries(chatData.content.files)) {
+          const encodedPath = encodeURIComponent(path);
+          filesMap[encodedPath] = {
+            path,
+            content,
+            language: path.endsWith('.tsx') || path.endsWith('.ts') ? 'typescript' : path.endsWith('.html') ? 'html' : path.endsWith('.css') ? 'css' : 'javascript',
+            updatedAt: Date.now()
+          };
+        }
+        localStorage.setItem(`nexo_local_chat_files_${chatData.id}`, JSON.stringify(filesMap));
+      }
+      
+      // If db is available, also save metadata to RTDB for compatibility
+      if (db && uid !== "mock-local-user-id") {
+        const chatRef = ref(db, `users/${uid}/chats/${chatData.id}`);
+        await set(chatRef, { ...metaData, updatedAt: Date.now() });
+      }
       return;
     } catch (e) {
       console.error("Error saving local chat:", e);
@@ -135,20 +167,56 @@ export const saveChatToFirebase = async (
   }
 
   try {
-    const chatRef = ref(db, `users/${uid}/chats/${chatData.id}`);
-    await set(chatRef, {
+    // Save to Firestore
+    const chatDocRef = doc(firestore, `chats/${chatData.id}`);
+    const metaData = {
       ...chatData,
-      updatedAt: Date.now(),
-      // Firebase doesn't support undefined values — sanitize
-      content: chatData.content
-        ? {
-            ...chatData.content,
-            files: chatData.content.files || {},
-          }
-        : null,
-    });
+      content: null,
+      uid,
+      updatedAt: Date.now()
+    };
+    await setDoc(chatDocRef, metaData);
+
+    if (chatData.content && chatData.content.files) {
+      const filesColRef = collection(firestore, `chats/${chatData.id}/files`);
+      
+      for (const [path, content] of Object.entries(chatData.content.files)) {
+        const encodedPath = encodeURIComponent(path);
+        const fileDocRef = doc(firestore, `chats/${chatData.id}/files/${encodedPath}`);
+        await setDoc(fileDocRef, {
+          path,
+          content,
+          language: path.endsWith('.tsx') || path.endsWith('.ts') ? 'typescript' : path.endsWith('.html') ? 'html' : path.endsWith('.css') ? 'css' : 'javascript',
+          updatedAt: Date.now()
+        });
+      }
+
+      // Cleanup deleted files
+      const filesSnap = await getDocs(filesColRef);
+      const currentPaths = new Set(Object.keys(chatData.content.files));
+      for (const fileDoc of filesSnap.docs) {
+        const docId = fileDoc.id;
+        const decodedPath = decodeURIComponent(docId);
+        if (!currentPaths.has(decodedPath)) {
+          await deleteDoc(doc(firestore, `chats/${chatData.id}/files/${docId}`));
+        }
+      }
+    }
   } catch (error) {
-    console.error("Error saving chat to Firebase:", error);
+    console.error("Error saving chat to Firestore:", error);
+    // Realtime Database Fallback
+    if (db) {
+      try {
+        const chatRef = ref(db, `users/${uid}/chats/${chatData.id}`);
+        await set(chatRef, {
+          ...chatData,
+          updatedAt: Date.now(),
+          content: chatData.content ? { ...chatData.content, files: chatData.content.files || {} } : null,
+        });
+      } catch (rtdbErr) {
+        console.error("RTDB Save fallback failed:", rtdbErr);
+      }
+    }
   }
 };
 
@@ -158,12 +226,27 @@ export const saveChatToFirebase = async (
 export const loadChatsFromFirebase = async (
   uid: string,
 ): Promise<ChatSaveData[]> => {
-  if (uid === "mock-local-user-id") {
+  if (uid === "mock-local-user-id" || !firestore) {
     try {
       const localChats = JSON.parse(localStorage.getItem(LOCAL_CHATS_KEY) || "{}");
-      return (Object.values(localChats) as ChatSaveData[]).sort((a, b) => {
-        return (b.updatedAt || 0) - (a.updatedAt || 0);
-      });
+      const list = Object.values(localChats) as ChatSaveData[];
+      for (const chat of list) {
+        const filesMapStr = localStorage.getItem(`nexo_local_chat_files_${chat.id}`);
+        if (filesMapStr) {
+          const filesMap = JSON.parse(filesMapStr);
+          const files: Record<string, string> = {};
+          for (const fileDoc of Object.values(filesMap) as any[]) {
+            files[fileDoc.path] = fileDoc.content;
+          }
+          chat.content = {
+            files,
+            patches: {},
+            mainFile: "index.html",
+            template: "web"
+          };
+        }
+      }
+      return list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     } catch (e) {
       console.error("Error loading local chats:", e);
       return [];
@@ -171,17 +254,49 @@ export const loadChatsFromFirebase = async (
   }
 
   try {
-    const dbRef = ref(db);
-    const snapshot = await get(child(dbRef, `users/${uid}/chats`));
-    if (snapshot.exists()) {
-      const data = snapshot.val();
-      return (Object.values(data) as ChatSaveData[]).sort((a, b) => {
-        return (b.updatedAt || 0) - (a.updatedAt || 0);
+    const chatsColRef = collection(firestore, "chats");
+    const q = query(chatsColRef, where("uid", "==", uid));
+    const qSnap = await getDocs(q);
+    
+    const chats: ChatSaveData[] = [];
+    for (const chatDoc of qSnap.docs) {
+      const chatData = chatDoc.data() as ChatSaveData;
+      
+      const filesColRef = collection(firestore, `chats/${chatData.id}/files`);
+      const filesSnap = await getDocs(filesColRef);
+      
+      const files: Record<string, string> = {};
+      filesSnap.forEach((fileDoc) => {
+        const fileData = fileDoc.data();
+        if (fileData.path && fileData.content !== undefined) {
+          files[fileData.path] = fileData.content;
+        }
       });
+
+      chatData.content = {
+        files,
+        patches: {},
+        mainFile: "index.html",
+        template: "web"
+      };
+      chats.push(chatData);
     }
-    return [];
+    return chats.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   } catch (error) {
-    console.error("Error loading chats from Firebase:", error);
+    console.error("Error loading chats from Firestore:", error);
+    // Realtime Database Fallback
+    if (db) {
+      try {
+        const dbRef = ref(db);
+        const snapshot = await get(child(dbRef, `users/${uid}/chats`));
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          return (Object.values(data) as ChatSaveData[]).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+        }
+      } catch (rtdbErr) {
+        console.error("RTDB Load fallback failed:", rtdbErr);
+      }
+    }
     return [];
   }
 };
@@ -190,11 +305,17 @@ export const loadChatsFromFirebase = async (
  * Delete a specific chat from Firebase.
  */
 export const deleteChatFromFirebase = async (uid: string, chatId: string) => {
-  if (uid === "mock-local-user-id") {
+  if (uid === "mock-local-user-id" || !firestore) {
     try {
       const localChats = JSON.parse(localStorage.getItem(LOCAL_CHATS_KEY) || "{}");
       delete localChats[chatId];
       localStorage.setItem(LOCAL_CHATS_KEY, JSON.stringify(localChats));
+      localStorage.removeItem(`nexo_local_chat_files_${chatId}`);
+      
+      if (db && uid !== "mock-local-user-id") {
+        const chatRef = ref(db, `users/${uid}/chats/${chatId}`);
+        await remove(chatRef);
+      }
       return;
     } catch (e) {
       console.error("Error deleting local chat:", e);
@@ -202,10 +323,25 @@ export const deleteChatFromFirebase = async (uid: string, chatId: string) => {
   }
 
   try {
-    const chatRef = ref(db, `users/${uid}/chats/${chatId}`);
-    await remove(chatRef);
+    const chatDocRef = doc(firestore, `chats/${chatId}`);
+    await deleteDoc(chatDocRef);
+
+    // Delete subcollection files
+    const filesColRef = collection(firestore, `chats/${chatId}/files`);
+    const filesSnap = await getDocs(filesColRef);
+    for (const fileDoc of filesSnap.docs) {
+      await deleteDoc(doc(firestore, `chats/${chatId}/files/${fileDoc.id}`));
+    }
   } catch (error) {
-    console.error("Error deleting chat from Firebase:", error);
+    console.error("Error deleting chat from Firestore:", error);
+    if (db) {
+      try {
+        const chatRef = ref(db, `users/${uid}/chats/${chatId}`);
+        await remove(chatRef);
+      } catch (rtdbErr) {
+        console.error("RTDB Delete fallback failed:", rtdbErr);
+      }
+    }
   }
 };
 

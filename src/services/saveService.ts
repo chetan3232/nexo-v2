@@ -37,14 +37,13 @@ export const saveCurrentProject = async (): Promise<any> => {
 
   console.log(`[SaveService] Saving project ${chatId} (${projectTitle}) with ${chatData.fileCount} files...`);
 
-  // 1. Save to Firebase if signed in
+  // 1. Save to Firebase (or LocalStorage offline fallback)
   const user = auth.currentUser;
-  if (user) {
-    try {
-      await saveChatToFirebase(user.uid, chatData);
-    } catch (e) {
-      console.error("[SaveService] Firebase save error:", e);
-    }
+  const uid = user ? user.uid : "mock-local-user-id";
+  try {
+    await saveChatToFirebase(uid, chatData);
+  } catch (e) {
+    console.error("[SaveService] Firebase/Local save error:", e);
   }
 
   // 2. Save to local Node server database

@@ -23,21 +23,23 @@ function buildSrcdocFromFiles(
 
   const indexHtml = files["index.html"] || files["/index.html"];
 
-  // ── Case 1: React project (has src/App.tsx or src/App.jsx) ──
-  const appTsx = files["src/App.tsx"] || files["src/App.jsx"];
-  const appCss = files["src/App.css"] || files["src/index.css"] || "";
+  // ── Case 1: React project (has src/App.tsx, src/App.jsx, App.tsx, App.jsx, index.tsx, index.jsx) ──
+  const appTsx = files["src/App.tsx"] || files["src/App.jsx"] || files["App.tsx"] || files["App.jsx"] ||
+                 files["src/index.tsx"] || files["src/index.jsx"] || files["index.tsx"] || files["index.jsx"];
+  
+  const cssBundle = Object.entries(files)
+    .filter(([path]) => path.endsWith(".css"))
+    .map(([, content]) => content)
+    .join("\n");
 
   if (appTsx) {
-    // Collect all component files for injection
-    const componentImports: string[] = [];
-    const componentDefinitions: string[] = [];
-
-    // Process App component - strip imports/exports for inline execution
-    let appCode = appTsx
-      .replace(/^import\s+.*$/gm, "") // strip imports
-      .replace(/^export\s+default\s+/gm, "const App = ") // convert export default
-      .replace(/^export\s+/gm, "const ") // convert named exports
-      .trim();
+    // Generate window.defineModule calls for all JS/TS/JSX/TSX files
+    const allModulesDefinitions = Object.entries(files)
+      .filter(([path]) => path.endsWith(".tsx") || path.endsWith(".ts") || path.endsWith(".jsx") || path.endsWith(".js"))
+      .map(([path, content]) => {
+        return `window.defineModule(${JSON.stringify(path)}, ${JSON.stringify(content)});`;
+      })
+      .join("\n");
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -50,15 +52,29 @@ function buildSrcdocFromFiles(
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Inter', sans-serif; }
-    ${appCss}
+    ${cssBundle}
   </style>
+  <script>
+    window.modules = {};
+    window.defineModule = (name, code) => {
+      window.modules[name] = {
+        exports: {},
+        code,
+        factory: null,
+        loaded: false
+      };
+    };
+  </script>
 </head>
 <body>
   <div id="root"></div>
   <script src="https://esm.sh/react@19?bundle"><\/script>
   <script src="https://esm.sh/react-dom@19/client?bundle"><\/script>
   <script src="https://esm.sh/@babel/standalone"><\/script>
-  <script type="text/babel" data-type="module">
+  <script>
+    ${allModulesDefinitions}
+  </script>
+  <script type="text/babel">
     const { useState, useEffect, useRef, useCallback, useMemo, useReducer, useContext, createContext, Fragment } = React;
 
     // ── Inline lucide-react stubs ──
@@ -89,8 +105,56 @@ function buildSrcdocFromFiles(
     });
     const AnimatePresence = ({ children }) => React.createElement(Fragment, null, children);
 
+    const require = (name) => {
+      const cleanName = name.replace(/^react-dom\/client$/, 'react-dom').replace(/^\.\//, "").replace(/^\.\.\//, "");
+      
+      if (cleanName === 'react') return React;
+      if (cleanName === 'react-dom') return { ...ReactDOM, createRoot: ReactDOM.createRoot || (ReactDOM.client && ReactDOM.client.createRoot) };
+      if (cleanName === 'lucide-react') return lucideProxy;
+      if (cleanName === 'framer-motion') return { motion, AnimatePresence };
+
+      const foundKey = Object.keys(window.modules).find(k => {
+        const cleanK = k.replace(/^\.\//, "").replace(/^\.\.\//, "");
+        return cleanK.endsWith(cleanName) || cleanName.endsWith(cleanK) || cleanK.includes(cleanName) || cleanName.includes(cleanK);
+      });
+
+      if (!foundKey) {
+        console.warn("Module not found:", name);
+        return {};
+      }
+
+      const mod = window.modules[foundKey];
+      if (!mod.loaded) {
+        mod.loaded = true;
+        try {
+          // Transpile with Babel Standalone
+          const transpiled = Babel.transform(mod.code, {
+            presets: ['react', ['env', { modules: 'commonjs' }]]
+          }).code;
+          
+          mod.factory = new Function("require", "exports", "module", transpiled);
+        } catch (err) {
+          console.error("Transpilation error in " + foundKey + ":", err);
+          throw err;
+        }
+        mod.factory(require, mod.exports, mod);
+      }
+      return mod.exports;
+    };
+
     try {
-      ${appCode}
+      // Find entrypoint: App.tsx or App.jsx or index.tsx or main.tsx
+      const entryKey = Object.keys(window.modules).find(k => 
+        k.endsWith("App.tsx") || k.endsWith("App.jsx") || k.endsWith("App.js") || k.endsWith("App.ts") ||
+        k.endsWith("index.tsx") || k.endsWith("index.jsx") || k.endsWith("main.tsx")
+      );
+      
+      if (!entryKey) {
+        throw new Error("Could not find React entrypoint (App.tsx or index.tsx)");
+      }
+
+      const entry = require(entryKey);
+      const App = entry.default || entry.App || entry;
 
       const root = ReactDOM.createRoot(document.getElementById('root'));
       root.render(React.createElement(App));

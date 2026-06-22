@@ -5,6 +5,164 @@ const PromptEnhancer = require('./promptEnhancer');
 const ProjectMemory = require('./projectMemory');
 
 // ─────────────────────────────────────────────────
+// JSON Actions Streaming Parser and Extractor
+// ─────────────────────────────────────────────────
+function makeStreamParser(job) {
+    const state = {
+        index: 0,
+        actions: [],
+        currentAction: null,
+        inContentString: false,
+        escapeNext: false,
+        contentBuffer: "",
+        onActionStart: (action) => {
+            if (action.type === 'create' || action.type === 'edit') {
+                jobEvents.emit(job.id, { type: 'create_file', path: action.path });
+            }
+        },
+        onActionChunk: (chunk) => {
+            if (state.currentAction && (state.currentAction.type === 'create' || state.currentAction.type === 'edit')) {
+                jobEvents.emit(job.id, {
+                    type: 'write_code',
+                    path: state.currentAction.path,
+                    chunk: chunk
+                });
+            }
+        },
+        onActionEnd: (action) => {
+            if (action.type === 'create' || action.type === 'edit') {
+                jobEvents.emit(job.id, {
+                    type: 'update_file',
+                    path: action.path,
+                    content: action.content
+                });
+                job.updateFiles({ [action.path]: action.content });
+            }
+        }
+    };
+
+    return (text) => {
+        while (state.index < text.length) {
+            if (!state.currentAction) {
+                const remaining = text.substring(state.index);
+                const match = remaining.match(/^\s*\{\s*"type"\s*:\s*"([^"]+)"\s*,\s*"path"\s*:\s*"([^"]+)"/);
+                if (match) {
+                    state.currentAction = {
+                        type: match[1],
+                        path: match[2],
+                        content: ""
+                    };
+                    state.index += match[0].length;
+                    state.onActionStart(state.currentAction);
+
+                    const nextRemaining = text.substring(state.index);
+                    const contentStartMatch = nextRemaining.match(/^\s*,\s*"content"\s*:\s*"/);
+                    if (contentStartMatch) {
+                        state.inContentString = true;
+                        state.escapeNext = false;
+                        state.contentBuffer = "";
+                        state.index += contentStartMatch[0].length;
+                    } else {
+                        const closeMatch = nextRemaining.match(/^\s*\}/);
+                        if (closeMatch) {
+                            state.index += closeMatch[0].length;
+                            state.onActionEnd(state.currentAction);
+                            state.actions.push(state.currentAction);
+                            state.currentAction = null;
+                        }
+                    }
+                } else {
+                    state.index++;
+                }
+            } else if (state.inContentString) {
+                const char = text[state.index];
+                if (state.escapeNext) {
+                    let decodedChar = char;
+                    if (char === 'n') decodedChar = '\n';
+                    else if (char === 'r') decodedChar = '\r';
+                    else if (char === 't') decodedChar = '\t';
+                    else if (char === 'b') decodedChar = '\b';
+                    else if (char === 'f') decodedChar = '\f';
+                    
+                    state.contentBuffer += decodedChar;
+                    state.onActionChunk(decodedChar);
+                    state.escapeNext = false;
+                    state.index++;
+                } else if (char === '\\') {
+                    state.escapeNext = true;
+                    state.index++;
+                } else if (char === '"') {
+                    state.inContentString = false;
+                    state.currentAction.content = state.contentBuffer;
+                    state.index++;
+
+                    const remaining = text.substring(state.index);
+                    const closeMatch = remaining.match(/^\s*\}/);
+                    if (closeMatch) {
+                        state.index += closeMatch[0].length;
+                    }
+                    state.onActionEnd(state.currentAction);
+                    state.actions.push(state.currentAction);
+                    state.currentAction = null;
+                } else {
+                    state.contentBuffer += char;
+                    state.onActionChunk(char);
+                    state.index++;
+                }
+            } else {
+                const remaining = text.substring(state.index);
+                const closeMatch = remaining.match(/^\s*\}/);
+                if (closeMatch) {
+                    state.index += closeMatch[0].length;
+                    state.onActionEnd(state.currentAction);
+                    state.actions.push(state.currentAction);
+                    state.currentAction = null;
+                } else {
+                    state.index++;
+                }
+            }
+        }
+        return state.actions;
+    };
+}
+
+function extractFilesFromJsonActions(text) {
+    try {
+        const cleanJson = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(cleanJson);
+        const files = {};
+        let mainFile = 'index.html';
+        
+        if (parsed.actions && Array.isArray(parsed.actions)) {
+            parsed.actions.forEach(act => {
+                if (act.type === 'create' || act.type === 'edit') {
+                    files[act.path] = act.content;
+                }
+            });
+        }
+        if (parsed.preview_entry) {
+            mainFile = parsed.preview_entry;
+        }
+        
+        return { files, mainFile, explanation: parsed.explanation || "" };
+    } catch (e) {
+        console.error("JSON parse failed at the end of stream. Falling back to regex action extractor.", e);
+        const files = {};
+        const actionRegex = /\{\s*"type"\s*:\s*"(create|edit)"\s*,\s*"path"\s*:\s*"([^"]+)"\s*,\s*"content"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
+        let match;
+        while ((match = actionRegex.exec(text)) !== null) {
+            const path = match[2];
+            let content = match[3];
+            try {
+                content = JSON.parse(`"${content}"`);
+            } catch(unescapeErr) {}
+            files[path] = content;
+        }
+        return { files, mainFile: 'index.html', explanation: "" };
+    }
+}
+
+// ─────────────────────────────────────────────────
 // Smart Model Router — picks best model per task
 // ─────────────────────────────────────────────────
 function routeModel(taskType, requestedModel) {
@@ -250,9 +408,7 @@ Example output:
 We have planned the following frontend files to implement the user request "${finalPrompt}":
 ${frontendFiles.map(f => `- ${f}`).join('\n')}
 
-Follow the Nexo Protocol: write complete files enclosed in ---FILE: path--- and ---END FILE--- markers.
-CRITICAL: If you need any backend API endpoints (like custom REST routes, database actions, etc.), state them clearly in your code comments or response text as:
-"BACKEND_REQUEST: Create /api/[route] endpoint for [reason]"
+We require you to output valid JSON for the file actions.
 Ensure the frontend is fully responsive and modern.`;
 
                 const frontendMessages = [
@@ -261,9 +417,7 @@ Ensure the frontend is fully responsive and modern.`;
                 ];
 
                 let streamedText = "";
-                let scanIndex = 0;
-                let currentFile = null;
-                let currentFileContent = "";
+                const parseStream = makeStreamParser(job);
 
                 const frontendOutput = await AIGateway.streamCompletion({
                     messages: frontendMessages,
@@ -279,75 +433,11 @@ Ensure the frontend is fully responsive and modern.`;
                 }, (chunk) => {
                     streamedText += chunk;
                     job.log(chunk);
-
-                    while (scanIndex < streamedText.length) {
-                        const remaining = streamedText.substring(scanIndex);
-
-                        if (!currentFile) {
-                            const fileStartMatch = remaining.match(/^[\s\S]*?---FILE:\s*([^\s\n\-]+?)\s*---/i);
-                            if (fileStartMatch) {
-                                const matchStr = fileStartMatch[0];
-                                const filename = fileStartMatch[1].trim().replace(/`/g, "");
-                                
-                                scanIndex += matchStr.length;
-                                currentFile = filename;
-                                currentFileContent = "";
-                                
-                                jobEvents.emit(job.id, { type: 'create_file', path: filename });
-                                continue;
-                            } else {
-                                break;
-                            }
-                        }
-
-                        if (currentFile) {
-                            const fileEndIdx = remaining.indexOf("---END FILE---");
-                            if (fileEndIdx !== -1) {
-                                const codeChunk = remaining.substring(0, fileEndIdx);
-                                currentFileContent += codeChunk;
-                                
-                                if (codeChunk.length > 0) {
-                                    jobEvents.emit(job.id, { 
-                                        type: 'write_code', 
-                                        path: currentFile, 
-                                        chunk: codeChunk 
-                                    });
-                                }
-
-                                const updatedFiles = { [currentFile]: currentFileContent };
-                                job.updateFiles(updatedFiles);
-                                jobEvents.emit(job.id, { 
-                                    type: 'update_file', 
-                                    path: currentFile, 
-                                    content: currentFileContent 
-                                });
-
-                                scanIndex += fileEndIdx + "---END FILE---".length;
-                                currentFile = null;
-                                currentFileContent = "";
-                                continue;
-                            } else {
-                                const safetyMargin = Math.max(0, remaining.length - 20);
-                                if (safetyMargin > 0) {
-                                    const codeChunk = remaining.substring(0, safetyMargin);
-                                    currentFileContent += codeChunk;
-                                    
-                                    jobEvents.emit(job.id, { 
-                                        type: 'write_code', 
-                                        path: currentFile, 
-                                        chunk: codeChunk 
-                                    });
-                                    
-                                    scanIndex += safetyMargin;
-                                }
-                                break;
-                            }
-                        }
-                    }
+                    parseStream(streamedText);
                 });
 
-                const parsedFrontend = extractCodeFromText(frontendOutput);
-                const finalFrontendFiles = parsedFrontend.website ? parsedFrontend.website.files : {};
+                const parsedFrontend = extractFilesFromJsonActions(frontendOutput);
+                const finalFrontendFiles = parsedFrontend.files;
                 if (Object.keys(finalFrontendFiles).length > 0) {
                     job.updateFiles(finalFrontendFiles);
                 }
@@ -387,9 +477,7 @@ Implement these files completely, ensuring they fulfill the requests made by the
                 ];
 
                 streamedText = "";
-                scanIndex = 0;
-                currentFile = null;
-                currentFileContent = "";
+                const parseBackendStream = makeStreamParser(job);
 
                 const backendOutput = await AIGateway.streamCompletion({
                     messages: backendMessages,
@@ -405,75 +493,11 @@ Implement these files completely, ensuring they fulfill the requests made by the
                 }, (chunk) => {
                     streamedText += chunk;
                     job.log(chunk);
-
-                    while (scanIndex < streamedText.length) {
-                        const remaining = streamedText.substring(scanIndex);
-
-                        if (!currentFile) {
-                            const fileStartMatch = remaining.match(/^[\s\S]*?---FILE:\s*([^\s\n\-]+?)\s*---/i);
-                            if (fileStartMatch) {
-                                const matchStr = fileStartMatch[0];
-                                const filename = fileStartMatch[1].trim().replace(/`/g, "");
-                                
-                                scanIndex += matchStr.length;
-                                currentFile = filename;
-                                currentFileContent = "";
-                                
-                                jobEvents.emit(job.id, { type: 'create_file', path: filename });
-                                continue;
-                            } else {
-                                break;
-                            }
-                        }
-
-                        if (currentFile) {
-                            const fileEndIdx = remaining.indexOf("---END FILE---");
-                            if (fileEndIdx !== -1) {
-                                const codeChunk = remaining.substring(0, fileEndIdx);
-                                currentFileContent += codeChunk;
-                                
-                                if (codeChunk.length > 0) {
-                                    jobEvents.emit(job.id, { 
-                                        type: 'write_code', 
-                                        path: currentFile, 
-                                        chunk: codeChunk 
-                                    });
-                                }
-
-                                const updatedFiles = { [currentFile]: currentFileContent };
-                                job.updateFiles(updatedFiles);
-                                jobEvents.emit(job.id, { 
-                                    type: 'update_file', 
-                                    path: currentFile, 
-                                    content: currentFileContent 
-                                });
-
-                                scanIndex += fileEndIdx + "---END FILE---".length;
-                                currentFile = null;
-                                currentFileContent = "";
-                                continue;
-                            } else {
-                                const safetyMargin = Math.max(0, remaining.length - 20);
-                                if (safetyMargin > 0) {
-                                    const codeChunk = remaining.substring(0, safetyMargin);
-                                    currentFileContent += codeChunk;
-                                    
-                                    jobEvents.emit(job.id, { 
-                                        type: 'write_code', 
-                                        path: currentFile, 
-                                        chunk: codeChunk 
-                                    });
-                                    
-                                    scanIndex += safetyMargin;
-                                }
-                                break;
-                            }
-                        }
-                    }
+                    parseBackendStream(streamedText);
                 });
 
-                const parsedBackend = extractCodeFromText(backendOutput);
-                const finalBackendFiles = parsedBackend.website ? parsedBackend.website.files : {};
+                const parsedBackend = extractFilesFromJsonActions(backendOutput);
+                const finalBackendFiles = parsedBackend.files;
                 if (Object.keys(finalBackendFiles).length > 0) {
                     job.updateFiles(finalBackendFiles);
                 }
@@ -539,9 +563,7 @@ Do not truncate or omit any files. Ensure package.json has all necessary depende
                 ];
 
                 let streamedText = "";
-                let scanIndex = 0;
-                let currentFile = null;
-                let currentFileContent = "";
+                const parseImplStream = makeStreamParser(job);
 
                 const implementationOutput = await AIGateway.streamCompletion({
                     messages: implementationMessages,
@@ -557,79 +579,12 @@ Do not truncate or omit any files. Ensure package.json has all necessary depende
                 }, (chunk) => {
                     streamedText += chunk;
                     job.log(chunk);
-
-                    // Live event-based stream parsing
-                    while (scanIndex < streamedText.length) {
-                        const remaining = streamedText.substring(scanIndex);
-
-                        // A. Look for FILE start marker
-                        if (!currentFile) {
-                            const fileStartMatch = remaining.match(/^[\s\S]*?---FILE:\s*([^\s\n\-]+?)\s*---/i);
-                            if (fileStartMatch) {
-                                const matchStr = fileStartMatch[0];
-                                const filename = fileStartMatch[1].trim().replace(/`/g, "");
-                                
-                                scanIndex += matchStr.length;
-                                currentFile = filename;
-                                currentFileContent = "";
-                                
-                                jobEvents.emit(job.id, { type: 'create_file', path: filename });
-                                continue;
-                            } else {
-                                break;
-                            }
-                        }
-
-                        // B. Look for FILE end marker
-                        if (currentFile) {
-                            const fileEndIdx = remaining.indexOf("---END FILE---");
-                            if (fileEndIdx !== -1) {
-                                const codeChunk = remaining.substring(0, fileEndIdx);
-                                currentFileContent += codeChunk;
-                                
-                                if (codeChunk.length > 0) {
-                                    jobEvents.emit(job.id, { 
-                                        type: 'write_code', 
-                                        path: currentFile, 
-                                        chunk: codeChunk 
-                                    });
-                                }
-
-                                const updatedFiles = { [currentFile]: currentFileContent };
-                                job.updateFiles(updatedFiles);
-                                jobEvents.emit(job.id, { 
-                                    type: 'update_file', 
-                                    path: currentFile, 
-                                    content: currentFileContent 
-                                });
-
-                                scanIndex += fileEndIdx + "---END FILE---".length;
-                                currentFile = null;
-                                currentFileContent = "";
-                                continue;
-                            } else {
-                                const safetyMargin = Math.max(0, remaining.length - 20);
-                                if (safetyMargin > 0) {
-                                    const codeChunk = remaining.substring(0, safetyMargin);
-                                    currentFileContent += codeChunk;
-                                    
-                                    jobEvents.emit(job.id, { 
-                                        type: 'write_code', 
-                                        path: currentFile, 
-                                        chunk: codeChunk 
-                                    });
-                                    
-                                    scanIndex += safetyMargin;
-                                }
-                                break;
-                            }
-                        }
-                    }
+                    parseImplStream(streamedText);
                 });
 
                 // Final parse sanity check
-                const finalParsed = extractCodeFromText(streamedText);
-                finalFiles = finalParsed.website ? finalParsed.website.files : {};
+                const finalParsed = extractFilesFromJsonActions(streamedText);
+                finalFiles = finalParsed.files;
                 if (Object.keys(finalFiles).length > 0) {
                     job.updateFiles(finalFiles);
                 }
@@ -693,8 +648,8 @@ Do not truncate or omit any files. Ensure package.json has all necessary depende
                 `${modeLabel} ${fileCount} files successfully. Ready to build runtime preview!`,
                 fileCount,
                 {
-                    mainFile: finalParsed.website ? finalParsed.website.mainFile : 'index.html',
-                    template: finalParsed.website ? finalParsed.website.template : 'web',
+                    mainFile: finalParsed.mainFile || 'index.html',
+                    template: 'web',
                     wasEnhanced,
                     isRefactor,
                     hasImage,

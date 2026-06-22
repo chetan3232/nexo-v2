@@ -19,7 +19,8 @@ import {
   Zap,
   Lock,
   Smartphone,
-  Rocket
+  Rocket,
+  Check
 } from "lucide-react";
 import { useChatStore } from "../../stores/chatStore";
 import { useProjectStore } from "../../stores/projectStore";
@@ -601,12 +602,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                           >
                             <div className="flex items-center gap-1.5 min-w-0">
                               {isWriting ? (
-                                <Loader2 className="w-2.5 h-2.5 animate-spin text-[#0ea5e9] shrink-0" />
+                                <Loader2 className="w-3 h-3 animate-spin text-sky-500 shrink-0" />
                               ) : (
-                                <span className="text-emerald-500 font-bold text-[10px] shrink-0 select-none">✓</span>
+                                <Check className="w-3 h-3 text-emerald-500 shrink-0" />
                               )}
-                              <span className={`font-mono truncate leading-tight ${
-                                isDone ? "text-[#aaa]" : "text-[#111] font-medium"
+                              <span className={`font-mono truncate leading-tight transition-colors duration-300 ${
+                                isDone ? "text-[#aaa]" : "text-[#111] font-semibold text-sky-600 dark:text-sky-400"
                               }`}>
                                 {fpath}
                               </span>
