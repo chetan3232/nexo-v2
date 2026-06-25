@@ -368,8 +368,20 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
       finalText = finalText ? `${finalText}${attachText}` : attachText.trim();
     }
 
-    // Intercept generation flow and start design exploration
-    setExploringPrompt(finalText);
+    // NexoStudio routing logic:
+    // - Trigger only on FIRST message in a fresh session (no prior messages)
+    // - Bypass for post-build edits (buildPhase === 'done') — send directly
+    // - Bypass if already has messages (follow-up / iterative edits)
+    const isFirstMessage = messages.length === 0;
+    const isPostBuild = buildPhase === "done";
+
+    if (isFirstMessage && !isPostBuild) {
+      // New project → go through NexoStudio design exploration
+      setExploringPrompt(finalText);
+    } else {
+      // Follow-up edit / post-build → send directly to build engine
+      onSend(finalText, attachments.length > 0 ? attachments : undefined);
+    }
     
     // Add user message to chat UI immediately
     const userMsg = {
@@ -386,12 +398,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
 
   const handleExplorationConfirm = (enrichedPrompt: string) => {
     setExploringPrompt(null);
-    onSend(enrichedPrompt); // Now it passes the enriched prompt back to ChatInterface's handleSend
+    onSend(enrichedPrompt); // passes enriched prompt (with design tokens + blueprint) to ChatInterface
   };
 
   const handleExplorationCancel = () => {
     setExploringPrompt(null);
+    // Remove the last user message that was added optimistically
+    useChatStore.getState().setMessages((prev: any) => prev.slice(0, -1));
   };
+
 
   // Handle file/image upload
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -718,8 +733,24 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                   {action.label}
                 </button>
               ))}
+              {/* Explicit NexoStudio trigger for new project in existing chat */}
+              <button
+                onClick={() => {
+                  if (input.trim()) {
+                    setExploringPrompt(input.trim());
+                    setInput("");
+                  } else {
+                    toast("Type a prompt first, then click Build with NexoStudio", { icon: "💡" });
+                  }
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold transition-colors whitespace-nowrap shadow-sm"
+              >
+                <Sparkles className="w-3 h-3" />
+                Build with NexoStudio
+              </button>
             </div>
           )}
+
 
           {/* Live transcript overlay */}
           <AnimatePresence>

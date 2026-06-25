@@ -1,4 +1,4 @@
-g6ymjhl;    { Queue, Worker } = require('bullmq');
+const { Queue, Worker } = require('bullmq');
 const Redis = require('ioredis');
 const { EventEmitter } = require('events');
 const { saveJob, getJob, initializeJobs } = require('../data/jobStore');

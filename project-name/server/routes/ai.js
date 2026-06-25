@@ -229,68 +229,128 @@ router.post("/transcribe", async (req, res) => {
     }
 });
 
-// 5. Intent and Design Exploration API
+// 5. Intent and Design Exploration API (2 genuinely separate parallel calls)
 router.post("/explore", async (req, res) => {
     try {
         const { prompt } = req.body;
         if (!prompt) return res.status(400).json({ error: "Missing prompt" });
         
-        console.log("[Routes AI] Starting Intent & Design Exploration for:", prompt);
+        console.log("[Routes AI] Starting Intent & Design Exploration (parallel) for:", prompt);
         if (!process.env.GEMINI_API_KEY) {
              return res.status(500).json({ error: "API Key missing" });
         }
         const { GoogleGenerativeAI } = require("@google/generative-ai");
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-        const systemPrompt = `You are an AI Product Architect. Given a user prompt, extract the intent and generate TWO distinct UI/UX design concepts.
-Return ONLY valid JSON in the exact following format, without any markdown formatting or code blocks:
+        const intentPrompt = `You are an AI Product Architect. Given a user prompt, extract the app intent.
+Return ONLY valid JSON, no markdown:
 {
-  "intent": {
-    "appType": "String",
-    "targetUsers": "String",
-    "platform": "String",
-    "features": ["Feature 1", "Feature 2", "Feature 3", "Feature 4"]
-  },
-  "concepts": [
-    {
-      "id": "A",
-      "title": "String (e.g. Modern SaaS Style)",
-      "description": "Short description of the concept",
-      "styles": {
-        "primaryColor": "Hex code e.g. #0ea5e9",
-        "borderRadius": "px value e.g. 12px",
-        "typography": "Font name e.g. Inter",
-        "animation": "Normal or Premium"
-      }
-    },
-    {
-      "id": "B",
-      "title": "String (e.g. Bold Startup Style)",
-      "description": "Short description of the concept",
-      "styles": {
-        "primaryColor": "Hex code e.g. #ff4b3a",
-        "borderRadius": "px value e.g. 24px",
-        "typography": "Font name e.g. Outfit",
-        "animation": "Normal or Premium"
-      }
-    }
-  ]
+  "appType": "String (e.g. SaaS Dashboard, E-commerce, Portfolio, Landing Page)",
+  "targetUsers": "String",
+  "platform": "Web | Mobile | Both",
+  "features": ["Feature 1", "Feature 2", "Feature 3", "Feature 4"]
+}
+User Prompt: ${prompt}`;
+
+        const conceptAPrompt = `You are a UI/UX Design System Architect. Generate ONE design concept for this app: "${prompt}".
+Style Direction: PROFESSIONAL, CLEAN, MINIMAL. Think: clean lines, subtle colors, elegant spacing, modern SaaS.
+Return ONLY valid JSON, no markdown:
+{
+  "id": "A",
+  "title": "[Descriptive Name] — e.g. Clean Professional",
+  "description": "2-sentence description of the aesthetic and mood",
+  "mood": "professional | minimal | corporate | elegant",
+  "componentStyle": "flat | glassmorphism | neumorphic",
+  "darkMode": false,
+  "gradients": false,
+  "styles": {
+    "primaryColor": "#hex",
+    "accentColor": "#hex",
+    "backgroundColor": "#hex",
+    "cardColor": "#hex",
+    "textColor": "#hex",
+    "borderRadius": "8px | 12px | 16px",
+    "typography": "Inter | Outfit | Space Grotesk | Playfair Display",
+    "animation": "Minimal | Normal | Premium"
+  }
 }`;
 
-        const result = await model.generateContent([
-            { text: systemPrompt },
-            { text: `User Prompt: ${prompt}` }
+        const conceptBPrompt = `You are a UI/UX Design System Architect. Generate ONE design concept for this app: "${prompt}".
+Style Direction: BOLD, VIBRANT, EXPRESSIVE. Think: strong colors, personality, creative layouts, startup energy. Make it GENUINELY different from a minimal/professional style.
+Return ONLY valid JSON, no markdown:
+{
+  "id": "B",
+  "title": "[Descriptive Name] — e.g. Bold Creative",
+  "description": "2-sentence description of the aesthetic and mood",
+  "mood": "bold | playful | creative | vibrant | energetic",
+  "componentStyle": "flat | glassmorphism | neumorphic",
+  "darkMode": true,
+  "gradients": true,
+  "styles": {
+    "primaryColor": "#hex",
+    "accentColor": "#hex",
+    "backgroundColor": "#hex",
+    "cardColor": "#hex",
+    "textColor": "#hex",
+    "borderRadius": "16px | 20px | 24px",
+    "typography": "Inter | Outfit | Space Grotesk | Playfair Display",
+    "animation": "Normal | Premium"
+  }
+}`;
+
+        const modelA = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const modelB = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const modelIntent = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+        const [intentResult, conceptAResult, conceptBResult] = await Promise.all([
+            modelIntent.generateContent([{ text: intentPrompt }]),
+            modelA.generateContent([{ text: conceptAPrompt }]),
+            modelB.generateContent([{ text: conceptBPrompt }])
         ]);
 
-        const text = result.response.text();
-        const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        const json = JSON.parse(cleanedText);
-        
-        res.json(json);
+        const parseJSON = (text) => {
+            const cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+            return JSON.parse(cleaned);
+        };
+
+        const intent = parseJSON(intentResult.response.text());
+        const conceptA = parseJSON(conceptAResult.response.text());
+        const conceptB = parseJSON(conceptBResult.response.text());
+
+        res.json({ intent, concepts: [conceptA, conceptB] });
     } catch (err) {
         console.error("[Routes AI] Explore API failed:", err);
         res.status(500).json({ error: "Failed to generate design concepts" });
+    }
+});
+
+// 5b. NexoStudio Unified Init — fires thinking + design-A + design-B in ONE round trip
+router.post("/studio-init", async (req, res) => {
+    try {
+        const { prompt, mode } = req.body;
+        if (!prompt) return res.status(400).json({ error: "Missing prompt" });
+
+        console.log("[Routes AI] NexoStudio studio-init for:", prompt);
+
+        const [exploreResult, analyzeResult] = await Promise.all([
+            // Design concepts (3 parallel sub-calls inside explore)
+            fetch(`http://localhost:5000/api/ai/explore`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt })
+            }).then(r => r.json()),
+
+            // Thinking / project plan
+            NexoAnalyst.analyze(prompt, mode || 'fullstack', '', null, [], null)
+        ]);
+
+        res.json({
+            explore: exploreResult,
+            analysis: analyzeResult
+        });
+    } catch (err) {
+        console.error("[Routes AI] studio-init failed:", err);
+        res.status(500).json({ error: "Failed to initialize NexoStudio" });
     }
 });
 

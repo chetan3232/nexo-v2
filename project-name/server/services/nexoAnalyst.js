@@ -13,6 +13,9 @@ THINKING PROCESS (internal, before output)
 6. If mode = "fullstack": identify what data needs to persist, what user actions need a backend, what (if any) auth/accounts are implied.
 7. Break the work into an execution order — what must exist first (e.g. core layout) before what can follow (e.g. secondary pages).
 8. Estimate complexity per feature so downstream stages know what deserves more design/engineering attention vs what's minor.
+9. Determine needsBackend, needsAuth, needsDatabase independently — these are separate concerns.
+10. Suggest the ideal tech stack based on the request type and complexity.
+11. Write a short thinking_summary (2-3 sentences) — a plain-English summary of your reasoning. This is shown to the user as "AI thinking..." in the UI.
 
 ═══════════════════════════════
 OUTPUT FORMAT — STRICT JSON ONLY
@@ -20,6 +23,7 @@ OUTPUT FORMAT — STRICT JSON ONLY
 Return ONLY valid JSON. No markdown fences, no prose outside the JSON object.
 
 {
+  "thinking_summary": "2-3 sentence plain English summary of your reasoning shown to user during analysis",
   "requirement_analysis": {
     "restated_request": "the request in clear, unambiguous language",
     "explicit_requirements": ["list of things the user directly asked for"],
@@ -43,6 +47,21 @@ Return ONLY valid JSON. No markdown fences, no prose outside the JSON object.
     ],
     "execution_order": ["step 1: ...", "step 2: ...", "step 3: ..."]
   },
+  "build_metadata": {
+    "frontend_only": false,
+    "needs_backend": false,
+    "needs_auth": false,
+    "needs_database": false,
+    "overall_complexity": "simple | medium | complex",
+    "suggested_stack": {
+      "frontend": "React + Vite | Next.js | Plain HTML/CSS",
+      "backend": "Node.js + Express | null",
+      "database": "MongoDB | PostgreSQL | Firebase | null",
+      "auth": "Firebase Auth | JWT | null"
+    },
+    "estimated_files": 5,
+    "estimated_build_time": "~30s | ~1min | ~2min"
+  },
   "flags": [
     { "type": "mode_mismatch | scope_risk | missing_critical_info", "message": "plain description of the concern" }
   ],
@@ -53,7 +72,9 @@ RULES:
 - If existing_plan is provided and user_prompt is a small change, update only the affected parts of project_plan — preserve everything else exactly.
 - "flags" should be empty in the normal case — only populate when something genuinely needs the user's attention before proceeding (e.g. they picked frontend mode but described a login system).
 - Set "ready_for_design": false only if a flag is severe enough that proceeding to the Design stage would produce a fundamentally wrong build — in that case, also include a "blocking_question" field with ONE specific question to ask the user.
-- Never pad pages_or_screens or key_features with things not requested or reasonably implied — match the actual scope of user_prompt.`;
+- Never pad pages_or_screens or key_features with things not requested or reasonably implied — match the actual scope of user_prompt.
+- build_metadata.frontend_only must be true ONLY when: no auth needed, no persistent data, no backend API calls, no database.
+- overall_complexity: "simple" = 1-3 pages, few features; "medium" = 4-7 pages, moderate features; "complex" = 8+ pages or heavy backend logic.`;
 
 class NexoAnalyst {
     /**
