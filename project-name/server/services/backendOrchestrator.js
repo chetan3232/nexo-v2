@@ -3,6 +3,8 @@ const { extractCodeFromText } = require('../utils/parser');
 const { jobEvents } = require('./queueManager');
 const PromptEnhancer = require('./promptEnhancer');
 const ProjectMemory = require('./projectMemory');
+const NexoSecurityValidator = require('./nexoValidator');
+const NexoOrchestrator = require('./nexoOrchestrator');
 
 // ─────────────────────────────────────────────────
 // JSON Actions Streaming Parser and Extractor
@@ -599,13 +601,107 @@ Do not truncate or omit any files. Ensure package.json has all necessary depende
             // 3. BUILD & FIXER AGENT (VERIFICATION PHASE)
             // ==========================================
             job.updateStatus('fixing');
-            job.addReasoningStep('🔧 Running automated unit testing and security compliance audits...');
+            job.addReasoningStep('🔧 Running security compliance audits with Nexo Security Validator...');
             tasks[2].status = 'running';
             job.updateTasks(tasks);
-            job.updateProgress(85);
+            job.updateProgress(80);
 
-            await new Promise(r => setTimeout(r, 1500));
-            job.addReasoningStep('✅ QA code checks passed. No high-severity security vulnerabilities found.');
+            let currentFiles = { ...existingFiles, ...finalFiles };
+            let validationResult = await NexoSecurityValidator.validate(
+                options.projectMode || 'frontend',
+                currentFiles,
+                null,
+                options.customApiKey
+            );
+
+            const validationAttemptHistory = [];
+            
+            while (validationResult.deployment_decision === 'blocked') {
+                const criticalHighFindings = validationResult.findings.filter(f => f.severity === 'CRITICAL' || f.severity === 'HIGH');
+                const findingsSummary = criticalHighFindings.map(f => `${f.category} in ${f.file}: ${f.issue}`).join('; ');
+                
+                job.addReasoningStep(`⚠️ Security Validation Blocked: Detected ${criticalHighFindings.length} critical/high vulnerability(ies).`);
+                
+                validationAttemptHistory.push({
+                    attempt: validationAttemptHistory.length + 1,
+                    failure_type: 'CONTENT_FAILURE',
+                    error_message: findingsSummary
+                });
+
+                const decision = NexoOrchestrator.decide(
+                    options.model || 'gemini-2.5-flash',
+                    options.projectMode || 'frontend',
+                    'validation',
+                    validationAttemptHistory,
+                    { findings: validationResult.findings }
+                );
+
+                if (decision.decision === 'retry') {
+                    job.addReasoningStep(`🔧 Auto-healing: Nexo Security Validator is attempting to fix the security issues. (Attempt ${validationAttemptHistory.length})`);
+                    
+                    const remediationPrompt = `You are a deep AI security remediation engineer.
+The project codebase has failed security validation. You MUST fix the identified security vulnerabilities.
+
+Codebase files:
+${Object.entries(currentFiles).map(([path, content]) => `---FILE: ${path}---\n${content}\n---END FILE---`).join('\n\n')}
+
+Vulnerability findings to fix:
+${criticalHighFindings.map((f, i) => `
+Finding #${i+1}:
+- Severity: ${f.severity}
+- Category: ${f.category}
+- File: ${f.file}
+- Context: ${f.line_context}
+- Issue: ${f.issue}
+- Fix Recommendation: ${f.fix_recommendation}
+`).join('\n')}
+
+Please output the corrected files using the Nexo Protocol: write complete files enclosed in ---FILE: path--- and ---END FILE--- markers.
+Only output the files that need changes to address these security issues. Keep all other parts of the application intact.`;
+
+                    let streamedText = "";
+                    const parseFixStream = makeStreamParser(job);
+                    const codeModel = routeModel('fix', options.model);
+
+                    const fixOutput = await AIGateway.streamCompletion({
+                        messages: [{ role: 'user', content: remediationPrompt }],
+                        model: codeModel,
+                        temperature: 0.2,
+                        top_p: 1.0,
+                        projectMode: options.projectMode,
+                        systemPrompt: "You are a professional AI security patching expert. Output code using Nexo Protocol ---FILE: path---",
+                        customApiKey: options.customApiKey,
+                        userId
+                    }, (chunk) => {
+                        streamedText += chunk;
+                        job.log(chunk);
+                        parseFixStream(streamedText);
+                    });
+
+                    const parsedFix = extractFilesFromJsonActions(streamedText);
+                    if (Object.keys(parsedFix.files).length > 0) {
+                        finalFiles = { ...finalFiles, ...parsedFix.files };
+                        currentFiles = { ...currentFiles, ...parsedFix.files };
+                        job.updateFiles(parsedFix.files);
+                    }
+
+                    // Re-validate after fixing
+                    validationResult = await NexoSecurityValidator.validate(
+                        options.projectMode || 'frontend',
+                        currentFiles,
+                        null,
+                        options.customApiKey
+                    );
+                } else {
+                    // Escalation case
+                    job.addReasoningStep(`❌ Security Auto-Healing failed: ${decision.escalation_message}`);
+                    tasks[2].status = 'error';
+                    job.updateTasks(tasks);
+                    throw new Error(decision.escalation_message || 'Security validation blocked deployment');
+                }
+            }
+
+            job.addReasoningStep('✅ Security checks passed. No high-severity security vulnerabilities remain.');
             tasks[2].status = 'done';
             job.updateTasks(tasks);
             job.updateProgress(90);

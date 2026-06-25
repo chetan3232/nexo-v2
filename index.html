@@ -266,6 +266,108 @@
       background-color: var(--nexo-surface-alt) !important;
     }
 
+    /* ── Markdown/Prose Styling for Chat Bubbles and Dark Mode ── */
+    .prose {
+      color: var(--nexo-text) !important;
+    }
+
+    .prose strong,
+    .prose h1,
+    .prose h2,
+    .prose h3,
+    .prose h4,
+    .prose th {
+      color: var(--nexo-text) !important;
+    }
+
+    .prose code {
+      color: var(--nexo-accent-purple) !important;
+      background-color: var(--nexo-surface-alt) !important;
+      padding: 0.125rem 0.25rem !important;
+      border-radius: 4px !important;
+      font-size: 85% !important;
+    }
+
+    .prose pre {
+      background-color: var(--nexo-surface-alt) !important;
+      border: 1px solid var(--nexo-border) !important;
+      padding: 0.75rem !important;
+      border-radius: var(--nexo-radius) !important;
+    }
+
+    .prose pre code {
+      background-color: transparent !important;
+      padding: 0 !important;
+      color: var(--nexo-text) !important;
+    }
+
+    .prose a {
+      color: #3b82f6 !important;
+      text-decoration: underline !important;
+    }
+
+    /* User Message Bubbles overrides (always dark #111 background) */
+    .chat-msg-user .prose,
+    .bg-\[\#111\] .prose {
+      color: #ffffff !important;
+    }
+
+    .chat-msg-user .prose strong,
+    .chat-msg-user .prose h1,
+    .chat-msg-user .prose h2,
+    .chat-msg-user .prose h3,
+    .chat-msg-user .prose h4,
+    .chat-msg-user .prose th,
+    .bg-\[\#111\] .prose strong,
+    .bg-\[\#111\] .prose h1,
+    .bg-\[\#111\] .prose h2,
+    .bg-\[\#111\] .prose h3,
+    .bg-\[\#111\] .prose h4,
+    .bg-\[\#111\] .prose th {
+      color: #ffffff !important;
+    }
+
+    .chat-msg-user .prose code,
+    .bg-\[\#111\] .prose code {
+      color: #ffd8a8 !important;
+      background-color: rgba(255, 255, 255, 0.12) !important;
+    }
+
+    .chat-msg-user .prose pre,
+    .bg-\[\#111\] .prose pre {
+      background-color: rgba(0, 0, 0, 0.2) !important;
+      border-color: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    .chat-msg-user .prose pre code,
+    .bg-\[\#111\] .prose pre code {
+      color: #fafafa !important;
+    }
+
+    .chat-msg-user .prose a,
+    .bg-\[\#111\] .prose a {
+      color: #38bdf8 !important;
+    }
+
+    /* Dark Mode specific prose overrides for assistant and general markdown */
+    html.dark .prose {
+      color: var(--nexo-text) !important;
+    }
+
+    html.dark .prose code {
+      color: #ffd8a8 !important;
+      background-color: rgba(255, 255, 255, 0.08) !important;
+    }
+
+    html.dark .prose pre code {
+      color: var(--nexo-text) !important;
+    }
+
+    html.dark .prose a {
+      color: #38bdf8 !important;
+    }
+
+
     input:not([type="checkbox"]):not([type="radio"]),
     select {
       background-color: var(--nexo-surface-alt) !important;

@@ -516,12 +516,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                   className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`px-4 py-3 rounded-2xl text-xs leading-relaxed max-w-[88%] ${
+                    className={`px-4 py-3 rounded-2xl text-xs leading-relaxed max-w-[88%] chat-msg-bubble ${
                       msg.role === "user"
-                        ? "bg-[#111] text-white rounded-br-sm"
+                        ? "bg-[#111] text-white rounded-br-sm chat-msg-user"
                         : msg.isError
-                        ? "bg-red-50 border border-red-200 text-red-700 rounded-bl-sm flex gap-2"
-                        : "bg-[#f3f3f3] border border-[#e8e8e8] text-[#111] rounded-bl-sm"
+                        ? "bg-red-50 border border-red-200 text-red-700 rounded-bl-sm flex gap-2 chat-msg-error"
+                        : "bg-[#f3f3f3] border border-[#e8e8e8] text-[#111] rounded-bl-sm chat-msg-assistant"
                     }`}
                   >
                     {msg.role !== "user" && !msg.isError && (
@@ -671,7 +671,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
       </div>
 
       {/* ── Floating Input ── */}
-      <div className="absolute bottom-0 left-0 right-0 px-3 pb-3 pt-8 bg-gradient-to-t from-white via-white/90 to-transparent z-20">
+      <div className="absolute bottom-0 left-0 right-0 px-3 pb-3 pt-8 bg-gradient-to-t from-white via-white/90 to-transparent dark:from-[#09090b] dark:via-[#09090b]/90 z-20">
         <div className="border border-[#e8e8e8] bg-white rounded-2xl shadow-sm focus-within:border-[#0ea5e9]/40 focus-within:shadow-[0_0_0_3px_rgba(14,165,233,0.08)] transition-all">
 
           {/* Attachment previews */}
@@ -787,7 +787,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                 <button
                   type="button"
                   onClick={() => setIsModelMenuOpen((v) => !v)}
-                  className="flex items-center gap-1 px-2 py-1 bg-[#f3f3f3] hover:bg-[#ebebeb] border border-[#e8e8e8] rounded-lg text-[10px] font-semibold text-[#555] hover:text-[#111] transition-all select-none max-w-[130px]"
+                  className="flex items-center gap-1 px-2 py-1 bg-[#f3f3f3] hover:bg-[#f3f3f3] border border-[#e8e8e8] rounded-lg text-[10px] font-semibold text-[#555] hover:text-[#111] transition-all select-none max-w-[130px]"
                 >
                   <Cpu className="w-3 h-3 text-[#0ea5e9] shrink-0" />
                   <span className="truncate">{selectedModelName}</span>
