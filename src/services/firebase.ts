@@ -131,62 +131,51 @@ export const saveChatToFirebase = async (
   uid: string,
   chatData: ChatSaveData,
 ) => {
-  if (uid === "mock-local-user-id" || !firestore) {
-    try {
-      const localChats = JSON.parse(localStorage.getItem(LOCAL_CHATS_KEY) || "{}");
-      const metaData = { ...chatData, content: null };
-      localChats[chatData.id] = {
-        ...metaData,
-        updatedAt: Date.now()
-      };
-      localStorage.setItem(LOCAL_CHATS_KEY, JSON.stringify(localChats));
+  // Always save to localStorage as a robust local backup/cache
+  try {
+    const localChats = JSON.parse(localStorage.getItem(LOCAL_CHATS_KEY) || "{}");
+    const metaData = { ...chatData, content: null };
+    localChats[chatData.id] = {
+      ...metaData,
+      updatedAt: Date.now()
+    };
+    localStorage.setItem(LOCAL_CHATS_KEY, JSON.stringify(localChats));
 
-      if (chatData.content && chatData.content.files) {
-        const filesMap: Record<string, any> = {};
-        for (const [path, content] of Object.entries(chatData.content.files)) {
-          const encodedPath = encodeURIComponent(path);
-          filesMap[encodedPath] = {
-            path,
-            content,
-            language: path.endsWith('.tsx') || path.endsWith('.ts') ? 'typescript' : path.endsWith('.html') ? 'html' : path.endsWith('.css') ? 'css' : 'javascript',
-            updatedAt: Date.now()
-          };
-        }
-        localStorage.setItem(`nexo_local_chat_files_${chatData.id}`, JSON.stringify(filesMap));
+    if (chatData.content && chatData.content.files) {
+      const filesMap: Record<string, any> = {};
+      for (const [path, content] of Object.entries(chatData.content.files)) {
+        const encodedPath = encodeURIComponent(path);
+        filesMap[encodedPath] = {
+          path,
+          content,
+        };
       }
-      
-      // If db is available, also save metadata to RTDB for compatibility
-      if (db && uid !== "mock-local-user-id") {
-        const chatRef = ref(db, `users/${uid}/chats/${chatData.id}`);
-        await set(chatRef, { ...metaData, updatedAt: Date.now() });
-      }
-      return;
-    } catch (e) {
-      console.error("Error saving local chat:", e);
+      localStorage.setItem(`nexo_local_chat_files_${chatData.id}`, JSON.stringify(filesMap));
     }
+  } catch (e) {
+    console.error("Error backing up chat to localStorage:", e);
+  }
+
+  if (uid === "mock-local-user-id" || !firestore) {
+    return;
   }
 
   try {
-    // Save to Firestore
     const chatDocRef = doc(firestore, `chats/${chatData.id}`);
-    const metaData = {
-      ...chatData,
-      content: null,
+    const metaData = { ...chatData, content: null };
+    await setDoc(chatDocRef, {
+      ...metaData,
       uid,
-      updatedAt: Date.now()
-    };
-    await setDoc(chatDocRef, metaData);
+      updatedAt: Date.now(),
+    });
 
     if (chatData.content && chatData.content.files) {
       const filesColRef = collection(firestore, `chats/${chatData.id}/files`);
-      
       for (const [path, content] of Object.entries(chatData.content.files)) {
-        const encodedPath = encodeURIComponent(path);
-        const fileDocRef = doc(firestore, `chats/${chatData.id}/files/${encodedPath}`);
-        await setDoc(fileDocRef, {
+        const docId = encodeURIComponent(path);
+        await setDoc(doc(firestore, `chats/${chatData.id}/files/${docId}`), {
           path,
           content,
-          language: path.endsWith('.tsx') || path.endsWith('.ts') ? 'typescript' : path.endsWith('.html') ? 'html' : path.endsWith('.css') ? 'css' : 'javascript',
           updatedAt: Date.now()
         });
       }
@@ -226,7 +215,7 @@ export const saveChatToFirebase = async (
 export const loadChatsFromFirebase = async (
   uid: string,
 ): Promise<ChatSaveData[]> => {
-  if (uid === "mock-local-user-id" || !firestore) {
+  const loadLocalFallback = () => {
     try {
       const localChats = JSON.parse(localStorage.getItem(LOCAL_CHATS_KEY) || "{}");
       const list = Object.values(localChats) as ChatSaveData[];
@@ -248,9 +237,13 @@ export const loadChatsFromFirebase = async (
       }
       return list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     } catch (e) {
-      console.error("Error loading local chats:", e);
+      console.error("Error loading local chats fallback:", e);
       return [];
     }
+  };
+
+  if (uid === "mock-local-user-id" || !firestore) {
+    return loadLocalFallback();
   }
 
   try {
@@ -297,7 +290,9 @@ export const loadChatsFromFirebase = async (
         console.error("RTDB Load fallback failed:", rtdbErr);
       }
     }
-    return [];
+    // Final LocalStorage safety net fallback
+    console.log("Both Firestore and RTDB failed, loading fallback from localStorage");
+    return loadLocalFallback();
   }
 };
 
@@ -305,21 +300,26 @@ export const loadChatsFromFirebase = async (
  * Delete a specific chat from Firebase.
  */
 export const deleteChatFromFirebase = async (uid: string, chatId: string) => {
+  // Always delete from localStorage
+  try {
+    const localChats = JSON.parse(localStorage.getItem(LOCAL_CHATS_KEY) || "{}");
+    delete localChats[chatId];
+    localStorage.setItem(LOCAL_CHATS_KEY, JSON.stringify(localChats));
+    localStorage.removeItem(`nexo_local_chat_files_${chatId}`);
+  } catch (e) {
+    console.error("Error deleting local backup chat:", e);
+  }
+
   if (uid === "mock-local-user-id" || !firestore) {
-    try {
-      const localChats = JSON.parse(localStorage.getItem(LOCAL_CHATS_KEY) || "{}");
-      delete localChats[chatId];
-      localStorage.setItem(LOCAL_CHATS_KEY, JSON.stringify(localChats));
-      localStorage.removeItem(`nexo_local_chat_files_${chatId}`);
-      
-      if (db && uid !== "mock-local-user-id") {
+    if (db && uid !== "mock-local-user-id") {
+      try {
         const chatRef = ref(db, `users/${uid}/chats/${chatId}`);
         await remove(chatRef);
+      } catch (err) {
+        console.error("Error deleting from RTDB:", err);
       }
-      return;
-    } catch (e) {
-      console.error("Error deleting local chat:", e);
     }
+    return;
   }
 
   try {
@@ -517,7 +517,7 @@ export const loadSingleChatFromFirebaseOrLocal = async (
   uid: string,
   chatId: string
 ): Promise<ChatSaveData | null> => {
-  if (uid === "mock-local-user-id" || !firestore) {
+  const loadLocalFallback = () => {
     try {
       const localChats = JSON.parse(localStorage.getItem(LOCAL_CHATS_KEY) || "{}");
       const chat = localChats[chatId] as ChatSaveData;
@@ -539,9 +539,13 @@ export const loadSingleChatFromFirebaseOrLocal = async (
       }
       return chat;
     } catch (e) {
-      console.error("Error loading local chat:", e);
+      console.error("Error loading local chat fallback:", e);
       return null;
     }
+  };
+
+  if (uid === "mock-local-user-id" || !firestore) {
+    return loadLocalFallback();
   }
 
   try {
@@ -585,5 +589,8 @@ export const loadSingleChatFromFirebaseOrLocal = async (
       console.error("RTDB Load fallback failed:", rtdbErr);
     }
   }
-  return null;
+
+  // Final fallback to LocalStorage if Firebase is inaccessible/fails
+  console.log("Both Firestore and RTDB failed to load single chat, trying LocalStorage fallback");
+  return loadLocalFallback();
 };

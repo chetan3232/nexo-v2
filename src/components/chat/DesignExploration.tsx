@@ -1185,11 +1185,11 @@ Suggested Stack: ${JSON.stringify(meta.suggested_stack || {})}
       </div>
 
       <AnimatePresence mode="wait">
-        {(phase === "thinking" || loading) && renderThinking()}
-        {phase === "concepts" && !loading && renderConcepts()}
-        {phase === "editor" && !loading && renderEditor()}
-        {phase === "blueprint" && !loading && renderBlueprint()}
-        {phase === "final_approval" && !loading && renderFinalApproval()}
+        {phase === "thinking" && renderThinking()}
+        {phase === "concepts" && renderConcepts()}
+        {phase === "editor" && renderEditor()}
+        {phase === "blueprint" && renderBlueprint()}
+        {phase === "final_approval" && renderFinalApproval()}
       </AnimatePresence>
     </div>
   );

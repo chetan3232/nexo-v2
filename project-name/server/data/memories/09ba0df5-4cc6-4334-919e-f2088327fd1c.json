@@ -1,8 +1,16 @@
 {
   "chatId": "09ba0df5-4cc6-4334-919e-f2088327fd1c",
   "createdAt": 1782385890800,
-  "updatedAt": 1782385890801,
+  "updatedAt": 1782387486110,
   "buildHistory": [
+    {
+      "timestamp": 1782387486107,
+      "prompt": "can you cnage ui to batter black and whiite\n\nDesign Style Requirement: Playful Neobrutalism",
+      "fileCount": 8,
+      "techStack": "Vanilla",
+      "projectMode": "frontend",
+      "model": "openrouter/owl-alpha"
+    },
     {
       "timestamp": 1782385890800,
       "prompt": "Build a feature-rich calculator application with a distinct \"Playful Neobrutalism\" design aesthetic. The UI should feature stark, high-contrast elements, bold typography, pronounced borders, and a lim",
@@ -13,7 +21,10 @@
     }
   ],
   "bugsFixed": [],
-  "detectedStack": "React/JavaScript",
-  "detectedDependencies": [],
+  "detectedStack": "React/TypeScript",
+  "detectedDependencies": [
+    "react",
+    "react-dom"
+  ],
   "userPreferences": {}
 }

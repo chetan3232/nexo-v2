@@ -450,6 +450,31 @@ const ChatInterface: React.FC = () => {
     }
     setShowLanding(false);
     
+    const isNexoStudio = prompt.includes("=== NEXO STUDIO DESIGN CONSTRAINTS ===");
+
+    if (isNexoStudio) {
+      projectStore.setBuildPhase("planning");
+      setWorkspaceTab("preview");
+      if (isMobile) {
+        setActiveMobileTab("preview");
+      }
+
+      const userMsg: Message = {
+        role: "user",
+        text: prompt,
+        timestamp: Date.now(),
+        model: selectedModel,
+      };
+      chatStore.setMessages((prev: Message[]) => [...prev, userMsg]);
+
+      try {
+        await Orchestrator.getInstance().executeFullFlow(prompt);
+      } catch (error) {
+        toast.error("Generation failed.");
+      }
+      return;
+    }
+
     // Step into design selection phase
     projectStore.setPendingPrompt(prompt);
     projectStore.setBuildPhase("design_selection");

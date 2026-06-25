@@ -116,7 +116,7 @@ const SkeletonLoader: React.FC = () => {
 export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
   const { messages, input, setInput } = useChatStore();
   const { buildPhase, subStatus, tasks } = useProjectStore();
-  const { selectedModel, setSelectedModel } = useAgentStore();
+  const { selectedModel, setSelectedModel, projectMode } = useAgentStore();
   const { fileBuffers, activeFiles, createdFiles } = useAgentEventStore();
 
   const getLoaderTheme = () => {
@@ -374,12 +374,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
     // - Bypass if already has messages (follow-up / iterative edits)
     const isFirstMessage = messages.length === 0;
     const isPostBuild = buildPhase === "done";
+    const isFullstack = projectMode === "fullstack";
 
-    if (isFirstMessage && !isPostBuild) {
-      // New project → go through NexoStudio design exploration
+    if (isFirstMessage && !isPostBuild && isFullstack) {
+      // New project in fullstack mode → go through NexoStudio design exploration
       setExploringPrompt(finalText);
     } else {
-      // Follow-up edit / post-build → send directly to build engine
+      // Follow-up edit, post-build, or frontend-only mode → send directly to build engine
       onSend(finalText, attachments.length > 0 ? attachments : undefined);
     }
     
@@ -734,20 +735,22 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                 </button>
               ))}
               {/* Explicit NexoStudio trigger for new project in existing chat */}
-              <button
-                onClick={() => {
-                  if (input.trim()) {
-                    setExploringPrompt(input.trim());
-                    setInput("");
-                  } else {
-                    toast("Type a prompt first, then click Build with NexoStudio", { icon: "💡" });
-                  }
-                }}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold transition-colors whitespace-nowrap shadow-sm"
-              >
-                <Sparkles className="w-3 h-3" />
-                Build with NexoStudio
-              </button>
+              {projectMode === "fullstack" && (
+                <button
+                  onClick={() => {
+                    if (input.trim()) {
+                      setExploringPrompt(input.trim());
+                      setInput("");
+                    } else {
+                      toast("Type a prompt first, then click Build with NexoStudio", { icon: "💡" });
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold transition-colors whitespace-nowrap shadow-sm"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  Build with NexoStudio
+                </button>
+              )}
             </div>
           )}
 
