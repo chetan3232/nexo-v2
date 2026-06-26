@@ -56,10 +56,9 @@ const PROVIDER_MODELS: Record<string, { id: string; name: string }[]> = {
   ],
   "NVIDIA NIM": [
     { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B" },
-    { id: "stepfun-ai/step-3.5-flash", name: "Step 3.5 Flash" }
-  ],
-  "Groq Cloud": [
-    { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B" }
+    { id: "z-ai/glm-5.1", name: "GLM 5.1" },
+    { id: "moonshotai/kimi-k2.6", name: "Kimi K2.6" },
+    { id: "stepfun-ai/step-3.7-flash", name: "Step 3.7 Flash" }
   ],
   "Anthropic": [
     { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet" }
@@ -615,24 +614,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     cost: "$0.30 / 1M input"
                   },
                   {
-                    id: "stepfun-ai/step-3.5-flash",
-                    name: "Step 3.5 Flash",
+                    id: "z-ai/glm-5.1",
+                    name: "GLM 5.1",
+                    provider: "NVIDIA NIM",
+                    desc: "State-of-the-art multilingual reasoning",
+                    badge: "NVIDIA NIM",
+                    badgeColor: "bg-purple-50 text-purple-700 border-purple-100",
+                    speed: "Fast (70 t/s)",
+                    cost: "$0.00 / NVIDIA"
+                  },
+                  {
+                    id: "moonshotai/kimi-k2.6",
+                    name: "Kimi K2.6",
+                    provider: "NVIDIA NIM",
+                    desc: "Advanced long-context generation model",
+                    badge: "NVIDIA NIM",
+                    badgeColor: "bg-purple-50 text-purple-700 border-purple-100",
+                    speed: "Balanced (50 t/s)",
+                    cost: "$0.00 / NVIDIA"
+                  },
+                  {
+                    id: "stepfun-ai/step-3.7-flash",
+                    name: "Step 3.7 Flash",
                     provider: "NVIDIA NIM",
                     desc: "High speed reasoning and structured files",
                     badge: "NVIDIA NIM",
                     badgeColor: "bg-purple-50 text-purple-700 border-purple-100",
-                    speed: "Fast (90 t/s)",
-                    cost: "$0.10 / 1M input"
-                  },
-                  {
-                    id: "groq/llama-3.3-70b-versatile",
-                    name: "Llama 3.3 70B",
-                    provider: "Groq Cloud",
-                    desc: "High performance open source reasoning",
-                    badge: "Groq API",
-                    badgeColor: "bg-amber-50 text-amber-700 border-amber-100",
-                    speed: "Ultra Fast (150+ t/s)",
-                    cost: "$0.59 / 1M input"
+                    speed: "Ultra Fast (120+ t/s)",
+                    cost: "$0.00 / NVIDIA"
                   }
                 ].map((m) => (
                   <div

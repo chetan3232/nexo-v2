@@ -212,7 +212,7 @@ const ChatInterface: React.FC = () => {
   const prevBuildPhase = useRef(projectStore.buildPhase);
   
   useEffect(() => {
-    if (prevBuildPhase.current !== "idle" && prevBuildPhase.current !== "done" && projectStore.buildPhase === "done") {
+    if (prevBuildPhase.current !== "idle" && prevBuildPhase.current !== "completed" && projectStore.buildPhase === "completed") {
       if (projectMode === "frontend") {
         setWorkspaceTab("preview");
         if (isMobile) {
@@ -419,7 +419,7 @@ const ChatInterface: React.FC = () => {
   // Boot runtime automatically if currentContent exists but runtime is not booted
   const bootAttempted = useRef(false);
   useEffect(() => {
-    if (projectStore.currentContent && !isBooted && !bootAttempted.current && (projectStore.buildPhase === "idle" || projectStore.buildPhase === "done")) {
+    if (projectStore.currentContent && !isBooted && !bootAttempted.current && (projectStore.buildPhase === "idle" || projectStore.buildPhase === "completed")) {
       bootAttempted.current = true;
       console.log("[ChatInterface] Code exists but runtime is not booted. Auto-booting virtual environment...");
       Orchestrator.getInstance().bootRuntime().catch(err => {

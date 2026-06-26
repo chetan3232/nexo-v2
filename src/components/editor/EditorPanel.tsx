@@ -14,7 +14,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
   setSelectedFileName,
 }) => {
   const { currentContent, setCurrentContent, buildPhase } = useProjectStore();
-  const isGenerating = buildPhase !== "idle" && buildPhase !== "done";
+  const isGenerating = buildPhase !== "idle" && buildPhase !== "completed";
   const [localValue, setLocalValue] = useState<string>("");
   const [openTabs, setOpenTabs] = useState<string[]>([]);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);

@@ -29,9 +29,10 @@ const STUDIO_MODELS = [
   { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", provider: "Google AI", badge: "Pro", desc: "Complex code reasoning" },
   { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet", provider: "Anthropic", badge: "Premium", desc: "Industry benchmark for coding" },
   { id: "openai/gpt-4o", name: "GPT-4o", provider: "OpenAI", badge: "Premium", desc: "High reasoning & speed" },
-  { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B", provider: "Groq Cloud", badge: "Fast", desc: "Open-source high speed reasoning" },
   { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B", provider: "NVIDIA NIM", badge: "NVIDIA", desc: "State-of-the-art coding" },
-  { id: "stepfun-ai/step-3.5-flash", name: "Step 3.5 Flash", provider: "NVIDIA NIM", badge: "NVIDIA", desc: "High speed reasoning and structures" },
+  { id: "z-ai/glm-5.1", name: "GLM 5.1", provider: "NVIDIA NIM", badge: "NVIDIA", desc: "State-of-the-art multilingual reasoning" },
+  { id: "moonshotai/kimi-k2.6", name: "Kimi K2.6", provider: "NVIDIA NIM", badge: "NVIDIA", desc: "Advanced long-context generation" },
+  { id: "stepfun-ai/step-3.7-flash", name: "Step 3.7 Flash", provider: "NVIDIA NIM", badge: "NVIDIA", desc: "High speed reasoning and structures" },
 ];
 
 const PROVIDER_MODELS: Record<string, { id: string; name: string }[]> = {
@@ -45,10 +46,9 @@ const PROVIDER_MODELS: Record<string, { id: string; name: string }[]> = {
   ],
   "NVIDIA NIM": [
     { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B" },
-    { id: "stepfun-ai/step-3.5-flash", name: "Step 3.5 Flash" }
-  ],
-  "Groq Cloud": [
-    { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B" }
+    { id: "z-ai/glm-5.1", name: "GLM 5.1" },
+    { id: "moonshotai/kimi-k2.6", name: "Kimi K2.6" },
+    { id: "stepfun-ai/step-3.7-flash", name: "Step 3.7 Flash" }
   ],
   "Anthropic": [
     { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet" }

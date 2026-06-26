@@ -168,30 +168,36 @@ function extractFilesFromJsonActions(text) {
 // Smart Model Router — picks best model per task
 // ─────────────────────────────────────────────────
 function routeModel(taskType, requestedModel) {
-    const FAST_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'groq/llama-3.3-70b-versatile'];
-    const DEEP_MODELS = ['gemini-2.5-pro', 'qwen/qwen3-coder-480b-a35b-instruct', 'stepfun-ai/step-3.5-flash'];
-
     switch (taskType) {
         case 'planning':
-            // Always use a fast model for planning — speed matters here
-            return FAST_MODELS.includes(requestedModel) ? requestedModel : 'gemini-2.5-flash';
+        case 'analyzing':
+            // Planning / Analyzing -> Gemini Flash
+            return 'gemini-2.5-flash';
+
+        case 'ui_design':
+        case 'design':
+            // UI Design -> Stitch (fallback to gemini-2.5-flash for speed or gemini-2.5-pro if available)
+            return 'gemini-2.5-flash';
+
+        case 'architecture':
+            // Architecture -> Claude / GPT
+            return 'anthropic/claude-3-5-sonnet';
 
         case 'ui_generation':
-            // Use user's selected model for deep UI generation
-            return requestedModel || 'gemini-2.5-flash';
+        case 'generation':
+        case 'frontend_generation':
+        case 'backend_generation':
+            // Code Generation -> DeepSeek / NVIDIA Qwen
+            return 'qwen/qwen3-coder-480b-a35b-instruct';
 
         case 'debug':
         case 'fix':
-            // Fastest available for quick fixes
+            // Debugging / Self-Healing -> DeepSeek / Qwen
+            return 'qwen/qwen3-coder-480b-a35b-instruct';
+
+        case 'summary':
+            // Summary -> Gemini Flash
             return 'gemini-2.5-flash';
-
-        case 'refactor':
-            // Deep model for careful refactoring
-            return DEEP_MODELS.includes(requestedModel) ? requestedModel : 'gemini-2.5-pro';
-
-        case 'vision':
-            // Vision-capable model for design-to-code
-            return 'gemini-2.5-flash'; // Gemini supports vision
 
         default:
             return requestedModel || 'gemini-2.5-flash';
@@ -230,33 +236,46 @@ class BackendOrchestrator {
         const memory = ProjectMemory.load(chatId);
         const memoryContext = ProjectMemory.getContextString(chatId);
         
-        job.updateStatus('planning');
+        job.updateStatus('analyzing');
         job.updateProgress(5);
-        job.log('Initializing Nexo V2 Dual Engine...');
+        job.log('Initializing Nexo V2 Master Workflow Engine...');
 
         // Notify if memory loaded
         if (memory.buildHistory?.length > 0) {
             job.addReasoningStep(`🧠 Memory loaded: ${memory.buildHistory.length} previous build(s) found for this project.`);
         }
 
-        // Aligned with Multi-Agent Pipeline
+        // Aligned with workflow-based development execution timeline
         const tasks = [
-            { id: "planner", label: "Planner Agent (Strategy & Architecture)", status: "pending" },
-            { id: "ui_code", label: "UI & Code Agent (Generation & Implementation)", status: "pending" },
-            { id: "build_fix", label: "Build & Fixer Agent (Auto-Healing Checks)", status: "pending" },
-            { id: "preview", label: "Preview Agent (Sandbox Deployment)", status: "pending" }
+            { id: "understanding", label: "🧠 Understanding your idea", status: "pending" },
+            { id: "requirements", label: "✓ Requirements analyzed", status: "pending" },
+            { id: "plan", label: "📋 Creating execution plan", status: "pending" },
+            { id: "architecture", label: "✓ Project architecture ready", status: "pending" },
+            { id: "designing", label: "🎨 Designing interface", status: "pending" },
+            { id: "design_completed", label: "✓ Design completed", status: "pending" },
+            { id: "files", label: "📁 Creating project files", status: "pending" },
+            { id: "writing", label: "⚡ Writing code", status: "pending" },
+            { id: "packages", label: "📦 Installing packages", status: "pending" },
+            { id: "building", label: "🔧 Running build", status: "pending" },
+            { id: "fixing", label: "🛠 Fixing build errors", status: "pending" },
+            { id: "preview", label: "🚀 Launching preview", status: "pending" },
+            { id: "completed", label: "✅ Application completed", status: "pending" }
         ];
         job.updateTasks(tasks);
 
         try {
             // ==========================================
-            // 0. PROMPT ENHANCEMENT (Pre-Planning)
+            // 0. REQUIREMENT ANALYZER (analyzing)
             // ==========================================
+            tasks[0].status = 'running';
+            job.updateTasks(tasks);
+            job.updateProgress(8);
+
             let finalPrompt = prompt;
             let wasEnhanced = false;
 
             if (!isRefactor && !hasImage) {
-                job.addReasoningStep('✨ Prompt Enhancement Engine: Analyzing and enriching your request...');
+                job.addReasoningStep('✨ Requirement Analyzer: Structuring functional boundaries...');
                 
                 const enhancement = await PromptEnhancer.enhance(
                     prompt,
@@ -269,8 +288,7 @@ class BackendOrchestrator {
                 wasEnhanced = enhancement.wasEnhanced;
 
                 if (wasEnhanced) {
-                    job.addReasoningStep(`✨ Prompt enhanced: Expanded from ${prompt.length} to ${finalPrompt.length} characters for better results.`);
-                    // Notify UI about enhancement
+                    job.addReasoningStep(`✨ Requirement Analyzer complete: Extracted comprehensive app specifications.`);
                     jobEvents.emit(job.id, {
                         type: 'prompt_enhanced',
                         original: prompt,
@@ -279,14 +297,18 @@ class BackendOrchestrator {
                 }
             }
 
-            // ==========================================
-            // 1. FAST PLANNER AGENT (FAST THINKER - Phase 1)
-            // ==========================================
-            job.addReasoningStep('🧠 Strategic planning: Analyzing requirements and generating UI architecture...');
-            tasks[0].status = 'running';
+            tasks[0].status = 'done';
+            tasks[1].status = 'done'; // Requirements analyzed
+            tasks[2].status = 'running'; // Creating execution plan
+            job.updateStatus('planning');
             job.updateTasks(tasks);
-            job.updateProgress(10);
+            job.updateProgress(15);
 
+            // ==========================================
+            // 1. FAST PLANNER & ARCHITECTURE AGENT (planning)
+            // ==========================================
+            job.addReasoningStep('🧠 Project Architecture Agent: Planning layout and stack files...');
+            
             // Smart Model Router for planning
             const plannerModel = routeModel('planning', options.model);
 
@@ -593,18 +615,16 @@ Do not truncate or omit any files. Ensure package.json has all necessary depende
                 }
 
                 job.addReasoningStep('Application layer generated successfully.');
-                tasks[1].status = 'done';
+                tasks[7].status = 'done';
                 job.updateTasks(tasks);
                 job.updateProgress(75);
             }
 
             // ==========================================
-            // 3. BUILD & FIXER AGENT (VERIFICATION PHASE)
+            // 3. TESTING & VALIDATION PHASE (testing)
             // ==========================================
-            job.updateStatus('fixing');
+            job.updateStatus('testing');
             job.addReasoningStep('🔧 Running security compliance audits with Nexo Security Validator...');
-            tasks[2].status = 'running';
-            job.updateTasks(tasks);
             job.updateProgress(80);
 
             let currentFiles = { ...existingFiles, ...finalFiles };
@@ -638,11 +658,14 @@ Do not truncate or omit any files. Ensure package.json has all necessary depende
                 );
 
                 if (decision.decision === 'retry') {
+                    job.updateStatus('fixing');
+                    tasks[10].status = 'running'; // Fixing build errors
+                    job.updateTasks(tasks);
                     job.addReasoningStep(`🔧 Auto-healing: Nexo Security Validator is attempting to fix the security issues. (Attempt ${validationAttemptHistory.length})`);
                     
                     const remediationPrompt = `You are a deep AI security remediation engineer.
 The project codebase has failed security validation. You MUST fix the identified security vulnerabilities.
-
+ 
 Codebase files:
 ${Object.entries(currentFiles).map(([path, content]) => `---FILE: ${path}---\n${content}\n---END FILE---`).join('\n\n')}
 
@@ -696,28 +719,25 @@ Only output the files that need changes to address these security issues. Keep a
                 } else {
                     // Escalation case
                     job.addReasoningStep(`❌ Security Auto-Healing failed: ${decision.escalation_message}`);
-                    tasks[2].status = 'error';
+                    tasks[10].status = 'error';
                     job.updateTasks(tasks);
                     throw new Error(decision.escalation_message || 'Security validation blocked deployment');
                 }
             }
 
             job.addReasoningStep('✅ Security checks passed. No high-severity security vulnerabilities remain.');
-            tasks[2].status = 'done';
+            if (tasks[10].status === 'running') {
+                tasks[10].status = 'done';
+            }
             job.updateTasks(tasks);
             job.updateProgress(90);
 
             // ==========================================
             // 4. PREVIEW AGENT (RUNTIME DEPLOY PHASE)
             // ==========================================
-            job.updateStatus('deploying');
-            job.addReasoningStep('🚀 Runtime boot: Readying preview environment deployment...');
-            tasks[3].status = 'running';
-            job.updateTasks(tasks);
+            job.updateStatus('previewing');
+            job.addReasoningStep('🚀 Runtime boot: Preparing WebContainer sandbox environment...');
             job.updateProgress(95);
-
-            tasks[3].status = 'done';
-            job.updateTasks(tasks);
 
             // ==========================================
             // 5. SAVE TO PROJECT MEMORY
@@ -742,6 +762,29 @@ Only output the files that need changes to address these security issues. Keep a
             const fileCount = Object.keys(finalFiles).length;
             const modeLabel = isRefactor ? 'Refactored' : hasImage ? 'Design reconstructed into' : 'Generated';
             job.complete(
+                `${modeLabel} ${fileCount} files successfully. Ready to build runtime preview!`,
+                fileCount,
+                {
+                    mainFile: finalParsed.mainFile || 'index.html',
+                    template: 'web',
+                    wasEnhanced,
+                    isRefactor,
+                    hasImage,
+                    plannerModel,
+                    codeModel,
+                }
+            );
+
+        } catch (error) {
+            console.error('[BackendOrchestrator] Error during generation workflow:', error);
+            tasks.forEach(t => {
+                if (t.status === 'running' || t.status === 'pending') {
+                    t.status = 'error';
+                }
+            });
+            job.updateTasks(tasks);
+            job.fail(error.message || 'Workflow process crashed');
+        }omplete(
                 `${modeLabel} ${fileCount} files successfully. Ready to build runtime preview!`,
                 fileCount,
                 {

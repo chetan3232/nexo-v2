@@ -142,10 +142,10 @@ export default async function handler(req, res) {
         let apiToken = apiKey;
         let modelParam = model;
 
-        if (model.startsWith('groq/')) {
-            invokeUrl = "https://api.groq.com/openai/v1/chat/completions";
-            apiToken = process.env.GROQ_API_KEY || apiKey;
-            modelParam = model.replace('groq/', '');
+        if (model.startsWith('z-ai/') || model.startsWith('moonshotai/') || model.startsWith('stepfun-ai/')) {
+            invokeUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
+            apiToken = process.env.NVIDIA_API_KEY || apiKey;
+            modelParam = model;
         } else if (model.includes('qwen/')) {
             invokeUrl = "https://openrouter.ai/api/v1/chat/completions";
             apiToken = process.env.OPENROUTER_API_KEY || "";

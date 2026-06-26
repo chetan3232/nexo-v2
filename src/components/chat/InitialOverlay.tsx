@@ -536,16 +536,22 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
       desc: "State-of-the-art coding and reasoning assistant",
     },
     {
-      id: "stepfun-ai/step-3.5-flash",
-      name: "Step 3.5 Flash",
+      id: "z-ai/glm-5.1",
+      name: "GLM 5.1",
       provider: "NVIDIA NIM",
-      desc: "StepFun Reasoning and Generation Model",
+      desc: "State-of-the-art multilingual reasoning",
     },
     {
-      id: "groq/llama-3.3-70b-versatile",
-      name: "Llama 3.3 70B (Groq)",
-      provider: "Groq",
-      desc: "High performance open source reasoning",
+      id: "moonshotai/kimi-k2.6",
+      name: "Kimi K2.6",
+      provider: "NVIDIA NIM",
+      desc: "Advanced long-context generation model",
+    },
+    {
+      id: "stepfun-ai/step-3.7-flash",
+      name: "Step 3.7 Flash",
+      provider: "NVIDIA NIM",
+      desc: "High speed reasoning and structures",
     },
   ];
 

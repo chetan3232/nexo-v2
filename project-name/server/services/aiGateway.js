@@ -239,11 +239,12 @@ const logUsage = (model, inputTokens = 0, outputTokens = 0, durationMs = 0, user
       "gemini-2.5-pro": { input: 1.25, output: 5.00 },
       "gemini-2.0-flash": { input: 0.075, output: 0.30 },
       "qwen/qwen3-coder-480b-a35b-instruct": { input: 0.00, output: 0.00 },
-      "stepfun-ai/step-3.5-flash": { input: 0.00, output: 0.00 },
-      "groq/llama-3.3-70b-versatile": { input: 0.59, output: 0.79 }
+      "z-ai/glm-5.1": { input: 0.00, output: 0.00 },
+      "moonshotai/kimi-k2.6": { input: 0.00, output: 0.00 },
+      "stepfun-ai/step-3.7-flash": { input: 0.00, output: 0.00 }
     };
 
-    const isNvidiaModel = model.includes("nvidia") || model.includes("stepfun") || model.includes("qwen/qwen3-coder-480b-a35b-instruct");
+    const isNvidiaModel = model.includes("nvidia") || model.includes("stepfun") || model.includes("qwen/qwen3-coder-480b-a35b-instruct") || model.includes("z-ai") || model.includes("moonshotai");
     const rate = isNvidiaModel ? { input: 0.00, output: 0.00 } : (rates[Object.keys(rates).find(k => model.includes(k)) || "default"] || { input: 0.10, output: 0.30 });
 
     const cost = ((inputTokens * rate.input) + (outputTokens * rate.output)) / 1000000;
@@ -377,8 +378,7 @@ const getClient = (provider, customApiKey) => {
 
 // Define fallback list based on model requested
 const getFallbackChain = (requestedModel, customApiKey) => {
-  const isNvidia = (requestedModel.startsWith("nvidia/") && requestedModel !== "nvidia/nemotron-3-super-120b-a12b:free") || requestedModel === "minimaxai/minimax-m2.7" || requestedModel.startsWith("stepfun-ai/") || requestedModel === "qwen/qwen3-coder-480b-a35b-instruct";
-  const isGroq = !isNvidia && (requestedModel.startsWith("groq/") || requestedModel.includes("llama") || requestedModel.includes("mixtral"));
+  const isNvidia = (requestedModel.startsWith("nvidia/") && requestedModel !== "nvidia/nemotron-3-super-120b-a12b:free") || requestedModel === "minimaxai/minimax-m2.7" || requestedModel.startsWith("stepfun-ai/") || requestedModel.startsWith("z-ai/") || requestedModel.startsWith("moonshotai/") || requestedModel === "qwen/qwen3-coder-480b-a35b-instruct";
   const isOpenAI = requestedModel.startsWith("openai/") || requestedModel.startsWith("gpt-");
   const isAnthropic = requestedModel.startsWith("anthropic/") || requestedModel.startsWith("claude-");
   const isGoogleDirect = requestedModel.startsWith("google/") || requestedModel.startsWith("gemini-");
@@ -406,7 +406,7 @@ const getFallbackChain = (requestedModel, customApiKey) => {
       { provider: "google", model: actualModel },
       { provider: "gemini", model: actualModel },
       { provider: "openrouter", model: `google/${actualModel}` },
-      { provider: "groq", model: "llama-3.3-70b-versatile" }
+      { provider: "nvidia", model: "stepfun-ai/step-3.7-flash" }
     ];
   } else if (isOpenRouter) {
     possibleChain = [
@@ -420,23 +420,14 @@ const getFallbackChain = (requestedModel, customApiKey) => {
 
     possibleChain = [
       { provider: "nvidia", model: actualModel },
-      { provider: "groq", model: "llama-3.3-70b-versatile" },
       { provider: "gemini", model: "gemini-2.5-flash" },
-    ];
-  } else if (isGroq) {
-    const actualModel = requestedModel.startsWith("groq/") ? requestedModel.replace("groq/", "") : requestedModel;
-    possibleChain = [
-      { provider: "groq", model: actualModel },
-      { provider: "gemini", model: "gemini-2.5-flash" },
-      { provider: "nvidia", model: "stepfun-ai/step-3.5-flash" },
     ];
   } else {
     const actualModel = requestedModel.startsWith("google/") ? requestedModel.replace("google/", "") : requestedModel;
     possibleChain = [
       { provider: "gemini", model: actualModel },
       { provider: "google", model: actualModel },
-      { provider: "groq", model: "llama-3.3-70b-versatile" },
-      { provider: "nvidia", model: "stepfun-ai/step-3.5-flash" },
+      { provider: "nvidia", model: "stepfun-ai/step-3.7-flash" },
     ];
   }
 
@@ -450,8 +441,6 @@ const getFallbackChain = (requestedModel, customApiKey) => {
     } else if (step.provider === "openai" && (process.env.OPENAI_API_KEY || customApiKey)) {
       finalChain.push(step);
     } else if (step.provider === "nvidia" && (process.env.NVIDIA_API_KEY || customApiKey)) {
-      finalChain.push(step);
-    } else if (step.provider === "groq" && (process.env.GROQ_API_KEY || customApiKey)) {
       finalChain.push(step);
     } else if (step.provider === "gemini" && (process.env.GEMINI_API_KEY || customApiKey)) {
       finalChain.push(step);

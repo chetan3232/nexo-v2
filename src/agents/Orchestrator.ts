@@ -95,8 +95,8 @@ export class Orchestrator {
 
     try {
       chatStore.setState(CompanionState.THINKING);
-      useProjectStore.getState().setBuildPhase("planning");
-      useProjectStore.getState().setSubStatus("Analyzing your prompt and planning architecture...");
+      useProjectStore.getState().setBuildPhase("analyzing");
+      useProjectStore.getState().setSubStatus("Analyzing requirements and planning architecture...");
       BackgroundPreserver.activate();
       AgentEventBus.getInstance().buildStart();
       this.ensureVisibilityListener();
@@ -153,7 +153,7 @@ export class Orchestrator {
 
     // Set initial states (skip reset on reconnect to preserve UI progress)
     if (!isReconnect) {
-      projectStore.setBuildPhase("building");
+      projectStore.setBuildPhase("analyzing");
       chatStore.setState(CompanionState.THINKING);
       bus.clear();
       bus.setGenerating(true);
@@ -441,7 +441,7 @@ export class Orchestrator {
               return next;
             });
             
-            projectStore.setBuildPhase("done");
+            projectStore.setBuildPhase("completed");
             chatStore.setState(CompanionState.IDLE);
             bus.setGenerating(false);
             
@@ -487,7 +487,7 @@ export class Orchestrator {
               });
               return next;
             });
-            projectStore.setBuildPhase("done");
+            projectStore.setBuildPhase("completed");
             chatStore.setState(CompanionState.IDLE);
             bus.setGenerating(false);
             
@@ -657,7 +657,7 @@ export class Orchestrator {
 
       if (job.status === "completed") {
         this.cleanupActiveJob(this.activeChatId || "");
-        projectStore.setBuildPhase("done");
+        projectStore.setBuildPhase("completed");
         chatStore.setState(CompanionState.IDLE);
         AgentEventBus.getInstance().setGenerating(false);
         
@@ -717,22 +717,30 @@ export class Orchestrator {
     });
   }
 
-  private mapStatusToPhase(status: string): "idle" | "planning" | "generating" | "building" | "fixing" | "deploying" | "done" {
+  private mapStatusToPhase(status: string): "idle" | "analyzing" | "planning" | "designing" | "generating" | "building" | "testing" | "fixing" | "previewing" | "deploying" | "completed" {
     switch (status) {
       case "idle":
         return "idle";
+      case "analyzing":
+        return "analyzing";
       case "planning":
         return "planning";
+      case "designing":
+        return "designing";
       case "generating":
         return "generating";
       case "building":
         return "building";
+      case "testing":
+        return "testing";
       case "fixing":
         return "fixing";
+      case "previewing":
+        return "previewing";
       case "deploying":
         return "deploying";
       case "completed":
-        return "done";
+        return "completed";
       case "failed":
       default:
         return "idle";
@@ -769,38 +777,70 @@ export class Orchestrator {
 
   public async bootRuntime() {
     const projectStore = useProjectStore.getState();
+    const runtimeStore = useRuntimeStore.getState();
     const wc = WebContainerService.getInstance();
     const devServer = DevServerService.getInstance();
     const bus = AgentEventBus.getInstance();
 
-    bus.thinking("Booting virtual runtime environment...");
-    await wc.boot();
-    const content = projectStore.currentContent;
-    if (content) {
-      const detected = detectDependencies(content.files);
-      const pkgJson = content.files["package.json"] || '{"dependencies": {}}';
-      content.files["package.json"] = updatePackageJson(pkgJson, detected);
+    try {
+      bus.thinking("Booting virtual runtime environment...");
+      runtimeStore.setPreviewPhase("preparing");
+      projectStore.updateTask("packages", { status: "running" });
 
-      // Inject Visual Editor Script into index.html
-      if (content.files["index.html"]) {
-        content.files["index.html"] = content.files["index.html"].replace(
-          "</body>",
-          `<script>${VISUAL_EDITOR_SCRIPT}</script></body>`,
-        );
+      await wc.boot();
+      const content = projectStore.currentContent;
+      if (content) {
+        const detected = detectDependencies(content.files);
+        const pkgJson = content.files["package.json"] || '{"dependencies": {}}';
+        content.files["package.json"] = updatePackageJson(pkgJson, detected);
+
+        // Inject Visual Editor Script into index.html
+        if (content.files["index.html"]) {
+          content.files["index.html"] = content.files["index.html"].replace(
+            "</body>",
+            `<script>${VISUAL_EDITOR_SCRIPT}</script></body>`,
+          );
+        }
+
+        const wcFiles: any = {};
+        Object.entries(content.files).forEach(([path, contents]) => {
+          wcFiles[path] = { file: { contents } };
+        });
+        await wc.mount(wcFiles);
+        
+        bus.thinking("Installing dependencies...");
+        runtimeStore.setPreviewPhase("installing");
+        await devServer.install();
+
+        runtimeStore.setPreviewPhase("building");
+        projectStore.updateTask("packages", { status: "done" });
+        projectStore.updateTask("building", { status: "running" });
+
+        await this.setupBackend();
+
+        bus.thinking("Starting development server...");
+        runtimeStore.setPreviewPhase("starting");
+        projectStore.updateTask("building", { status: "done" });
+        projectStore.updateTask("preview", { status: "running" });
+
+        await devServer.start();
+
+        runtimeStore.setPreviewPhase("ready");
+        projectStore.updateTask("preview", { status: "done" });
+        projectStore.updateTask("completed", { status: "done" });
+        projectStore.setBuildPhase("completed");
+
+        // Preview URL is determined by the WebContainer iframe — signal ready
+        bus.previewReady("http://localhost:3111");
       }
-
-      const wcFiles: any = {};
-      Object.entries(content.files).forEach(([path, contents]) => {
-        wcFiles[path] = { file: { contents } };
-      });
-      await wc.mount(wcFiles);
-      bus.thinking("Installing dependencies...");
-      await devServer.install();
-      await this.setupBackend();
-      bus.thinking("Starting development server...");
-      await devServer.start();
-      // Preview URL is determined by the WebContainer iframe — signal ready
-      bus.previewReady("http://localhost:3111");
+    } catch (e: any) {
+      console.error("[Orchestrator] Runtime boot failed:", e);
+      bus.thinking(`Runtime boot failed: ${e.message}`);
+      runtimeStore.setPreviewPhase("error");
+      projectStore.updateTask("packages", { status: "error" });
+      projectStore.updateTask("building", { status: "error" });
+      projectStore.updateTask("preview", { status: "error" });
+      projectStore.setBuildPhase("idle");
     }
   }
 

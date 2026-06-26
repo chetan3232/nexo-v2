@@ -213,7 +213,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
   setIsVisualMode,
   onDesignSelect,
 }) => {
-  const { url, isBooted } = useRuntimeStore();
+  const { url, isBooted, previewPhase } = useRuntimeStore();
   const { previewKey, currentContent, buildPhase } = useProjectStore();
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -306,13 +306,67 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
         </>
       )}
 
-      {/* Loading: WebContainer booted but dev server URL not ready yet */}
-      {isLoading && !hasFallbackPreview && (
-        <div className="h-full w-full flex flex-col items-center justify-center gap-4 bg-white">
-          <Loader2 className="w-8 h-8 text-[#0ea5e9] animate-spin" />
-          <span className="text-[10px] font-bold text-[#bbb] uppercase tracking-[0.25em]">
-            Starting Dev Server...
-          </span>
+      {/* Loading Timeline: WebContainer boot and dev server progress */}
+      {(isLoading || (previewPhase !== "idle" && previewPhase !== "ready" && previewPhase !== "error")) && !hasFallbackPreview && (
+        <div className="h-full w-full flex flex-col items-center justify-center bg-white p-6 select-none animate-in fade-in duration-300">
+          <div className="w-full max-w-xs space-y-6">
+            <div className="flex flex-col items-center gap-2 mb-4 text-center">
+              <Loader2 className="w-6 h-6 text-[#0ea5e9] animate-spin" />
+              <span className="text-[10px] font-bold text-sky-500 uppercase tracking-[0.25em]">
+                Initializing Sandbox
+              </span>
+            </div>
+
+            <div className="space-y-4">
+              {[
+                { key: "preparing", label: "Preparing sandbox..." },
+                { key: "installing", label: "Installing packages..." },
+                { key: "building", label: "Building application..." },
+                { key: "starting", label: "Starting development server..." },
+                { key: "launching", label: "Launching preview..." },
+                { key: "ready", label: "Preview Ready" },
+              ].map((step, idx) => {
+                const statusOrder = ["preparing", "installing", "building", "starting", "launching", "ready"];
+                const currentIdx = statusOrder.indexOf(previewPhase === "idle" ? "preparing" : previewPhase === "error" ? "ready" : previewPhase);
+                const stepIdx = statusOrder.indexOf(step.key);
+
+                const stepStatus = previewPhase === "error" && stepIdx === currentIdx 
+                  ? "error" 
+                  : previewPhase === "ready" || stepIdx < currentIdx 
+                    ? "done" 
+                    : step.key === previewPhase 
+                      ? "running" 
+                      : "pending";
+
+                return (
+                  <div key={step.key} className="flex items-center gap-3 text-xs">
+                    <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                      {stepStatus === "done" ? (
+                        <span className="text-emerald-500 font-bold">✓</span>
+                      ) : stepStatus === "running" ? (
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
+                        </span>
+                      ) : stepStatus === "error" ? (
+                        <span className="text-red-500 font-bold">✗</span>
+                      ) : (
+                        <div className="w-1.5 h-1.5 rounded-full bg-stone-200" />
+                      )}
+                    </div>
+                    <span className={`font-semibold tracking-wide ${
+                      stepStatus === "done" ? "text-stone-400 line-through decoration-emerald-500/25" :
+                      stepStatus === "running" ? "text-sky-500 font-bold animate-pulse" :
+                      stepStatus === "error" ? "text-red-500 font-bold" :
+                      "text-stone-300"
+                    }`}>
+                      {step.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 

@@ -52,8 +52,9 @@ const ALL_MODELS = [
   { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet", badge: "Premium" },
   { id: "openai/gpt-4o", name: "GPT-4o", badge: "Premium" },
   { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B", badge: "Nvidia" },
-  { id: "stepfun-ai/step-3.5-flash", name: "Step 3.5 Flash", badge: "Nvidia" },
-  { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Groq)", badge: "Groq" },
+  { id: "z-ai/glm-5.1", name: "GLM 5.1", badge: "Nvidia" },
+  { id: "moonshotai/kimi-k2.6", name: "Kimi K2.6", badge: "Nvidia" },
+  { id: "stepfun-ai/step-3.7-flash", name: "Step 3.7 Flash", badge: "Nvidia" },
 ];
 
 const CollapsibleMessageContent: React.FC<{ text: string; role: string }> = ({ text, role }) => {
@@ -373,7 +374,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
     // - Bypass for post-build edits (buildPhase === 'done') — send directly
     // - Bypass if already has messages (follow-up / iterative edits)
     const isFirstMessage = messages.length === 0;
-    const isPostBuild = buildPhase === "done";
+    const isPostBuild = buildPhase === "completed";
     const isFullstack = projectMode === "fullstack";
 
     if (isFirstMessage && !isPostBuild && isFullstack) {
@@ -508,7 +509,58 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
 
       {/* ── Messages ── */}
       <div className="flex-grow overflow-y-auto p-4 space-y-3 pb-[160px] scrollbar-hide relative z-10">
-        {messages.length === 0 ? (
+        {(buildPhase !== "idle" && buildPhase !== "completed") ? (
+          <div className="h-full flex flex-col justify-start px-4 py-6 space-y-6 select-none bg-stone-50/20 rounded-2xl">
+            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-[#e8e8e8]">
+              <Cpu className="w-4 h-4 text-[#0ea5e9] animate-pulse" />
+              <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-[#0ea5e9]">
+                Active Build Timeline
+              </h3>
+            </div>
+            
+            <div className="space-y-4">
+              {tasks.length > 0 ? (
+                tasks.map((task, idx) => {
+                  const isRunning = task.status === "running";
+                  const isDone = task.status === "done";
+                  const isError = task.status === "error";
+                  
+                  return (
+                    <motion.div
+                      key={task.id}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.03 }}
+                      className="flex items-center gap-3 text-xs"
+                    >
+                      <div className="w-5 h-5 flex items-center justify-center">
+                        {isDone ? (
+                          <span className="text-emerald-500 font-bold text-sm">✓</span>
+                        ) : isRunning ? (
+                          <Loader2 className="w-3.5 h-3.5 text-sky-500 animate-spin" />
+                        ) : isError ? (
+                          <span className="text-red-500 font-bold">✗</span>
+                        ) : (
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#ddd]" />
+                        )}
+                      </div>
+                      <span className={`font-semibold tracking-wide ${
+                        isDone ? "text-stone-400 line-through decoration-emerald-500/25" :
+                        isRunning ? "text-sky-500 font-bold animate-pulse" :
+                        isError ? "text-red-500 font-bold" :
+                        "text-[#bbb]"
+                      }`}>
+                        {task.label}
+                      </span>
+                    </motion.div>
+                  );
+                })
+              ) : (
+                <div className="text-stone-400 text-xs italic">Initializing workspace timeline...</div>
+              )}
+            </div>
+          </div>
+        ) : messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center px-6 space-y-4">
             <div className="w-12 h-12 rounded-2xl bg-[#f3f3f3] border border-[#e8e8e8] flex items-center justify-center">
               <Sparkles className="w-6 h-6 text-[#0ea5e9]" />
@@ -555,123 +607,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                   </div>
                 </motion.div>
               ))}
-
-              {/* Skeleton loading bubble */}
-              {buildPhase === "planning" && messages.length > 0 && messages[messages.length - 1].role === "user" && (
-                <SkeletonLoader />
-              )}
-
-              {/* Multi-Agent Build Progress */}
-              {(buildPhase !== "idle" && buildPhase !== "done") && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex flex-col gap-2.5 max-w-[92%]"
-                >
-                  {/* Phase Header */}
-                  <div className={`border rounded-2xl px-4 py-3 flex items-center gap-3 w-fit select-none transition-all duration-500 ${loaderTheme.bg}`}>
-                    <Loader2 className={`w-3.5 h-3.5 animate-spin shrink-0 ${loaderTheme.loader}`} />
-                    <div>
-                      <div className="text-[8px] font-black uppercase tracking-[0.2em] opacity-60 mb-0.5">
-                        {buildPhase === "planning" && "🧠 Planner Agent"}
-                        {buildPhase === "generating" && "⚡ Code Agent"}
-                        {buildPhase === "fixing" && "🔧 Fix Agent"}
-                        {buildPhase === "deploying" && "🚀 Deploy Agent"}
-                        {buildPhase === "building" && "🤖 AI Engine"}
-                      </div>
-                      <div className="text-[11px] font-semibold">{subStatus || "Processing…"}</div>
-                    </div>
-                  </div>
-
-                  {/* Agent Task Pipeline */}
-                  {tasks.length > 0 && (
-                    <div className="flex flex-col gap-1.5 border-l-2 border-[#e8e8e8] ml-3 pl-4 py-1 select-none">
-                      {tasks.map((task, idx) => {
-                        const isRunning = task.status === "running";
-                        const isDone = task.status === "done";
-                        const isError = task.status === "error";
-                        return (
-                          <motion.div
-                            key={task.id}
-                            initial={{ opacity: 0, x: -4 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: idx * 0.05 }}
-                            className="flex items-center gap-2"
-                          >
-                            <div className={`w-2 h-2 rounded-full shrink-0 transition-all duration-300 ${
-                              isDone ? "bg-emerald-500 shadow-sm shadow-emerald-300"
-                              : isRunning ? "bg-[#0ea5e9] animate-pulse shadow-sm shadow-sky-300"
-                              : isError ? "bg-red-400"
-                              : "bg-[#ddd]"
-                            }`} />
-                            <span className={`text-[10px] font-medium flex-1 leading-tight transition-all ${
-                              isDone ? "text-[#aaa] line-through"
-                              : isRunning ? "text-[#0ea5e9] font-semibold"
-                              : isError ? "text-red-500"
-                              : "text-[#ccc]"
-                            }`}>
-                              {task.label}
-                            </span>
-                            {isDone && (
-                              <span className="text-[7px] font-black text-emerald-600 uppercase tracking-wider bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200 shrink-0">
-                                ✓
-                              </span>
-                            )}
-                            {isRunning && (
-                              <span className="flex gap-0.5 shrink-0">
-                                {[0,1,2].map(i => (
-                                  <span key={i} className="w-1 h-1 bg-[#0ea5e9] rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
-                                ))}
-                              </span>
-                            )}
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* File Generation Progress */}
-                  {createdFiles && createdFiles.length > 0 && (
-                    <div className="flex flex-col gap-1.5 border-l-2 border-[#e8e8e8] ml-3 pl-4 py-1.5 select-none max-h-48 overflow-y-auto scrollbar-hide">
-                      <div className="text-[8px] font-black uppercase tracking-[0.15em] text-[#888] mb-1">
-                        📁 File Operations
-                      </div>
-                      {createdFiles.map((fpath) => {
-                        const isWriting = activeFiles.has(fpath);
-                        const isDone = !isWriting;
-                        const charCount = fileBuffers[fpath]?.length || 0;
-                        return (
-                          <motion.div
-                            key={fpath}
-                            initial={{ opacity: 0, x: -4 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className="flex items-center justify-between gap-2 text-[10px]"
-                          >
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              {isWriting ? (
-                                <Loader2 className="w-3 h-3 animate-spin text-sky-500 shrink-0" />
-                              ) : (
-                                <Check className="w-3 h-3 text-emerald-500 shrink-0" />
-                              )}
-                              <span className={`font-mono truncate leading-tight transition-colors duration-300 ${
-                                isDone ? "text-[#aaa]" : "text-[#111] font-semibold text-sky-600 dark:text-sky-400"
-                              }`}>
-                                {fpath}
-                              </span>
-                            </div>
-                            {isWriting && charCount > 0 && (
-                              <span className="text-[8px] text-[#aaa] font-semibold shrink-0">
-                                {charCount} chars
-                              </span>
-                            )}
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </motion.div>
-              )}
-              
               {/* Intent & Design Exploration UI */}
               {exploringPrompt && (
                 <DesignExploration 
@@ -716,7 +651,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
           )}
 
           {/* Post Build AI Quick Actions */}
-          {buildPhase === "done" && (
+          {buildPhase === "completed" && (
             <div className="flex flex-wrap gap-2 px-3 mt-3 mb-1">
               {[
                 { label: "Improve UI", icon: <Sparkles className="w-3 h-3 text-purple-500" /> },

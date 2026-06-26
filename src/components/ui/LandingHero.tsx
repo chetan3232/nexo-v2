@@ -14,8 +14,9 @@ const AVAILABLE_MODELS = [
   { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
   { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" },
   { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B" },
-  { id: "stepfun-ai/step-3.5-flash", name: "Step 3.5 Flash" },
-  { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Groq)" },
+  { id: "z-ai/glm-5.1", name: "GLM 5.1" },
+  { id: "moonshotai/kimi-k2.6", name: "Kimi K2.6" },
+  { id: "stepfun-ai/step-3.7-flash", name: "Step 3.7 Flash" },
 ];
 
 interface LandingHeroProps {

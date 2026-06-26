@@ -57,10 +57,9 @@ const PROVIDER_MODELS: Record<string, { id: string; name: string }[]> = {
   ],
   "NVIDIA NIM": [
     { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B" },
-    { id: "stepfun-ai/step-3.5-flash", name: "Step 3.5 Flash" }
-  ],
-  "Groq Cloud": [
-    { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B" }
+    { id: "z-ai/glm-5.1", name: "GLM 5.1" },
+    { id: "moonshotai/kimi-k2.6", name: "Kimi K2.6" },
+    { id: "stepfun-ai/step-3.7-flash", name: "Step 3.7 Flash" }
   ],
   "Anthropic": [
     { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet" }
@@ -291,8 +290,9 @@ export const WorkspaceSidebar: React.FC = () => {
     { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", desc: "Fast reasoning, high quota" },
     { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", desc: "Best quality, deep reasoning" },
     { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B (Nvidia)", desc: "Deep coding capabilities" },
-    { id: "stepfun-ai/step-3.5-flash", name: "Step 3.5 Flash (Nvidia)", desc: "StepFun generation model" },
-    { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Groq)", desc: "Fast open source reasoning" },
+    { id: "z-ai/glm-5.1", name: "GLM 5.1 (Nvidia)", desc: "GLM multilingual generation model" },
+    { id: "moonshotai/kimi-k2.6", name: "Kimi K2.6 (Nvidia)", desc: "Moonshot long-context generation model" },
+    { id: "stepfun-ai/step-3.7-flash", name: "Step 3.7 Flash (Nvidia)", desc: "StepFun generation model" },
   ];
 
   const languages = ["HTML", "TypeScript", "JavaScript", "Python"];
@@ -481,7 +481,7 @@ export const WorkspaceSidebar: React.FC = () => {
                 <span className="text-[10px] font-black text-studio-accent uppercase tracking-[0.2em] truncate">
                   {activeTab}
                 </span>
-                {buildPhase !== "idle" && buildPhase !== "done" && (
+                {buildPhase !== "idle" && buildPhase !== "completed" && (
                   <span 
                     className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-mono font-bold text-white shrink-0 shadow-sm bg-studio-accent"
                   >
@@ -511,29 +511,39 @@ export const WorkspaceSidebar: React.FC = () => {
                       {currentContent?.files && Object.keys(currentContent.files).length > 0 ? (
                         Object.keys(currentContent.files).map((filename) => {
                           const isWriting = activeFiles.has(filename);
+                          const isWaiting = !isWriting && currentContent.files[filename] === "";
+                          const isComplete = !isWriting && currentContent.files[filename] !== "";
                           return (
                             <button
                               key={filename}
                               onClick={() => setSelectedFileName(filename)}
-                              className={`w-full px-3 py-2 flex items-center gap-2.5 rounded-xl text-xs font-semibold tracking-wide text-left transition-all border ${
+                              className={`w-full px-3 py-2 flex flex-col gap-1 rounded-xl text-xs font-semibold tracking-wide text-left transition-all border ${
                                 selectedFileName === filename
                                   ? "bg-studio-accent/10 text-studio-text border-studio-accent/25 shadow-md shadow-studio-accent/5"
                                   : isWriting
-                                    ? "bg-indigo-500/5 text-indigo-400 border-indigo-500/20 animate-pulse"
+                                    ? "bg-indigo-500/5 text-indigo-400 border-indigo-500/20"
                                     : "bg-transparent border-transparent text-studio-muted hover:text-studio-text hover:bg-studio-panel/40"
                               }`}
                             >
-                              {isWriting ? (
-                                <Loader2 className="w-3.5 h-3.5 shrink-0 text-indigo-500 animate-spin" />
-                              ) : (
-                                <FileCode className="w-3.5 h-3.5 shrink-0 text-studio-accent/80" />
-                              )}
-                              <span className="truncate flex-1">{filename}</span>
-                              {isWriting && (
-                                <span className="text-[8px] font-mono font-bold bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded">
-                                  Writing
-                                </span>
-                              )}
+                              <div className="flex items-center gap-2.5 w-full">
+                                {isWriting ? (
+                                  <Loader2 className="w-3.5 h-3.5 shrink-0 text-indigo-500 animate-spin" />
+                                ) : isComplete ? (
+                                  <FileCode className="w-3.5 h-3.5 shrink-0 text-emerald-500" />
+                                ) : (
+                                  <FileCode className="w-3.5 h-3.5 shrink-0 text-stone-400 opacity-60" />
+                                )}
+                                <span className={`truncate flex-1 ${isComplete ? "text-stone-300 font-semibold" : isWriting ? "text-indigo-400 font-bold" : "text-stone-500 font-medium"}`}>{filename}</span>
+                              </div>
+                              <div className="pl-6 text-[9px] font-mono flex items-center gap-1 select-none">
+                                {isWriting ? (
+                                  <span className="text-indigo-400 animate-pulse font-bold">↳ Writing...</span>
+                                ) : isComplete ? (
+                                  <span className="text-emerald-500 font-medium">↳ Complete</span>
+                                ) : (
+                                  <span className="text-stone-500/70">↳ Waiting</span>
+                                )}
+                              </div>
                             </button>
                           );
                         })
@@ -546,7 +556,7 @@ export const WorkspaceSidebar: React.FC = () => {
                   </div>
 
                   {/* Active AI Squad Panel */}
-                  {buildPhase !== "idle" && buildPhase !== "done" && (
+                  {buildPhase !== "idle" && buildPhase !== "completed" && (
                     <div className="border-t border-studio-border/60 pt-4 space-y-3 mt-auto">
                       <div className="flex items-center justify-between text-[10px] text-studio-muted font-black uppercase tracking-wider">
                         <span>Active AI Squad</span>
