@@ -601,7 +601,7 @@ const detectSchema = (systemPrompt, messages) => {
 };
 
 class AIGateway {
-  static async streamCompletion({ messages, model, temperature, top_p, projectMode, techStack, systemPrompt, enabledTools, customApiKey, userId }, onChunk) {
+  static async streamCompletion({ messages, model, temperature, top_p, projectMode, techStack, systemPrompt, enabledTools, customApiKey, userId, maxTokens: customMaxTokens }, onChunk) {
     const apiKey = customApiKey || process.env.OPENROUTER_API_KEY || process.env.NVIDIA_API_KEY || process.env.GEMINI_API_KEY;
     if (!apiKey) {
       throw new Error("API Credentials missing on server.");
@@ -631,7 +631,7 @@ class AIGateway {
           throw new Error(`Provider ${provider} is not configured.`);
         }
 
-                const maxTokens = provider === "nvidia" ? 8192 : 32768;
+        const maxTokens = customMaxTokens !== undefined ? customMaxTokens : (provider === "nvidia" ? 8192 : 32768);
         
         const startTime = Date.now();
         let fullText = "";

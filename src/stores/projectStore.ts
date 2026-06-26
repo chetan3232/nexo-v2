@@ -11,8 +11,8 @@ interface ProjectStore {
   ) => void;
   selectedFileName: string | null;
   setSelectedFileName: (name: string | null) => void;
-  buildPhase: "idle" | "design_selection" | "planning" | "generating" | "building" | "fixing" | "deploying" | "done";
-  setBuildPhase: (phase: "idle" | "design_selection" | "planning" | "generating" | "building" | "fixing" | "deploying" | "done") => void;
+  buildPhase: "idle" | "planning" | "generating" | "building" | "fixing" | "deploying" | "done";
+  setBuildPhase: (phase: "idle" | "planning" | "generating" | "building" | "fixing" | "deploying" | "done") => void;
   buildingFiles: Record<string, FileProgress>;
   setBuildingFiles: (
     files:

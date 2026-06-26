@@ -27,6 +27,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
   const [minimap, setMinimap] = useState<boolean>(false);
   const [wordWrap, setWordWrap] = useState<"on" | "off">("on");
 
+  const serverValueRef = useRef<string>("");
+
   // Sync open tabs with selectedFileName
   useEffect(() => {
     if (selectedFileName && !openTabs.includes(selectedFileName)) {
@@ -49,15 +51,76 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
     }
   }, [isGenerating]);
 
-  // Sync editor value with the generated code in real-time or when file selection changes
+  // Keep serverValueRef up to date in real-time
+  useEffect(() => {
+    if (selectedFileName && currentContent?.files[selectedFileName] !== undefined) {
+      serverValueRef.current = currentContent.files[selectedFileName];
+    } else {
+      serverValueRef.current = "";
+    }
+  }, [selectedFileName, currentContent?.files, selectedFileName ? currentContent?.files[selectedFileName] : null]);
+
+  // Sync editor value with the generated code in real-time when NOT generating
   useEffect(() => {
     if (selectedFileName && currentContent?.files[selectedFileName] !== undefined) {
       const serverValue = currentContent.files[selectedFileName];
-      if (isGenerating || !userEditingRef.current) {
+      if (!isGenerating && !userEditingRef.current) {
         setLocalValue(serverValue);
       }
     }
   }, [selectedFileName, currentContent?.files, isGenerating]);
+
+  // Typewriter effect when code is generating
+  useEffect(() => {
+    if (!isGenerating) {
+      return;
+    }
+
+    // Set initial local value to empty or prefix of current file if switching tabs / starting
+    setLocalValue((prev) => {
+      const serverVal = serverValueRef.current;
+      if (!serverVal.startsWith(prev)) {
+        return "";
+      }
+      return prev;
+    });
+
+    const interval = setInterval(() => {
+      const serverVal = serverValueRef.current;
+
+      setLocalValue((prev) => {
+        if (prev.length >= serverVal.length) {
+          // If they are completely different (e.g. server reset or file switched), sync immediately
+          if (prev !== serverVal && !serverVal.startsWith(prev)) {
+            return serverVal;
+          }
+          return prev;
+        }
+
+        // If local value is not a prefix of the server value, sync immediately
+        if (!serverVal.startsWith(prev)) {
+          return serverVal.substring(0, Math.min(serverVal.length, prev.length + 1));
+        }
+
+        // Calculate lag and dynamically adjust typing speed
+        const lag = serverVal.length - prev.length;
+        let charsToType = 1;
+        if (lag > 600) {
+          charsToType = 35; // Catch up fast
+        } else if (lag > 200) {
+          charsToType = 15;
+        } else if (lag > 50) {
+          charsToType = 5;
+        } else if (lag > 10) {
+          charsToType = 2;
+        }
+
+        return serverVal.substring(0, prev.length + charsToType);
+      });
+    }, 15);
+
+    return () => clearInterval(interval);
+  }, [isGenerating, selectedFileName]);
 
   // Debounced update to global store and WebContainer filesystem
   useEffect(() => {

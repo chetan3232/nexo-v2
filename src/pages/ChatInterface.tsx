@@ -475,9 +475,7 @@ const ChatInterface: React.FC = () => {
       return;
     }
 
-    // Step into design selection phase
-    projectStore.setPendingPrompt(prompt);
-    projectStore.setBuildPhase("design_selection");
+    projectStore.setBuildPhase("planning");
     setWorkspaceTab("preview");
     if (isMobile) {
       setActiveMobileTab("preview");
@@ -500,14 +498,9 @@ const ChatInterface: React.FC = () => {
       ];
     }
     chatStore.setMessages((prev: Message[]) => [...prev, userMsg]);
-  };
 
-  const handleDesignSelect = async (designName: string) => {
-    const prompt = projectStore.pendingPrompt || "Build a website";
-    projectStore.setBuildPhase("planning");
-    
     try {
-      await Orchestrator.getInstance().executeFullFlow(prompt + "\n\nDesign Style Requirement: " + designName);
+      await Orchestrator.getInstance().executeFullFlow(prompt);
     } catch (error) {
       toast.error("Generation failed.");
     }
@@ -1084,7 +1077,6 @@ const ChatInterface: React.FC = () => {
                     <PreviewPanel
                       isVisualMode={isVisualMode}
                       setIsVisualMode={setIsVisualMode}
-                      onDesignSelect={handleDesignSelect}
                     />
                   </React.Suspense>
                 </div>
@@ -1195,7 +1187,6 @@ const ChatInterface: React.FC = () => {
                     <PreviewPanel
                       isVisualMode={isVisualMode}
                       setIsVisualMode={setIsVisualMode}
-                      onDesignSelect={handleDesignSelect}
                     />
                   </div>
                   <div className={workspaceTab === "code" ? "h-full w-full block" : "h-full w-full hidden"}>

@@ -3,12 +3,10 @@ import { Monitor, Loader2, Zap, Code2 } from "lucide-react";
 import { useRuntimeStore } from "../../stores/runtimeStore";
 import { useProjectStore } from "../../stores/projectStore";
 import { VisualDesignPanel } from "../editor/VisualDesignPanel";
-import { DesignSelector } from "./DesignSelector";
 
 interface PreviewPanelProps {
   isVisualMode: boolean;
   setIsVisualMode?: (val: boolean) => void;
-  onDesignSelect?: (designName: string) => void;
 }
 
 /**
@@ -262,15 +260,10 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
           </div>
         </div>
       )}
-      {/* Design Selection Phase */}
-      {buildPhase === "design_selection" && onDesignSelect && (
-        <div className="absolute inset-0 z-50 bg-white">
-          <DesignSelector onSelect={onDesignSelect} />
-        </div>
-      )}
+      {/* Design Selection Phase removed */}
 
       {/* Priority 1: WebContainer live iframe */}
-      {hasWebContainerPreview && buildPhase !== "design_selection" && (
+      {hasWebContainerPreview && (
         <>
           <iframe
             key={`wc-${previewKey}`}
@@ -288,7 +281,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
       )}
 
       {/* Priority 2: Fallback srcdoc preview from generated code */}
-      {hasFallbackPreview && buildPhase !== "design_selection" && (
+      {hasFallbackPreview && (
         <>
           <iframe
             key={`srcdoc-${previewKey}`}
@@ -314,7 +307,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
       )}
 
       {/* Loading: WebContainer booted but dev server URL not ready yet */}
-      {isLoading && !hasFallbackPreview && buildPhase !== "design_selection" && (
+      {isLoading && !hasFallbackPreview && (
         <div className="h-full w-full flex flex-col items-center justify-center gap-4 bg-white">
           <Loader2 className="w-8 h-8 text-[#0ea5e9] animate-spin" />
           <span className="text-[10px] font-bold text-[#bbb] uppercase tracking-[0.25em]">
@@ -324,7 +317,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
       )}
 
       {/* Empty: Nothing to show at all */}
-      {isEmpty && buildPhase !== "design_selection" && (
+      {isEmpty && (
         <div className="h-full w-full flex flex-col items-center justify-center gap-5 bg-white">
           <div className="relative">
             <div className="absolute inset-0 bg-sky-100 rounded-2xl blur-xl opacity-40" />
@@ -343,7 +336,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
         </div>
       )}
 
-      {isVisualMode && buildPhase !== "design_selection" && <VisualDesignPanel />}
+      {isVisualMode && <VisualDesignPanel />}
     </div>
   );
 };

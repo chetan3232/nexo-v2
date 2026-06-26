@@ -343,7 +343,8 @@ Example output:
                 systemPrompt: options.systemPrompt,
                 enabledTools: options.enabledTools,
                 customApiKey: options.customApiKey,
-                userId
+                userId,
+                maxTokens: 400
             });
 
             let planData = { plan: [], files: [] };
