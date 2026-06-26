@@ -1,98 +1,107 @@
+# 🚀 NEXO V2 — The Autonomous AI Studio
 
-  <h1>🚀 NEXO V2 — The Autonomous AI Studio</h1>
-  
-  <p align="center">
-    <b>NEXO V2 isn't just a code generator. It’s an Autonomous Software Engineer that lives in your browser.</b>
-    <br />
-    <i>Describe it. See it. Tweak it. Ship it. All in seconds.</i>
-  </p>
+<p align="center">
+  <b>NEXO V2 is an autonomous software engineering agent workspace that runs entirely in your browser.</b>
+  <br />
+  <i>Describe your idea, watch the AI plan and write code, tweak it visually, and deploy it live in seconds.</i>
+</p>
 
-  <p align="center">
-    <img src="https://img.shields.io/badge/Status-Production--Ready-emerald?style=for-the-badge&logo=rocket" />
-    <img src="https://img.shields.io/badge/Version-2.3.0-indigo?style=for-the-badge&logo=git" />
-    <img src="https://img.shields.io/badge/License-MIT-orange?style=for-the-badge" />
-    <img src="https://img.shields.io/badge/Built%20With-Gemini%203.5-blue?style=for-the-badge&logo=google-gemini" />
-  </p>
-</div>
+<p align="center">
+  <img src="https://img.shields.io/badge/Status-Production--Ready-emerald?style=for-the-badge&logo=rocket" alt="Status" />
+  <img src="https://img.shields.io/badge/Version-2.3.0-indigo?style=for-the-badge&logo=git" alt="Version" />
+  <img src="https://img.shields.io/badge/License-MIT-orange?style=for-the-badge" alt="License" />
+  <img src="https://img.shields.io/badge/Built%20With-Gemini%203.5-blue?style=for-the-badge&logo=google-gemini" alt="Built With Gemini" />
+</p>
 
 ---
 
-## ✨ Key Features
+## ✨ Core Features
 
-NEXO V2 is built on a **Multi-Agent Parallel Engine** designed to handle full-stack development autonomously.
+NEXO V2 uses a specialized **Multi-Agent Parallel Engine** to construct full-stack web applications interactively.
 
-- **⚡ Dual AI Engine Architecture (V2.3.0)**: Split reasoning into a **Fast Thinker** (instant planning/file skeleton layout in < 1.5s) and a **Deep Thinker** (background deep coding and code chunk streaming).
-- **📱 Fully Responsive Workspace**: Responsive interface with dynamic bottom navigation tabs (Chat, Code, Preview, and Studio) and mobile slide-in drawers to build on the go.
-- **🔌 Offline/Local-only Fallback System**: Automatic configuration checks. If Firebase keys are absent, NEXO seamlessly falls back to a fully functional local-only mode with LocalStorage persistence.
-- **🎨 Dynamic Color-Coded State Machine**: Real-time progress loader that changes colors dynamically per phase (Planning 🔵, Generating 🟣, Fixing 🟡, Deploying 🟢).
-- **🧠 Autonomous Multi-Agent Parallel Engine**: Specialized agents (PM, Designer, Frontend, Backend, QA) work simultaneously to build your app layers in parallel.
-- **⚡ Virtual Browser Runtime**: Powered by **StackBlitz WebContainers**, NEXO runs your code in a secure, sandboxed environment directly in the browser. No local setup required.
-- **🔮 Observe Mode**: Point NEXO to any URL and it will scan the UI, extract fonts, colors, and layouts, and recreate it as editable high-fidelity React components.
-- **🛠️ Self-Healing Loop**: Automated error diagnosis and patching. If the build fails, NEXO analyzes the logs and fixes the code autonomously.
-- **🎨 Visual AI Editor**: Select any element in the live preview and tell NEXO to change its style, layout, or content in real-time.
-- **🚀 One-Click SaaS Export**: Instantly inject Authentication (Firebase/Clerk), Payments (Stripe), and Dashboards into any project before exporting.
-- **🤝 AI Team Mode**: Collaborate in real-time with AI agents that have visible "Thinking" and "Coding" statuses.
+### ✍️ Monaco Typewriter Simulation
+
+Watch the AI write code in real-time. Instead of large, jumpy blocks of text appearing suddenly, the Monaco Editor uses an adaptive typewriter simulator to stream code smoothly character-by-character. Typing speeds automatically scale based on network latency to avoid delays.
+
+### ⚡ Capped LLM Latency (Fast Thinking)
+
+We optimize intermediate agent steps (such as layout planning and prompt enhancement) by applying strict token caps (`maxTokens: 250` for enhancer, `400` for planner). This cuts initial planning states down to under a second, ensuring a responsive workspace.
+
+### 🧠 Autonomous Multi-Agent Pipeline
+
+- **PM/Planner Agent**: Outlines milestones, determines layouts, and maps out targeted files.
+- **UI & Code Agent**: Generates production-ready frontend and backend components concurrently.
+- **Build & Fixer Agent (Self-Healing)**: Intercepts compiler exceptions in the virtual container and issues self-healing code edits to fix bugs automatically.
+
+### 💻 Local-First & Cloud-Sync Architecture
+
+Nexo V2 features a robust hybrid state manager. If Firebase configurations are absent, the application automatically runs in a fully functional **Local-Only Mode** with LocalStorage persistence. Once Firebase credentials are provided, cloud syncing and user authentication are enabled.
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ Technology Stack
 
-- **Core**: React 19, Vite, TypeScript
-- **Styling**: Tailwind CSS 3.4, Framer Motion (Apple-level animations)
-- **Intelligence**: Google Gemini 2.0 / NVIDIA GLM-4.7
-- **Runtime**: WebContainer API
-- **State**: Zustand (Reactive stores)
-- **Database Support**: Prisma, PostgreSQL (via WebContainer emulation)
+| Layer                  | Technologies                                                             |
+| :--------------------- | :----------------------------------------------------------------------- |
+| **Frontend Framework** | React 19, Vite, TypeScript                                               |
+| **Styling & UI**       | Tailwind CSS 3.4, Lucide Icons, Framer Motion (micro-animations)         |
+| **Virtual Sandbox**    | StackBlitz WebContainer API (in-browser Node.js/npm runtime)             |
+| **State Management**   | Zustand                                                                  |
+| **Database & API**     | Node.js Express server, Prisma, PostgreSQL (emulated)                    |
+| **AI Providers**       | Google Gemini 2.0, OpenAI GPT-4o, Anthropic Claude 3.5, Groq, NVIDIA GLM |
 
 ---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- [Node.js](https://nodejs.org/) (v20 or higher)
-- A Gemini API Key (or OpenRouter/NVIDIA API Key)
 
-### Installation
+- [Node.js](https://nodejs.org/) (v20.0.0 or higher)
+- An API Key from Google Gemini, OpenRouter, or NVIDIA Integration.
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/chetan3232/nexo-v2.git
-   cd nexo-v2
-   ```
+### 1. Clone & Install Client
 
-2. **Install dependencies**:
-   ```bash
-   npm install
-   ```
+```bash
+git clone https://github.com/chetan3232/nexo-v2.git
+cd nexo-v2
+npm install
+```
 
-3. **Configure environment**:
-   Create a `.env.local` file in the root and add your API keys:
-   ```env
-   VITE_GEMINI_API_KEY=your_gemini_api_key_here
+### 2. Configure Environment
 
-   # Optional: Firebase Cloud Sync & Authentication
-   VITE_FIREBASE_API_KEY=your_firebase_api_key_here
-   VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain_here
-   VITE_FIREBASE_DATABASE_URL=your_database_url_here
-   VITE_FIREBASE_PROJECT_ID=your_project_id_here
-   VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket_here
-   VITE_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id_here
-   VITE_FIREBASE_APP_ID=your_app_id_here
-   ```
-   *Note: If Firebase variables are omitted, NEXO V2 will automatically run in local-only offline mode using LocalStorage.*
+Create a `.env.local` file in the root directory:
 
-4. **Run the Studio**:
-   ```bash
-   npm run dev
-   ```
-   The studio will be available at `http://localhost:3000`.
+```env
+VITE_GEMINI_API_KEY=your_gemini_api_key_here
 
-5. **Run Server**:
-   ```bash
-   cd project-name/server
-   npm run dev
-   ```
-   The server will be available at `http://localhost:5000`.   
+# Optional: Firebase Sync & Auth
+VITE_FIREBASE_API_KEY=your_firebase_api_key_here
+VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain_here
+VITE_FIREBASE_PROJECT_ID=your_project_id_here
+```
+
+> ℹ️ **Note**: Omit the Firebase variables to run in local-only sandbox mode.
+
+### 3. Launch Development Environments
+
+Nexo V2 runs with a React client and a Node.js companion orchestration server.
+
+**Start Client Workspace (Terminal 1)**:
+
+```bash
+npm run dev
+```
+
+_App launches on `http://localhost:3000`_
+
+**Start Backend Orchestrator Server (Terminal 2)**:
+
+```bash
+cd project-name/server
+npm run dev
+```
+
+_Server launches on `http://localhost:5000`_
 
 ---
 
@@ -100,44 +109,37 @@ NEXO V2 is built on a **Multi-Agent Parallel Engine** designed to handle full-st
 
 ```text
 ├── src/
-│   ├── agents/          # Specialized AI Agents (PM, Frontend, etc.)
-│   ├── components/      # Modular UI Components & Workspace Panels
-│   ├── services/        # WebContainer, Firebase, and AI Services
-│   ├── stores/          # Zustand State Management
-│   ├── types/           # Global TypeScript Interfaces
-│   └── utils/           # AI Prompts, Parsers, and Visual Editor Logic
-├── project-brain/       # Persistent AI Context & Learned Preferences
-├── public/              # Static Assets
-└── api/                 # Backend Proxy & Deployment Logic
+│   ├── agents/          # Specialized AI Agent executors (PM, Frontend, DevOps)
+│   ├── components/      # UI components (Chat panels, Monaco Editor, Live Preview)
+│   ├── services/        # WebContainer bindings, Firebase integrations
+│   ├── stores/          # Zustand reactive state managers
+│   └── utils/           # AI system prompts, parsers, and visual editors
+├── project-name/
+│   └── server/          # Node.js Express companion orchestrator server
+│       ├── routes/      # SSE stream & job status controllers
+│       └── services/    # AI Gateway, Queue managers, Prompt enhancers
+└── nexo.md              # High-fidelity architectural specifications
 ```
 
 ---
 
-## 🛡️ Security
+## 🛡️ Sandbox Security
 
-NEXO V2 prioritizes security through total isolation. All generated code executes within the **WebContainer sandbox**, meaning it has no access to your local file system or sensitive system resources.
+Security is built directly into Nexo V2's execution model:
+
+- **Total Isolation**: Generated applications execute completely client-side in the **WebContainer sandbox**. They have no access to your host machine's filesystem or native terminal processes.
+- **Key Security**: AI API keys are stored only in your local browser state and are transmitted directly/proxied safely for streaming completions.
 
 For more details, see [SECURITY.md](./SECURITY.md).
 
 ---
 
-## 🤝 Contributing
+## 📄 License
 
-We welcome contributions! Whether it's adding new agents, improving UI templates, or fixing bugs:
-1. Fork the repo.
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`).
-3. Commit your changes (`git commit -m 'Add AmazingFeature'`).
-4. Push to the branch (`git push origin feature/AmazingFeature`).
-5. Open a Pull Request.
+Distributed under the MIT License. See [LICENSE](./LICENSE) for more details.
 
 ---
 
-## 📄 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
-
-<div align="center">
-  <br/>
-  <p>Built with ❤️ by the NEXO Community</p>
-  <a href="https://twitter.com/nexo_studio">Twitter</a> • <a href="https://discord.gg/nexo">Discord</a> • <a href="https://nexo.studio">Website</a>
-</div>
+<p align="center">
+  Built with ❤️ by the NEXO Community<br/>
+</p>

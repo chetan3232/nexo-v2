@@ -18,7 +18,7 @@ We take the security of NEXO V2 and its users seriously. If you believe you have
 **Please do not report security vulnerabilities through public GitHub issues.**
 
 Instead, please follow this process:
-1. Email your findings to **gamerchetan323@gmail,com**.
+1. Email your findings to **gamerchetan323@gmail.com**.
 2. Include a detailed description of the vulnerability, steps to reproduce it, and any potential impact.
 3. Our team will acknowledge your report within 48 hours and provide a timeline for resolution.
 
