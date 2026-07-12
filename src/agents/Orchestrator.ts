@@ -40,7 +40,7 @@ import { auth } from "../services/firebase";
 import { saveCurrentProject } from "../services/saveService";
 import { SAAS_TEMPLATES } from "../utils/saasTemplates";
 import { validateProjectIntent } from "../utils/intentAnalyzer";
-import { validateFileContent } from "../utils/projectModeValidator";
+import { validateFileContent, validateProjectFiles } from "../utils/projectModeValidator";
 
 export class Orchestrator {
   private static instance: Orchestrator;
@@ -529,7 +529,55 @@ export class Orchestrator {
             break;
           }
           case "done": {
-            console.log("[Orchestrator] Generation done received. Booting runtime...");
+            console.log("[Orchestrator] Generation done received. Performing validation...");
+            
+            const currentFiles = projectStore.currentContent?.files || {};
+            const projectMode = useAgentStore.getState().projectMode;
+            const validation = validateProjectFiles(currentFiles, projectMode);
+
+            if (!validation.valid) {
+              console.warn(`[Orchestrator] Post-generation validation failed: ${validation.reason}`);
+              toast.error(`Post-generation check failed: ${validation.reason || "Invalid project stack."}`);
+              
+              // Clean up and reject incompatible files
+              const cleanedFiles: Record<string, string> = {};
+              for (const [path, contents] of Object.entries(currentFiles)) {
+                if (this.isCompatibleFile(path, contents, projectMode).compatible) {
+                  cleanedFiles[path] = contents;
+                } else {
+                  console.warn(`[Orchestrator] Deleting incompatible file: ${path}`);
+                  const wc = WebContainerService.getInstance().getWebContainer();
+                  if (wc) {
+                    try {
+                      await wc.fs.rm(path);
+                    } catch (e) {
+                      console.error(`Failed to delete incompatible file ${path} from WebContainer:`, e);
+                    }
+                  }
+                }
+              }
+
+              projectStore.setCurrentContent((prev) => {
+                if (!prev) return prev;
+                return {
+                  ...prev,
+                  files: cleanedFiles
+                };
+              });
+
+              this.cleanupActiveJob(chatId);
+              source.close();
+              this.activeEventSource = null;
+
+              // Trigger automatic repair mechanism
+              const repairMessage = `The generated project structure or files violated the active project mode constraints for '${projectMode}': ${validation.reason}. Please re-generate and fix the project files to adhere strictly to ${projectMode === "frontend" ? "HTML, CSS and JavaScript static files only" : "React, TypeScript and Node.js backend files only"}.`;
+              toast.loading("Initiating auto-repair mechanism to align project stack...");
+              this.autoFixAttempts = 0;
+              await this.triggerSelfHealing(repairMessage);
+              break;
+            }
+
+            console.log("[Orchestrator] Generation validation passed. Booting runtime...");
             this.cleanupActiveJob(chatId);
             
             projectStore.setBuildingFiles((prev) => {
