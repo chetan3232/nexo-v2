@@ -802,10 +802,30 @@ export class Orchestrator {
           );
         }
 
-        const wcFiles: any = {};
-        Object.entries(content.files).forEach(([path, contents]) => {
-          wcFiles[path] = { file: { contents } };
-        });
+        const buildFileTree = (files: Record<string, string>) => {
+          const tree: any = {};
+          for (let [path, contents] of Object.entries(files)) {
+            if (path.startsWith('/')) {
+              path = path.slice(1);
+            }
+            const parts = path.split('/');
+            let current = tree;
+            for (let i = 0; i < parts.length; i++) {
+              const part = parts[i];
+              if (i === parts.length - 1) {
+                current[part] = { file: { contents } };
+              } else {
+                if (!current[part]) {
+                  current[part] = { directory: {} };
+                }
+                current = current[part].directory;
+              }
+            }
+          }
+          return tree;
+        };
+
+        const wcFiles = buildFileTree(content.files);
         await wc.mount(wcFiles);
         
         bus.thinking("Installing dependencies...");

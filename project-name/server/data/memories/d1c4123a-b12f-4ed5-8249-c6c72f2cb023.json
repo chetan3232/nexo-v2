@@ -1,0 +1,19 @@
+{
+  "chatId": "d1c4123a-b12f-4ed5-8249-c6c72f2cb023",
+  "createdAt": 1783585789043,
+  "updatedAt": 1783585789043,
+  "buildHistory": [
+    {
+      "timestamp": 1783585789043,
+      "prompt": "create a landing page for my coffiee shope",
+      "fileCount": 3,
+      "techStack": "Vanilla",
+      "projectMode": "frontend",
+      "model": "qwen/qwen3-coder-480b-a35b-instruct"
+    }
+  ],
+  "bugsFixed": [],
+  "detectedStack": "React/JavaScript",
+  "detectedDependencies": [],
+  "userPreferences": {}
+}

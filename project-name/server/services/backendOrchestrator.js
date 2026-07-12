@@ -1,4 +1,5 @@
 const AIGateway = require('./aiGateway');
+const PROJECT_MODES = require('./projectModes');
 const { extractCodeFromText } = require('../utils/parser');
 const { jobEvents } = require('./queueManager');
 const PromptEnhancer = require('./promptEnhancer');
@@ -230,6 +231,14 @@ class BackendOrchestrator {
         const isRefactor = options.isRefactor || isRefactorRequest(prompt);
         const hasImage = options.hasImage || false;
 
+        // Normalize strict mode parameters
+        options.projectMode = options.projectMode || 'frontend';
+        if (options.projectMode === 'frontend') {
+            options.techStack = 'Vanilla';
+        } else if (options.projectMode === 'fullstack') {
+            options.techStack = 'React';
+        }
+
         // ───────────────────────────────────────────
         // INIT: Load project memory
         // ───────────────────────────────────────────
@@ -314,7 +323,19 @@ class BackendOrchestrator {
 
             // Build context-aware plan prompt
             let fastPlanPrompt;
+            let modePlanningInstructions = "";
+            const modeConfig = PROJECT_MODES[options.projectMode];
             
+            if (modeConfig) {
+                const isFrontend = modeConfig.id === 'frontend';
+                modePlanningInstructions = `
+STRICT ${modeConfig.label.toUpperCase()} MODE RULES:
+1. Allowed Technologies: ${modeConfig.stack.join(', ')}.
+2. Forbidden Technologies: ${modeConfig.forbiddenTechnologies.join(', ')}.
+3. Allowed Project Types: ${modeConfig.allowedProjectTypes.join(', ')}.
+4. STRICT RULE: You MUST ONLY plan project types matching: ${modeConfig.allowedProjectTypes.join(', ')}. The files array MUST ONLY contain files compatible with: ${modeConfig.stack.join(', ')}. ${isFrontend ? 'No package.json, React files (src/App.tsx), tsconfig.json, or backend files are allowed.' : 'The files array MUST include both React frontend files (e.g., package.json, index.html, src/App.tsx, src/index.tsx, src/index.css) and backend files (e.g., server.ts, routes/api.ts).'}`;
+            }
+
             if (isRefactor && Object.keys(existingFiles).length > 0) {
                 // Refactor mode: analyze existing code
                 const existingFileList = Object.keys(existingFiles).join(', ');
@@ -322,6 +343,7 @@ class BackendOrchestrator {
 User wants to: "${finalPrompt}"
 Existing files in project: ${existingFileList}
 ${memoryContext}
+${modePlanningInstructions}
 
 You must respond with a JSON object. Return ONLY raw JSON, no markdown blocks.
 The JSON must contain:
@@ -330,29 +352,45 @@ The JSON must contain:
 3. "isRefactor": true`;
             } else if (hasImage) {
                 // Design-to-Code mode
+                let filesHint = options.projectMode === 'frontend' 
+                    ? 'index.html, style.css, script.js' 
+                    : 'package.json, src/App.tsx, src/components/[detected-components].tsx, src/index.css';
                 fastPlanPrompt = `You are a fast AI UI architect specializing in design reconstruction.
 User wants to build UI based on a screenshot/image: "${finalPrompt}"
 ${memoryContext}
+${modePlanningInstructions}
 
 Respond with ONLY raw JSON containing:
 1. "plan": Array of 3-5 steps for reconstructing the UI (e.g. "Analyze layout structure", "Create Navbar component")
-2. "files": Array of files needed (package.json, src/App.tsx, src/components/[detected-components].tsx, src/index.css)
+2. "files": Array of files needed (${filesHint})
 3. "isDesignToCode": true`;
             } else {
                 // Standard new build mode
+                let filesHint = options.projectMode === 'frontend'
+                    ? 'index.html, style.css, script.js'
+                    : 'package.json, tsconfig.json, index.html, src/App.tsx, src/index.tsx, src/index.css, server.ts';
+                let jsonExample = options.projectMode === 'frontend'
+                    ? `{
+  "plan": ["Setup HTML shell and typography", "Add landing page hero section", "Implement interactive menu via script.js"],
+  "files": ["index.html", "style.css", "script.js"]
+}`
+                    : `{
+  "plan": ["Setup React-Vite-TypeScript project skeleton", "Configure Node.js Express server routes", "Implement API integration in React"],
+  "files": ["package.json", "tsconfig.json", "index.html", "src/App.tsx", "src/index.tsx", "src/index.css", "server.ts"]
+}`;
+
                 fastPlanPrompt = `You are a fast AI architect.
 Analyze the user request: "${finalPrompt}"
 ${memoryContext}
+${modePlanningInstructions}
+
 You must respond with a JSON object. Return ONLY raw JSON, do not include markdown blocks or any text outside of it.
 The JSON must contain two keys:
 1. "plan": An array of 3-5 short steps describing the milestones.
-2. "files": An array of relative file paths of the files that will be needed to implement the project. Include App.tsx, index.html, components, styling, config files, package.json etc. as appropriate.
+2. "files": An array of relative file paths of the files that will be needed to implement the project (${filesHint}).
 
 Example output:
-{
-  "plan": ["Setup Tailwind base design", "Build Landing Hero", "Add custom animation hooks"],
-  "files": ["package.json", "index.html", "src/App.tsx", "src/components/Hero.tsx", "src/components/Navbar.tsx"]
-}`;
+${jsonExample}`;
             }
 
             const fastPlanOutput = await AIGateway.streamCompletion({
@@ -418,6 +456,7 @@ Example output:
                     : routeModel('ui_generation', options.model);
 
             let finalFiles = {};
+            let finalParsed = { files: {}, mainFile: 'index.html' };
             const isFullstack = options.projectMode === 'fullstack';
             const hasBackendFiles = planData.files.some(f => !f.startsWith('src/') && f !== 'index.html' && f !== 'package.json' && f !== 'vite.config.ts' && f !== 'tsconfig.json');
 
@@ -462,6 +501,10 @@ Ensure the frontend is fully responsive and modern.`;
                 });
 
                 const parsedFrontend = extractFilesFromJsonActions(frontendOutput);
+                finalParsed = {
+                    files: { ...parsedFrontend.files },
+                    mainFile: parsedFrontend.mainFile || 'index.html'
+                };
                 const finalFrontendFiles = parsedFrontend.files;
                 if (Object.keys(finalFrontendFiles).length > 0) {
                     job.updateFiles(finalFrontendFiles);
@@ -522,6 +565,10 @@ Implement these files completely, ensuring they fulfill the requests made by the
                 });
 
                 const parsedBackend = extractFilesFromJsonActions(backendOutput);
+                finalParsed.files = { ...finalParsed.files, ...parsedBackend.files };
+                if (parsedBackend.mainFile) {
+                    finalParsed.mainFile = parsedBackend.mainFile;
+                }
                 const finalBackendFiles = parsedBackend.files;
                 if (Object.keys(finalBackendFiles).length > 0) {
                     job.updateFiles(finalBackendFiles);
@@ -608,7 +655,7 @@ Do not truncate or omit any files. Ensure package.json has all necessary depende
                 });
 
                 // Final parse sanity check
-                const finalParsed = extractFilesFromJsonActions(streamedText);
+                finalParsed = extractFilesFromJsonActions(streamedText);
                 finalFiles = finalParsed.files;
                 if (Object.keys(finalFiles).length > 0) {
                     job.updateFiles(finalFiles);
@@ -706,6 +753,10 @@ Only output the files that need changes to address these security issues. Keep a
                     if (Object.keys(parsedFix.files).length > 0) {
                         finalFiles = { ...finalFiles, ...parsedFix.files };
                         currentFiles = { ...currentFiles, ...parsedFix.files };
+                        finalParsed.files = { ...finalParsed.files, ...parsedFix.files };
+                        if (parsedFix.mainFile) {
+                            finalParsed.mainFile = parsedFix.mainFile;
+                        }
                         job.updateFiles(parsedFix.files);
                     }
 
@@ -762,29 +813,6 @@ Only output the files that need changes to address these security issues. Keep a
             const fileCount = Object.keys(finalFiles).length;
             const modeLabel = isRefactor ? 'Refactored' : hasImage ? 'Design reconstructed into' : 'Generated';
             job.complete(
-                `${modeLabel} ${fileCount} files successfully. Ready to build runtime preview!`,
-                fileCount,
-                {
-                    mainFile: finalParsed.mainFile || 'index.html',
-                    template: 'web',
-                    wasEnhanced,
-                    isRefactor,
-                    hasImage,
-                    plannerModel,
-                    codeModel,
-                }
-            );
-
-        } catch (error) {
-            console.error('[BackendOrchestrator] Error during generation workflow:', error);
-            tasks.forEach(t => {
-                if (t.status === 'running' || t.status === 'pending') {
-                    t.status = 'error';
-                }
-            });
-            job.updateTasks(tasks);
-            job.fail(error.message || 'Workflow process crashed');
-        }omplete(
                 `${modeLabel} ${fileCount} files successfully. Ready to build runtime preview!`,
                 fileCount,
                 {

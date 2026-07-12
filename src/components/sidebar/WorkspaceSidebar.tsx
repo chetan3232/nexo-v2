@@ -29,6 +29,7 @@ import logoV2 from "../../assets/NEXO-V2.png";
 import { useProjectStore } from "../../stores/projectStore";
 import { useChatStore } from "../../stores/chatStore";
 import { useAgentStore } from "../../stores/agentStore";
+import { PROJECT_MODES } from "../../config/projectModes";
 import { useAgentEventStore } from "../../stores/agentEventStore";
 import { useTeamStore } from "../../stores/teamStore";
 import { PROJECT_TEMPLATES } from "../../lib/templates";
@@ -57,7 +58,7 @@ const PROVIDER_MODELS: Record<string, { id: string; name: string }[]> = {
   ],
   "NVIDIA NIM": [
     { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B" },
-    { id: "z-ai/glm-5.1", name: "GLM 5.1" },
+    { id: "z-ai/glm-5.2", name: "GLM 5.2" },
     { id: "moonshotai/kimi-k2.6", name: "Kimi K2.6" },
     { id: "stepfun-ai/step-3.7-flash", name: "Step 3.7 Flash" }
   ],
@@ -125,7 +126,6 @@ export const WorkspaceSidebar: React.FC = () => {
   // Local Sidebar States
   const [chatHistory, setChatHistory] = useState<any[]>([]);
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
-  const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isDeploying, setIsDeploying] = useState(false);
   const [hoveredTab, setHoveredTab] = useState<string | null>(null);
@@ -290,12 +290,10 @@ export const WorkspaceSidebar: React.FC = () => {
     { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", desc: "Fast reasoning, high quota" },
     { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", desc: "Best quality, deep reasoning" },
     { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B (Nvidia)", desc: "Deep coding capabilities" },
-    { id: "z-ai/glm-5.1", name: "GLM 5.1 (Nvidia)", desc: "GLM multilingual generation model" },
+    { id: "z-ai/glm-5.2", name: "GLM 5.2 (Nvidia)", desc: "GLM multilingual generation model" },
     { id: "moonshotai/kimi-k2.6", name: "Kimi K2.6 (Nvidia)", desc: "Moonshot long-context generation model" },
     { id: "stepfun-ai/step-3.7-flash", name: "Step 3.7 Flash (Nvidia)", desc: "StepFun generation model" },
   ];
-
-  const languages = ["HTML", "TypeScript", "JavaScript", "Python"];
 
   const tabs = [
     { id: "projects", icon: FolderOpen, label: "Explorer" },
@@ -934,39 +932,15 @@ export const WorkspaceSidebar: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Language Selector */}
-                  {projectMode === "frontend" && (
-                    <div className="space-y-2 relative">
-                      <label className="text-[10px] font-black text-studio-muted uppercase tracking-wider block">Source Language</label>
-                      <button
-                        onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
-                        className="w-full flex items-center justify-between px-3.5 py-2.5 bg-studio-bg border border-studio-border rounded-xl text-xs text-studio-text hover:border-studio-accent transition-all"
-                      >
-                        <span>{selectedLanguage}</span>
-                        <ChevronDown className="w-3 h-3 text-studio-muted" />
-                      </button>
-                      {isLangDropdownOpen && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-studio-card border border-studio-border rounded-xl shadow-2xl p-1 z-50">
-                          {languages.map((lang) => (
-                            <button
-                              key={lang}
-                              onClick={() => {
-                                setSelectedLanguage(lang);
-                                setIsLangDropdownOpen(false);
-                              }}
-                              className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
-                                selectedLanguage === lang
-                                  ? "bg-studio-accent text-white"
-                                  : "hover:bg-studio-panel text-studio-muted"
-                              }`}
-                            >
-                              {lang}
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                  {/* Tech Stack Display (Read-only) */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-studio-muted uppercase tracking-wider block">Auto Tech Stack</label>
+                    <div className="w-full flex items-center justify-between px-3.5 py-2.5 bg-studio-panel/35 border border-studio-border rounded-xl text-xs text-studio-muted/90 select-none">
+                      <span>
+                        {PROJECT_MODES[projectMode]?.stack.join(" + ")}
+                      </span>
                     </div>
-                  )}
+                  </div>
 
                   {/* Temperature slider */}
                   <div className="space-y-2 pt-2">

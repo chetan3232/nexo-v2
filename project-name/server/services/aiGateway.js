@@ -4,6 +4,7 @@ const { RateLimiterMemory } = require("rate-limiter-flexible");
 const fs = require("fs");
 const path = require("path");
 const allowanceManager = require("./allowanceManager");
+const PROJECT_MODES = require("./projectModes");
 const { PRODUCTION_DEVELOPMENT_RULES } = require("../constants/productionRules");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { Anthropic } = require("@anthropic-ai/sdk");
@@ -36,14 +37,18 @@ const rateLimiter = new RateLimiterMemory({
 
 const getMasterSystemPrompt = (projectMode) => {
   const isFullstack = projectMode === "fullstack";
+  const modeConfig = PROJECT_MODES[projectMode] || PROJECT_MODES.frontend;
+  const otherConfig = isFullstack ? PROJECT_MODES.frontend : PROJECT_MODES.fullstack;
   
   const modeParams = {
-    MODE_NAME: isFullstack ? "Fullstack" : "Frontend",
+    MODE_NAME: modeConfig.label,
     MODE_ROLE: isFullstack ? "Senior Fullstack Engineer" : "expert UI/UX & Frontend Developer",
-    MODE_GOAL: isFullstack ? "scalable, production-ready web applications" : "stunning, responsive landing pages, portfolios, and marketing websites",
+    MODE_GOAL: isFullstack 
+      ? `scalable, production-ready full-stack applications using ${modeConfig.stack.join(', ')}`
+      : `stunning, responsive Portfolio Websites or Landing Pages using only ${modeConfig.stack.join(', ')}`,
     MODE_ARCHITECTURE_MANDATE: isFullstack 
-      ? `- Primary Stack: React with Vite, Next.js, Tailwind CSS, Node.js, and cloud databases (Firebase/Supabase).\n- Structure your response into multiple files: Components, Hooks, API routes, and Database schemas.\n- Implement proper authentication, state management, database schemas, and API handlers.\n- Ensure the code is production-ready, modular, and follows clean architecture principles.`
-      : `- Primary Stack: HTML5, CSS3 (Tailwind CDN), JavaScript (Vanilla).\n- Do not use complex frameworks like React/Next.js unless specifically asked.\n- Output should be a single-file solution or clear separate files for index.html, style.css, and script.js.\n- Focus on animations (GSAP/Animate.css, CSS keyframes) and modern UI aesthetics.\n- Ensure all styles are handled via Tailwind CSS CDN inside index.html for immediate browser preview.`,
+      ? `- Required Technologies: ${modeConfig.stack.join(', ')}.\n- Recommended Architecture: React frontend, TypeScript throughout the project, Node.js backend, Express.js API layer where required.\n- Forbidden Technologies/Architectures (STRICTLY PROHIBITED): Plain HTML-only project, CSS-only project, Vanilla JavaScript-only website, or any of: ${modeConfig.forbiddenTechnologies.join(', ')}.\n- STRICT RULE: You MUST always generate a complete full-stack application using ${modeConfig.stack.join(', ')}. Single-file or static-only websites are prohibited.`
+      : `- Allowed Technologies: ${modeConfig.stack.join(', ')}.\n- Forbidden Technologies (STRICTLY PROHIBITED): ${modeConfig.forbiddenTechnologies.join(', ')}.\n- Allowed Project Types: ${modeConfig.allowedProjectTypes.join(', ')}.\n- Forbidden Project Types (STRICTLY PROHIBITED): SaaS application, Dashboard application, Authentication system, Admin panel, Full-stack application, Backend server, Database, API server, React application.\n- STRICT RULE: You MUST always generate a Portfolio Website or Landing Page using only HTML, CSS and Vanilla JavaScript. No other technology or project architecture is allowed.\n- Output should be structured into clear separate files: index.html, style.css, and script.js. Focus on smooth animations and premium UI aesthetics. Ensure all styles are handled via style.css or Tailwind CSS CDN inside index.html for previewing.`,
     MODE_PREVIEW_ENTRY: isFullstack ? "src/App.tsx" : "index.html"
   };
 
@@ -120,13 +125,22 @@ const buildSystemPrompt = (basePrompt, enabledTools, projectMode, techStack) => 
   if (projectMode === "fullstack") {
     prompt += `\n\n### FULL STACK ARCHITECTURE MANDATE
 You are a Full-Stack Architect. You are empowered with FULL STACK CAPABILITIES. You MUST generate the COMPLETE architecture (Frontend + Backend). Output JSON actions for all files.
-ALLOWED TECHNOLOGIES:
-- Modern Server-side languages (Node.js, Python, Go, etc.)
-- Databases (SQL, NoSQL)
-- Full Stack Frameworks (Next.js, Remix, etc.)`;
+ALLOWED TECHNOLOGIES: ${PROJECT_MODES.fullstack.stack.join(', ')} (Express.js API layer where required).`;
   }
 
-  if (techStack !== "Vanilla") {
+  if (projectMode === "frontend") {
+    prompt += `\n\n### TECHNOLOGY STACK MANDATE (FRONTEND MODE)
+You are building a Vanilla (HTML/CSS/JS) project.
+Allowed Technologies: ${PROJECT_MODES.frontend.stack.join(', ')}.
+Forbidden Technologies: ${PROJECT_MODES.frontend.forbiddenTechnologies.join(', ')}.
+Allowed Project Types: ${PROJECT_MODES.frontend.allowedProjectTypes.join(', ')}.
+You MUST generate separate files: index.html, style.css, and script.js. Do NOT generate package.json, React components, TypeScript files, server files, or database schemas.`;
+  } else if (projectMode === "fullstack") {
+    prompt += `\n\n### TECHNOLOGY STACK MANDATE (FULLSTACK MODE)
+You MUST build a complete full-stack application using ${PROJECT_MODES.fullstack.stack.join(', ')}.
+Forbidden: ${PROJECT_MODES.fullstack.forbiddenTechnologies.join(', ')}.
+You MUST generate all necessary configuration files (package.json, tsconfig.json, etc.) and implement both React frontend components and Node.js/Express backend routes.`;
+  } else if (techStack !== "Vanilla") {
     prompt += `\n\n### TECHNOLOGY STACK MANDATE
 You MUST build this project using the following specific stack: **${techStack}**. 
 Adjust your file structure accordingly. If this is a framework project (like React/Next.js), generate all necessary configuration files (package.json, tailwind.config.js, etc.) via JSON actions.
@@ -239,7 +253,7 @@ const logUsage = (model, inputTokens = 0, outputTokens = 0, durationMs = 0, user
       "gemini-2.5-pro": { input: 1.25, output: 5.00 },
       "gemini-2.0-flash": { input: 0.075, output: 0.30 },
       "qwen/qwen3-coder-480b-a35b-instruct": { input: 0.00, output: 0.00 },
-      "z-ai/glm-5.1": { input: 0.00, output: 0.00 },
+      "z-ai/glm-5.2": { input: 0.00, output: 0.00 },
       "moonshotai/kimi-k2.6": { input: 0.00, output: 0.00 },
       "stepfun-ai/step-3.7-flash": { input: 0.00, output: 0.00 }
     };

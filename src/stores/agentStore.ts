@@ -123,7 +123,15 @@ export const useAgentStore = create<AgentStore>((set) => ({
     "frontend",
   setProjectMode: (projectMode) => {
     localStorage.setItem("nexo_project_mode", projectMode);
-    set({ projectMode });
+    if (projectMode === "frontend") {
+      localStorage.setItem("nexo_tech_stack", "Vanilla");
+      localStorage.setItem("nexo_language", "HTML");
+      set({ projectMode, techStack: "Vanilla", selectedLanguage: "HTML" });
+    } else {
+      localStorage.setItem("nexo_tech_stack", "React");
+      localStorage.setItem("nexo_language", "TypeScript");
+      set({ projectMode, techStack: "React", selectedLanguage: "TypeScript" });
+    }
   },
   techStack: localStorage.getItem("nexo_tech_stack") || "Vanilla",
   setTechStack: (techStack) => {

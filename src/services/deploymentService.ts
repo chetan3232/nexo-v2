@@ -24,10 +24,18 @@ export class DeploymentService {
     
     toast.loading("Uploading to InsForge edge hosting...", { id: "deploy-status" });
 
+    const baseUrl = import.meta.env.VITE_INSFORGE_BASE_URL || "https://g7nugnui.ap-southeast.insforge.app";
+    const anonKey = import.meta.env.VITE_INSFORGE_ANON_KEY;
+
+    if (!anonKey) {
+      toast.error("Deployment failed: InsForge credentials are not configured.", { id: "deploy-status" });
+      throw new Error("Missing VITE_INSFORGE_ANON_KEY in environment variables.");
+    }
+
     // 2. Insert to InsForge database table 'user_deployments'
     const client = createClient({
-      baseUrl: "https://g7nugnui.ap-southeast.insforge.app",
-      anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3OC0xMjM0LTU2NzgtOTBhYi1jZGVmMTIzNDU2NzgiLCJlbWFpbCI6ImFub25AaW5zZm9yZ2UuY29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxMjI4OTh9.M-ENCUD91CkhHdFKT03HoalGjfqRkI9uhiOLO1FC1o8",
+      baseUrl,
+      anonKey,
     });
 
     const deploymentId = crypto.randomUUID();
@@ -43,7 +51,7 @@ export class DeploymentService {
       throw new Error(`Deployment database insertion failed: ${error.message}`);
     }
 
-    const deployUrl = `https://g7nugnui.ap-southeast.insforge.app/api/serve-deployment?id=${deploymentId}`;
+    const deployUrl = `${baseUrl}/api/serve-deployment?id=${deploymentId}`;
     toast.success("Deployment live! 🚀", { id: "deploy-status" });
     return deployUrl;
   }

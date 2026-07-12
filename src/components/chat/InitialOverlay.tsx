@@ -29,6 +29,7 @@ import {
   Rocket,
 } from "lucide-react";
 import logoV2 from "../../assets/NEXO-V2.png";
+import { PROJECT_MODES } from "../../config/projectModes";
 import { useAgentStore } from "../../stores/agentStore";
 import { useChatStore } from "../../stores/chatStore";
 import { useProjectStore } from "../../stores/projectStore";
@@ -65,7 +66,6 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
   const [prompt, setPrompt] = useState("");
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
-  const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [zipStatus, setZipStatus] = useState<
@@ -536,8 +536,8 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
       desc: "State-of-the-art coding and reasoning assistant",
     },
     {
-      id: "z-ai/glm-5.1",
-      name: "GLM 5.1",
+      id: "z-ai/glm-5.2",
+      name: "GLM 5.2",
       provider: "NVIDIA NIM",
       desc: "State-of-the-art multilingual reasoning",
     },
@@ -555,14 +555,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
     },
   ];
 
-  const languages = [
-    "HTML",
-    "TypeScript",
-    "JavaScript",
-    "Python",
-    "Go",
-    "Rust",
-  ];
+
 
   const chatStore = useChatStore();
   const activePromptText = chatStore.messages.find((m) => m.role === "user")?.text || "Active Project";
@@ -1006,59 +999,26 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
                 onClick={() => setProjectMode("frontend")}
                 className={`px-5 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${projectMode === "frontend" ? "bg-studio-accent text-white shadow-md shadow-studio-accent/10" : "text-studio-muted hover:text-studio-text"}`}
               >
-                <Palette className="w-4 h-4" /> Frontend Only
+                <Palette className="w-4 h-4" /> Frontend
               </button>
               <button
                 type="button"
                 onClick={() => setProjectMode("fullstack")}
                 className={`px-5 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${projectMode === "fullstack" ? "bg-studio-accent text-white shadow-md shadow-studio-accent/10" : "text-studio-muted hover:text-studio-text"}`}
               >
-                <Database className="w-4 h-4" /> Fullstack Node
+                <Database className="w-4 h-4" /> Fullstack
               </button>
             </div>
 
-            {projectMode === "frontend" && (
-              <>
-                <div className="h-4 w-px bg-studio-border hidden md:block" />
+            <div className="h-4 w-px bg-studio-border hidden md:block" />
 
-                {/* Language Selector */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-studio-panel/55 border border-studio-border hover:border-studio-accent/50 rounded-full text-xs font-bold text-studio-muted hover:text-studio-text transition-all shadow-md select-none"
-                  >
-                    <Code className="w-4 h-4 text-studio-secondary" />
-                    <span>{selectedLanguage}</span>
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  </button>
-                  <AnimatePresence>
-                    {isLangDropdownOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 10 }}
-                        className="absolute bottom-full left-0 mb-3 bg-studio-card border border-studio-border rounded-2xl shadow-2xl p-2 w-44 z-50"
-                      >
-                        {languages.map((lang) => (
-                          <button
-                            key={lang}
-                            type="button"
-                            onClick={() => {
-                              setSelectedLanguage(lang);
-                              setIsLangDropdownOpen(false);
-                            }}
-                            className={`w-full text-left px-4 py-2 rounded-xl transition-colors ${selectedLanguage === lang ? "bg-studio-accent text-white" : "hover:bg-studio-panel/40 text-studio-muted hover:text-studio-text"}`}
-                          >
-                            <div className="text-xs font-bold">{lang}</div>
-                          </button>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </>
-            )}
+            {/* Auto Tech Stack Display (Read-only) */}
+            <div className="flex items-center gap-2 px-5 py-2.5 bg-studio-panel/55 border border-studio-border rounded-full text-xs font-bold text-studio-muted select-none shadow-md">
+              <Code className="w-4 h-4 text-studio-secondary" />
+              <span>
+                {PROJECT_MODES[projectMode]?.stack.join(" + ")}
+              </span>
+            </div>
           </div>
 
           {/* Suggestion Chips */}
