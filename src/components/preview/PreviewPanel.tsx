@@ -3,6 +3,8 @@ import { Monitor, Loader2, Zap, Code2 } from "lucide-react";
 import { useRuntimeStore } from "../../stores/runtimeStore";
 import { useProjectStore } from "../../stores/projectStore";
 import { VisualDesignPanel } from "../editor/VisualDesignPanel";
+import { useGenerationWorkflowStore } from "../../stores/generationWorkflowStore";
+import { DesignSelectionPanel } from "../design/DesignSelectionPanel";
 
 interface PreviewPanelProps {
   isVisualMode: boolean;
@@ -212,6 +214,12 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
   isVisualMode,
   setIsVisualMode,
 }) => {
+  const currentPhase = useGenerationWorkflowStore((s) => s.currentPhase);
+
+  if (currentPhase === "AWAITING_DESIGN_SELECTION") {
+    return <DesignSelectionPanel />;
+  }
+
   const { url, isBooted, previewPhase } = useRuntimeStore();
   const { previewKey, currentContent, buildPhase } = useProjectStore();
   const iframeRef = useRef<HTMLIFrameElement>(null);
