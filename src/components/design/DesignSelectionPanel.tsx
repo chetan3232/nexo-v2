@@ -10,7 +10,7 @@ export const DesignSelectionPanel: React.FC = () => {
   const { designConcepts, selectDesign } = useGenerationWorkflowStore();
   const { projectMode } = useAgentStore();
 
-  const [activeFeedbackDesign, setActiveFeedbackDesign] = useState<{ id: string; name: string } | null>(null);
+  const [activeFeedbackDesign, setActiveFeedbackDesign] = useState<DesignConcept | null>(null);
   const [fullscreenDesign, setFullscreenDesign] = useState<DesignConcept | null>(null);
 
   if (!designConcepts || designConcepts.length < 2) {
@@ -47,14 +47,14 @@ export const DesignSelectionPanel: React.FC = () => {
           concept={designA}
           projectMode={projectMode}
           onSelect={() => selectDesign(designA.id)}
-          onEdit={() => setActiveFeedbackDesign({ id: designA.id, name: designA.name })}
+          onEdit={() => setActiveFeedbackDesign(designA)}
           onFullscreen={() => setFullscreenDesign(designA)}
         />
         <DesignPreviewCard
           concept={designB}
           projectMode={projectMode}
           onSelect={() => selectDesign(designB.id)}
-          onEdit={() => setActiveFeedbackDesign({ id: designB.id, name: designB.name })}
+          onEdit={() => setActiveFeedbackDesign(designB)}
           onFullscreen={() => setFullscreenDesign(designB)}
         />
       </div>
@@ -62,8 +62,7 @@ export const DesignSelectionPanel: React.FC = () => {
       {/* Refine / Feedback Modal */}
       {activeFeedbackDesign && (
         <DesignFeedbackEditor
-          designId={activeFeedbackDesign.id}
-          designName={activeFeedbackDesign.name}
+          concept={activeFeedbackDesign}
           onClose={() => setActiveFeedbackDesign(null)}
         />
       )}

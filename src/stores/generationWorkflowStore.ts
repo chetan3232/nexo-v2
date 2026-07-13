@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { useProjectStore } from "./projectStore";
 import { useChatStore } from "./chatStore";
 import { CompanionState } from "../types";
+import { DesignConcept } from "../types/designConcept";
 
 export type GenerationPhase =
   | "IDLE"
@@ -25,9 +26,10 @@ export interface GenerationWorkflowState {
   normalizedPrompt: string;
   projectMode: "frontend" | "fullstack";
   analysisResult: any;
-  designConcepts: any[];
+  designConcepts: DesignConcept[];
+  designHistory: Record<string, DesignConcept[]>;
   selectedDesignId: string | null;
-  selectedDesign: any | null;
+  selectedDesign: DesignConcept | null;
   designFeedback: string;
   implementationPlan: any | null;
   editedImplementationPlan: any | null;
@@ -44,7 +46,9 @@ export interface GenerationWorkflowActions {
   setNormalizedPrompt: (normalized: string) => void;
   startThinking: () => void;
   startGeneratingDesigns: () => void;
-  setDesignConcepts: (concepts: any[]) => void;
+  setDesignConcepts: (concepts: DesignConcept[]) => void;
+  addDesignVersion: (designId: string, updatedConcept: DesignConcept) => void;
+  restoreDesignVersion: (designId: string, versionIndex: number) => void;
   selectDesign: (designId: string) => void;
   submitDesignFeedback: (feedback: string) => void;
   startGeneratingPlan: () => void;
@@ -143,6 +147,7 @@ const initialState: GenerationWorkflowState = {
   projectMode: "frontend",
   analysisResult: null,
   designConcepts: [],
+  designHistory: {},
   selectedDesignId: null,
   selectedDesign: null,
   designFeedback: "",
@@ -215,8 +220,43 @@ export const useGenerationWorkflowStore = create<GenerationWorkflowStore>((set, 
     get().transitionTo("GENERATING_DESIGNS");
   },
 
-  setDesignConcepts: (concepts: any[]) => {
-    set({ designConcepts: concepts });
+  setDesignConcepts: (concepts: DesignConcept[]) => {
+    const history: Record<string, DesignConcept[]> = {};
+    concepts.forEach((c) => {
+      history[c.id] = [c];
+    });
+    set({ designConcepts: concepts, designHistory: history });
+  },
+
+  addDesignVersion: (designId: string, updatedConcept: DesignConcept) => {
+    set((state) => {
+      const currentHistory = state.designHistory[designId] || [];
+      const updatedHistory = [...currentHistory, updatedConcept];
+      const updatedConcepts = state.designConcepts.map((c) =>
+        c.id === designId ? updatedConcept : c
+      );
+      return {
+        designHistory: {
+          ...state.designHistory,
+          [designId]: updatedHistory,
+        },
+        designConcepts: updatedConcepts,
+      };
+    });
+  },
+
+  restoreDesignVersion: (designId: string, versionIndex: number) => {
+    set((state) => {
+      const history = state.designHistory[designId] || [];
+      const targetVersion = history[versionIndex];
+      if (!targetVersion) return {};
+      const updatedConcepts = state.designConcepts.map((c) =>
+        c.id === designId ? targetVersion : c
+      );
+      return {
+        designConcepts: updatedConcepts,
+      };
+    });
   },
 
   selectDesign: (designId: string) => {

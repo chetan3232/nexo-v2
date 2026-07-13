@@ -1,6 +1,7 @@
 import React from "react";
 import { Maximize2, Check, Edit3, Type, Palette } from "lucide-react";
 import { DesignConcept } from "../../types/designConcept";
+import { useGenerationWorkflowStore } from "../../stores/generationWorkflowStore";
 
 interface DesignPreviewCardProps {
   concept: DesignConcept;
@@ -92,6 +93,10 @@ export const DesignPreviewCard: React.FC<DesignPreviewCardProps> = ({
   onFullscreen,
 }) => {
   const srcDoc = buildConceptSrcDoc(concept.previewFiles, projectMode);
+  const history = useGenerationWorkflowStore((s) => s.designHistory[concept.id] || []);
+  const restoreVersion = useGenerationWorkflowStore((s) => s.restoreDesignVersion);
+
+  const currentVersionIdx = history.findIndex((h) => h === concept);
 
   return (
     <div className="flex flex-col bg-white border border-stone-200 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group flex-1">
@@ -130,6 +135,26 @@ export const DesignPreviewCard: React.FC<DesignPreviewCardProps> = ({
             {concept.description}
           </p>
         </div>
+
+        {/* Version Selector */}
+        {history.length > 1 && (
+          <div className="flex items-center justify-between bg-indigo-50/50 px-4 py-2.5 rounded-2xl border border-indigo-100/50">
+            <span className="text-[10px] font-bold text-indigo-950 uppercase tracking-wider">
+              Version History
+            </span>
+            <select
+              value={currentVersionIdx !== -1 ? currentVersionIdx : history.length - 1}
+              onChange={(e) => restoreVersion(concept.id, parseInt(e.target.value))}
+              className="bg-white border border-indigo-200 text-indigo-950 font-bold py-1 px-2.5 rounded-xl cursor-pointer text-xs focus:outline-none shadow-sm"
+            >
+              {history.map((_, idx) => (
+                <option key={idx} value={idx}>
+                  Version {idx + 1} {idx === history.length - 1 ? "(Latest)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Characteristics Grid */}
         <div className="grid grid-cols-2 gap-3 bg-stone-50 p-4 rounded-2xl border border-stone-100 text-[10px]">
