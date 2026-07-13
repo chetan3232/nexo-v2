@@ -41,6 +41,9 @@ import { saveCurrentProject } from "../services/saveService";
 import { SAAS_TEMPLATES } from "../utils/saasTemplates";
 import { validateProjectIntent } from "../utils/intentAnalyzer";
 import { validateFileContent, validateProjectFiles } from "../utils/projectModeValidator";
+import { useGenerationWorkflowStore } from "../stores/generationWorkflowStore";
+import { ProjectAnalysisService } from "../services/projectAnalysisService";
+import { DesignGenerationService } from "../services/designGenerationService";
 
 export class Orchestrator {
   private static instance: Orchestrator;
@@ -95,45 +98,12 @@ export class Orchestrator {
   async executeFullFlow(prompt: string) {
     const chatStore = useChatStore.getState();
     const agentStore = useAgentStore.getState();
+    const workflowStore = useGenerationWorkflowStore.getState();
+    const projectStore = useProjectStore.getState();
+    const bus = AgentEventBus.getInstance();
+
     const chatId = chatStore.currentChatId || crypto.randomUUID();
     if (!chatStore.currentChatId) chatStore.setCurrentChatId(chatId);
-
-    // Validate project intent and adapt if needed
-    const validation = validateProjectIntent(
-      prompt,
-      agentStore.projectMode,
-      undefined,
-      agentStore.techStack ? [agentStore.techStack] : []
-    );
-
-    let finalPrompt = prompt;
-    if (validation.status === "MODE_CONFLICT" || validation.adaptedPrompt !== prompt) {
-      finalPrompt = validation.adaptedPrompt;
-      toast.success(`Adapted request: ${validation.reason || "Project setup aligned to mode constraints."}`);
-    }
-
-    const options = {
-      model: agentStore.selectedModel,
-      projectMode: agentStore.projectMode,
-      techStack: agentStore.techStack,
-      selectedLanguage: agentStore.selectedLanguage,
-      temperature: agentStore.temperature,
-      topP: agentStore.topP,
-      systemPrompt: agentStore.systemPrompt || DEFAULT_SYSTEM_PROMPT,
-      enabledTools: agentStore.enabledTools,
-      customApiKey: agentStore.customApiKey,
-    };
-
-    // Force stack based on mode and configure system prompts
-    if (agentStore.projectMode === "frontend") {
-      options.techStack = "Vanilla";
-      options.selectedLanguage = "HTML";
-      options.systemPrompt = `${options.systemPrompt}\n\nSTRICT FRONTEND MODE RULES:\n- Only generate HTML, CSS, and Vanilla JavaScript.\n- Activate ONLY: PlannerAgent, DesignerAgent, FrontendAgent, AnimationAgent, QAAgent, ProductionAgent.\n- Disable: BackendAgent.\n- Force project type: Portfolio OR Landing Page. Reject any React, TypeScript, Vue, Angular, Node.js, database, Express, or Python files.`;
-    } else if (agentStore.projectMode === "fullstack") {
-      options.techStack = "React";
-      options.selectedLanguage = "TypeScript";
-      options.systemPrompt = `${options.systemPrompt}\n\nSTRICT FULLSTACK MODE RULES:\n- Activate: PlannerAgent, ArchitectureAgent, DesignerAgent, FrontendAgent, BackendAgent, SecurityAgent, DebugAgent, QAAgent, DevOpsAgent, ProductionAgent.\n- Force stack: React, TypeScript, Node.js. Reject any PHP, Python, Java, Vue, Angular files.`;
-    }
 
     // Close any previous event source
     if (this.activeEventSource) {
@@ -142,43 +112,89 @@ export class Orchestrator {
     }
 
     try {
-      chatStore.setState(CompanionState.THINKING);
-      useProjectStore.getState().setBuildPhase("analyzing");
-      useProjectStore.getState().setSubStatus("Analyzing requirements and planning architecture...");
       BackgroundPreserver.activate();
-      AgentEventBus.getInstance().buildStart();
-      this.ensureVisibilityListener();
-      
-      const response = await fetch("/api/ai/build", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          ...(auth.currentUser ? {
-            "x-user-id": auth.currentUser.uid,
-            "x-user-email": auth.currentUser.email || ""
-          } : {})
-        },
-        body: JSON.stringify({ prompt: finalPrompt, chatId, options })
-      });
+      bus.clear();
+      bus.setGenerating(true);
 
-      if (!response.ok) {
-        throw new Error(`Failed to start job: ${response.statusText}`);
-      }
+      // Phase 2: Start Analysis
+      workflowStore.startAnalysis(prompt, agentStore.projectMode);
+      projectStore.setSubStatus("Understanding your idea...");
 
-      const { jobId } = await response.json();
-      localStorage.setItem(`nexo_active_job_${chatId}`, jobId);
-      this.activeJobId = jobId;
-      this.activeChatId = chatId;
-      this.reconnectAttempts = 0;
+      // Wait a short bit to let the user see the visual transition
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      projectStore.setSubStatus("Analyzing project requirements...");
+
+      // Request structured analysis from service
+      const analysis = await ProjectAnalysisService.getInstance().analyzeProjectRequest(prompt, agentStore.projectMode, 3);
+      workflowStore.setAnalysisResult(analysis);
+      workflowStore.setNormalizedPrompt(analysis.normalizedRequest);
+
+      // Transition to THINKING
+      workflowStore.transitionTo("THINKING");
+      projectStore.setSubStatus("Planning user experience...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      projectStore.setSubStatus("Choosing design direction...");
+
+      // Print clean reasoning summary to chat history
+      const conflictsText = analysis.modeConflicts.length > 0
+        ? `\n- ⚠️ **Conflicts Resolved:** ${analysis.modeConflicts.join(", ")}`
+        : "";
       
-      this.connectToJobStream(jobId, chatId);
-    } catch (err: any) {
-      console.error("[Orchestrator] Failed to start backend build:", err);
-      toast.error(`Failed to start generation: ${err.message}`);
-      useProjectStore.getState().setBuildPhase("idle");
-      chatStore.setState(CompanionState.IDLE);
+      chatStore.setMessages((prev: Message[]) => [
+        ...prev,
+        {
+          id: `analysis_${Date.now()}`,
+          role: "assistant",
+          text: `🧠 **AI Analysis & Internal Plan**
+- **Project Goal:** ${analysis.projectGoal}
+- **Project Type:** ${analysis.projectType.toUpperCase()}
+- **Required Pages:** ${analysis.requiredPages.join(", ")}
+- **Required Features:** ${analysis.requiredFeatures.join(", ")}
+- **Complexity:** ${analysis.complexity.toUpperCase()}${conflictsText}
+- **Normalized Request:** _${analysis.normalizedRequest}_`,
+          timestamp: Date.now(),
+          model: agentStore.selectedModel
+        }
+      ]);
+
+      // Transition to GENERATING_DESIGNS
+      workflowStore.transitionTo("GENERATING_DESIGNS");
+      projectStore.setSubStatus("Preparing two visual concepts...");
+
+      // Phase 3: Run Dual Design Generation
+      const designs = await DesignGenerationService.getInstance().generateDesigns(prompt, analysis, agentStore.projectMode, 3);
+      workflowStore.setDesignConcepts(designs);
+
+      // Transition to AWAITING_DESIGN_SELECTION
+      workflowStore.transitionTo("AWAITING_DESIGN_SELECTION");
+      projectStore.setSubStatus("Ready for design selection.");
+
+      // Add a message bubble prompting the user to choose one of the designs
+      chatStore.setMessages((prev: Message[]) => [
+        ...prev,
+        {
+          id: `designs_ready_${Date.now()}`,
+          role: "assistant",
+          text: `🎨 **UI Design Concepts Ready!**
+I have generated two distinct design concepts for your project:
+1. **${designs[0].name}**: ${designs[0].description} (Theme: ${designs[0].colorSystem.background})
+2. **${designs[1].name}**: ${designs[1].description} (Theme: ${designs[1].colorSystem.background})
+
+Please select one of the designs to proceed with implementation.`,
+          timestamp: Date.now(),
+          model: agentStore.selectedModel
+        }
+      ]);
+
+      bus.setGenerating(false);
       BackgroundPreserver.deactivate();
-      AgentEventBus.getInstance().setGenerating(false);
+
+    } catch (err: any) {
+      console.error("[Orchestrator] Flow execution failed:", err);
+      toast.error(`Execution failed: ${err.message}`);
+      workflowStore.setError(err.message || "Unknown error occurred during generation");
+      bus.setGenerating(false);
+      BackgroundPreserver.deactivate();
     }
   }
 

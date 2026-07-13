@@ -211,7 +211,6 @@ function buildSrcdocFromFiles(
 export const PreviewPanel: React.FC<PreviewPanelProps> = ({
   isVisualMode,
   setIsVisualMode,
-  onDesignSelect,
 }) => {
   const { url, isBooted, previewPhase } = useRuntimeStore();
   const { previewKey, currentContent, buildPhase } = useProjectStore();

@@ -9,8 +9,8 @@ export class PMAgent {
   ): Promise<string> {
     const systemPrompt = `
 You are the NEXO Product Manager. Your job is to convert a raw user idea into a professional PRD (Product Requirement Document).
-MODE: ${options.projectMode.toUpperCase()}
-LANGUAGE: ${options.selectedLanguage}
+MODE: ${(options.projectMode || "frontend").toUpperCase()}
+LANGUAGE: ${options.selectedLanguage || "HTML"}
 Focus on:
 - Core Problem & Solution
 - User Personas

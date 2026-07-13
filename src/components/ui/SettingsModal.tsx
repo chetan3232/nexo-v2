@@ -136,7 +136,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [copiedShareLink, setCopiedShareLink] = useState(false);
 
   React.useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const unsubscribe = auth.onAuthStateChanged((user: any) => {
       setCurrentUser(user);
     });
     return () => unsubscribe();
