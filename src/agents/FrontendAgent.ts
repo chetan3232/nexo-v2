@@ -1,6 +1,8 @@
 import { BaseAgent } from "./BaseAgent";
 import { Message } from "../types";
 import { CollaborationBus } from "./CollaborationBus";
+import { useGenerationWorkflowStore } from "../stores/generationWorkflowStore";
+import { DesignLockService } from "../services/designLockService";
 
 export class FrontendAgent extends BaseAgent {
   async generateUI(
@@ -75,7 +77,10 @@ For new files or large rewrites, use the FILE format:
       ? `${prompt}\n\nPENDING REQUESTS:\n${collaborationContext}`
       : prompt;
 
-    const messages = this.formatMessages(history, finalPrompt, systemPrompt);
+    const snapshot = useGenerationWorkflowStore.getState().selectedDesignSnapshot;
+    const finalSystemPrompt = DesignLockService.getInstance().injectDesignLockPrompt(systemPrompt, snapshot);
+
+    const messages = this.formatMessages(history, finalPrompt, finalSystemPrompt);
 
     const payload = {
       model: options.model,

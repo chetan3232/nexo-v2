@@ -1,6 +1,7 @@
 import { create } from "zustand";
-import { DesignConcept } from "../types/designConcept";
+import { DesignConcept, SelectedDesignSnapshot } from "../types/designConcept";
 import { useProjectStore } from "./projectStore";
+import { DesignLockService } from "../services/designLockService";
 
 export type WorkflowPhase =
   | "IDLE"
@@ -48,6 +49,7 @@ export interface GenerationWorkflowState {
   designConcepts: DesignConcept[];
   selectedDesignId: string | null;
   selectedDesign: DesignConcept | null;
+  selectedDesignSnapshot: SelectedDesignSnapshot | null;
   designFeedback: string;
   designHistory: Record<string, DesignConcept[]>;
   implementationPlan: string;
@@ -137,6 +139,7 @@ export const useGenerationWorkflowStore = create<GenerationWorkflowState>((set, 
   designConcepts: [],
   selectedDesignId: null,
   selectedDesign: null,
+  selectedDesignSnapshot: null,
   designFeedback: "",
   designHistory: {},
   implementationPlan: "",
@@ -181,15 +184,20 @@ export const useGenerationWorkflowStore = create<GenerationWorkflowState>((set, 
     set({ designConcepts, designHistory });
   },
   setSelectedDesignId: (selectedDesignId: string | null) => {
-    const { designConcepts } = get();
+    const { designConcepts, designHistory } = get();
     const selectedDesign = designConcepts.find((d) => d.id === selectedDesignId) || null;
-    set({ selectedDesignId, selectedDesign });
+    const version = selectedDesign ? (designHistory[selectedDesign.id] || []).length || 1 : 1;
+    const selectedDesignSnapshot = selectedDesign ? DesignLockService.getInstance().createSnapshot(selectedDesign, version) : null;
+    set({ selectedDesignId, selectedDesign, selectedDesignSnapshot });
   },
   selectDesign: (id: string | null) => {
-    const { designConcepts } = get();
+    const { designConcepts, designHistory } = get();
     const selectedDesign = designConcepts.find((d) => d.id === id) || null;
-    set({ selectedDesignId: id, selectedDesign });
+    const version = selectedDesign ? (designHistory[selectedDesign.id] || []).length || 1 : 1;
+    const selectedDesignSnapshot = selectedDesign ? DesignLockService.getInstance().createSnapshot(selectedDesign, version) : null;
+    set({ selectedDesignId: id, selectedDesign, selectedDesignSnapshot });
     get().transitionTo("DESIGN_SELECTED");
+    get().transitionTo("GENERATING_IMPLEMENTATION_PLAN");
   },
   setDesignFeedback: (designFeedback: string) => set({ designFeedback }),
   addDesignVersion: (conceptId: string, refinedConcept: DesignConcept) => {
@@ -238,6 +246,7 @@ export const useGenerationWorkflowStore = create<GenerationWorkflowState>((set, 
       designConcepts: [],
       selectedDesignId: null,
       selectedDesign: null,
+      selectedDesignSnapshot: null,
       designFeedback: "",
       designHistory: {},
       implementationPlan: "",

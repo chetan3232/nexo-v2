@@ -1,5 +1,7 @@
 import { invokeAI } from "../services/geminiService";
 import { Message, AIModelOptions } from "../types";
+import { useGenerationWorkflowStore } from "../stores/generationWorkflowStore";
+import { DesignLockService } from "../services/designLockService";
 
 export class PlannerAgent {
   async plan(
@@ -35,12 +37,15 @@ Output Format:
 Recommended Template: [React-SaaS | E-commerce | Dashboard | AI-Chat]
 `;
 
+    const snapshot = useGenerationWorkflowStore.getState().selectedDesignSnapshot;
+    const finalSystemPrompt = DesignLockService.getInstance().injectDesignLockPrompt(systemPrompt, snapshot);
+
     const lastUserMsg = history[history.length - 1];
     const messages = history.slice(0, -1).map((m) => ({
       role: m.role === "model" || m.role === "assistant" ? "assistant" : m.role,
       content: m.content || m.text || "",
     }));
-    messages.push({ role: "system", content: systemPrompt } as any);
+    messages.push({ role: "system", content: finalSystemPrompt } as any);
     messages.push({
       role: "user",
       content: lastUserMsg?.content || lastUserMsg?.text || `User Prompt: ${prompt}`,

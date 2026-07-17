@@ -1,5 +1,7 @@
 import { BaseAgent } from "./BaseAgent";
 import { Message } from "../types";
+import { useGenerationWorkflowStore } from "../stores/generationWorkflowStore";
+import { DesignLockService } from "../services/designLockService";
 
 export interface HealthMetric {
   label: string;
@@ -47,9 +49,12 @@ ${Object.keys(files).join("\n")}
 Perform a deep audit.
         `;
 
+    const snapshot = useGenerationWorkflowStore.getState().selectedDesignSnapshot;
+    const finalSystemPrompt = DesignLockService.getInstance().injectDesignLockPrompt(systemPrompt, snapshot);
+
     return this.streamResponse({
       model: options.model,
-      messages: this.formatMessages(history, analysisPrompt, systemPrompt),
+      messages: this.formatMessages(history, analysisPrompt, finalSystemPrompt),
       temperature: 0.1,
     });
   }

@@ -45,6 +45,8 @@ import { useChatStore } from "../stores/chatStore";
 import { useAgentStore } from "../stores/agentStore";
 import { useDesignStore } from "../stores/designStore";
 import { useRuntimeStore } from "../stores/runtimeStore";
+import { useGenerationWorkflowStore } from "../stores/generationWorkflowStore";
+import { DesignSelectionPanel } from "../components/design/DesignSelectionPanel";
 import { saveCurrentProject } from "../services/saveService";
 import { Orchestrator } from "../agents/Orchestrator";
 import { Message } from "../types";
@@ -99,6 +101,7 @@ const ChatInterface: React.FC = () => {
   const setDeployStatus = useProjectStore((s) => s.setDeployStatus);
   const setDeployUrl = useProjectStore((s) => s.setDeployUrl);
   const incrementPreviewKey = useProjectStore((s) => s.incrementPreviewKey);
+  const currentPhase = useGenerationWorkflowStore((s) => s.currentPhase);
 
   const projectStore = {
     currentContent,
@@ -202,6 +205,16 @@ const ChatInterface: React.FC = () => {
       }
     }
   }, [projectStore.buildPhase, isMobile]);
+
+  // Auto-switch to Preview tab when design selection is awaited
+  useEffect(() => {
+    if (currentPhase === "AWAITING_DESIGN_SELECTION") {
+      setWorkspaceTab("preview");
+      if (isMobile) {
+        setActiveMobileTab("preview");
+      }
+    }
+  }, [currentPhase, isMobile]);
 
 
   const [projectTitle, setProjectTitle] = useState("Untitled");
@@ -1074,10 +1087,14 @@ const ChatInterface: React.FC = () => {
                       </div>
                     }
                   >
-                    <PreviewPanel
-                      isVisualMode={isVisualMode}
-                      setIsVisualMode={setIsVisualMode}
-                    />
+                    {currentPhase === "AWAITING_DESIGN_SELECTION" ? (
+                      <DesignSelectionPanel />
+                    ) : (
+                      <PreviewPanel
+                        isVisualMode={isVisualMode}
+                        setIsVisualMode={setIsVisualMode}
+                      />
+                    )}
                   </React.Suspense>
                 </div>
               </div>
@@ -1184,10 +1201,14 @@ const ChatInterface: React.FC = () => {
                   }
                 >
                   <div className={workspaceTab === "preview" ? "h-full w-full block" : "h-full w-full hidden"}>
-                    <PreviewPanel
-                      isVisualMode={isVisualMode}
-                      setIsVisualMode={setIsVisualMode}
-                    />
+                    {currentPhase === "AWAITING_DESIGN_SELECTION" ? (
+                      <DesignSelectionPanel />
+                    ) : (
+                      <PreviewPanel
+                        isVisualMode={isVisualMode}
+                        setIsVisualMode={setIsVisualMode}
+                      />
+                    )}
                   </div>
                   <div className={workspaceTab === "code" ? "h-full w-full block" : "h-full w-full hidden"}>
                     <EditorPanel

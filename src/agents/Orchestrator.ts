@@ -3,6 +3,9 @@ import { useChatStore } from "../stores/chatStore";
 import { useAgentStore } from "../stores/agentStore";
 import { useGenerationWorkflowStore } from "../stores/generationWorkflowStore";
 import { ProjectAnalysisService } from "../services/projectAnalysisService";
+import { DesignGenerationService } from "../services/designGenerationService";
+import { DesignLockService } from "../services/designLockService";
+import { SelectedDesignSnapshot } from "../types/designConcept";
 import { PMAgent } from "./PMAgent";
 import { DesignerAgent } from "./DesignerAgent";
 import { FrontendAgent } from "./FrontendAgent";
@@ -126,6 +129,20 @@ export class Orchestrator {
       workflowStore.transitionTo("GENERATING_DESIGNS");
       projectStore.setSubStatus("Preparing two visual concepts...");
 
+      const designs = await DesignGenerationService.getInstance().generateDesigns(
+        prompt,
+        analysisResult,
+        projectMode,
+        maxRetries
+      );
+
+      // Store both designs inside generationWorkflowStore
+      workflowStore.setDesignConcepts(designs);
+
+      // Transition to AWAITING_DESIGN_SELECTION & Update Status
+      workflowStore.transitionTo("AWAITING_DESIGN_SELECTION");
+      projectStore.setSubStatus("Awaiting design selection...");
+
       // Finish planning phase
       chatStore.setState(CompanionState.IDLE);
       projectStore.setBuildPhase("completed");
@@ -151,7 +168,7 @@ ${bulletList(analysisResult.requiredFeatures)}
 ${bulletList(analysisResult.technicalRequirements)}
 ${analysisResult.modeConflicts.length > 0 ? `\n⚠️ **Mode Conflicts Resolved:**\n${bulletList(analysisResult.modeConflicts)}` : ""}
 
-*Transitioning to Design Concepts Exploration...*`;
+*Design A and Design B have been generated successfully. Compare and select your preferred visual concept in the preview panel.*`;
 
       chatStore.setMessages((prev: any[]) => [
         ...prev,
