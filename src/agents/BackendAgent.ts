@@ -8,9 +8,6 @@ export class BackendAgent extends BaseAgent {
     history: Message[],
     options: AIModelOptions,
   ): Promise<string> {
-    if (options.projectMode === "frontend") {
-      throw new Error("BackendAgent is disabled in Frontend mode.");
-    }
     const systemPrompt = `
 You are a Senior Full-Stack NEXO Engineer. You specialize in building backend services that run inside a browser (WebContainer).
 

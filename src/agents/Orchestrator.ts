@@ -1,6 +1,6 @@
 import { useProjectStore, BuildTask } from "../stores/projectStore";
 import { useChatStore } from "../stores/chatStore";
-import { useAgentStore, DEFAULT_SYSTEM_PROMPT } from "../stores/agentStore";
+import { useAgentStore } from "../stores/agentStore";
 import { PMAgent } from "./PMAgent";
 import { DesignerAgent } from "./DesignerAgent";
 import { FrontendAgent } from "./FrontendAgent";
@@ -39,11 +39,6 @@ import { AgentEventBus } from "../utils/agentEventBus";
 import { auth } from "../services/firebase";
 import { saveCurrentProject } from "../services/saveService";
 import { SAAS_TEMPLATES } from "../utils/saasTemplates";
-import { validateProjectIntent } from "../utils/intentAnalyzer";
-import { validateFileContent, validateProjectFiles } from "../utils/projectModeValidator";
-import { useGenerationWorkflowStore } from "../stores/generationWorkflowStore";
-import { ProjectAnalysisService } from "../services/projectAnalysisService";
-import { DesignGenerationService } from "../services/designGenerationService";
 
 export class Orchestrator {
   private static instance: Orchestrator;
@@ -53,27 +48,6 @@ export class Orchestrator {
       Orchestrator.instance = new Orchestrator();
     }
     return Orchestrator.instance;
-  }
-
-  private verifyAgentCall(agentName: string) {
-    const projectMode = useAgentStore.getState().projectMode;
-    if (projectMode === "frontend") {
-      const allowed = ["PlannerAgent", "DesignerAgent", "FrontendAgent", "AnimationAgent", "QAAgent", "ProductionAgent"];
-      const disabled = ["BackendAgent"];
-      if (disabled.includes(agentName) || !allowed.includes(agentName)) {
-        throw new Error(`Agent ${agentName} is disabled or not allowed in Frontend mode.`);
-      }
-    } else if (projectMode === "fullstack") {
-      const allowed = ["PlannerAgent", "ArchitectureAgent", "DesignerAgent", "FrontendAgent", "BackendAgent", "SecurityAgent", "DebugAgent", "QAAgent", "DevOpsAgent", "ProductionAgent"];
-      if (!allowed.includes(agentName)) {
-        throw new Error(`Agent ${agentName} is not allowed in Fullstack mode.`);
-      }
-    }
-  }
-
-  private isCompatibleFile(path: string, content: string, projectMode: "frontend" | "fullstack"): { compatible: boolean; reason?: string } {
-    const res = validateFileContent(path, content, projectMode);
-    return { compatible: res.valid, reason: res.reason };
   }
 
   private constructor() {}
@@ -98,12 +72,20 @@ export class Orchestrator {
   async executeFullFlow(prompt: string) {
     const chatStore = useChatStore.getState();
     const agentStore = useAgentStore.getState();
-    const workflowStore = useGenerationWorkflowStore.getState();
-    const projectStore = useProjectStore.getState();
-    const bus = AgentEventBus.getInstance();
-
     const chatId = chatStore.currentChatId || crypto.randomUUID();
     if (!chatStore.currentChatId) chatStore.setCurrentChatId(chatId);
+
+    const options = {
+      model: agentStore.selectedModel,
+      projectMode: agentStore.projectMode,
+      techStack: agentStore.techStack,
+      selectedLanguage: agentStore.selectedLanguage,
+      temperature: agentStore.temperature,
+      topP: agentStore.topP,
+      systemPrompt: agentStore.systemPrompt,
+      enabledTools: agentStore.enabledTools,
+      customApiKey: agentStore.customApiKey,
+    };
 
     // Close any previous event source
     if (this.activeEventSource) {
@@ -112,89 +94,43 @@ export class Orchestrator {
     }
 
     try {
+      chatStore.setState(CompanionState.THINKING);
+      useProjectStore.getState().setBuildPhase("analyzing");
+      useProjectStore.getState().setSubStatus("Analyzing requirements and planning architecture...");
       BackgroundPreserver.activate();
-      bus.clear();
-      bus.setGenerating(true);
-
-      // Phase 2: Start Analysis
-      workflowStore.startAnalysis(prompt, agentStore.projectMode);
-      projectStore.setSubStatus("Understanding your idea...");
-
-      // Wait a short bit to let the user see the visual transition
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      projectStore.setSubStatus("Analyzing project requirements...");
-
-      // Request structured analysis from service
-      const analysis = await ProjectAnalysisService.getInstance().analyzeProjectRequest(prompt, agentStore.projectMode, 3);
-      workflowStore.setAnalysisResult(analysis);
-      workflowStore.setNormalizedPrompt(analysis.normalizedRequest);
-
-      // Transition to THINKING
-      workflowStore.transitionTo("THINKING");
-      projectStore.setSubStatus("Planning user experience...");
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      projectStore.setSubStatus("Choosing design direction...");
-
-      // Print clean reasoning summary to chat history
-      const conflictsText = analysis.modeConflicts.length > 0
-        ? `\n- ⚠️ **Conflicts Resolved:** ${analysis.modeConflicts.join(", ")}`
-        : "";
+      AgentEventBus.getInstance().buildStart();
+      this.ensureVisibilityListener();
       
-      chatStore.setMessages((prev: Message[]) => [
-        ...prev,
-        {
-          id: `analysis_${Date.now()}`,
-          role: "assistant",
-          text: `🧠 **AI Analysis & Internal Plan**
-- **Project Goal:** ${analysis.projectGoal}
-- **Project Type:** ${analysis.projectType.toUpperCase()}
-- **Required Pages:** ${analysis.requiredPages.join(", ")}
-- **Required Features:** ${analysis.requiredFeatures.join(", ")}
-- **Complexity:** ${analysis.complexity.toUpperCase()}${conflictsText}
-- **Normalized Request:** _${analysis.normalizedRequest}_`,
-          timestamp: Date.now(),
-          model: agentStore.selectedModel
-        }
-      ]);
+      const response = await fetch("/api/ai/build", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          ...(auth.currentUser ? {
+            "x-user-id": auth.currentUser.uid,
+            "x-user-email": auth.currentUser.email || ""
+          } : {})
+        },
+        body: JSON.stringify({ prompt, chatId, options })
+      });
 
-      // Transition to GENERATING_DESIGNS
-      workflowStore.transitionTo("GENERATING_DESIGNS");
-      projectStore.setSubStatus("Preparing two visual concepts...");
+      if (!response.ok) {
+        throw new Error(`Failed to start job: ${response.statusText}`);
+      }
 
-      // Phase 3: Run Dual Design Generation
-      const designs = await DesignGenerationService.getInstance().generateDesigns(prompt, analysis, agentStore.projectMode, 3);
-      workflowStore.setDesignConcepts(designs);
-
-      // Transition to AWAITING_DESIGN_SELECTION
-      workflowStore.transitionTo("AWAITING_DESIGN_SELECTION");
-      projectStore.setSubStatus("Ready for design selection.");
-
-      // Add a message bubble prompting the user to choose one of the designs
-      chatStore.setMessages((prev: Message[]) => [
-        ...prev,
-        {
-          id: `designs_ready_${Date.now()}`,
-          role: "assistant",
-          text: `🎨 **UI Design Concepts Ready!**
-I have generated two distinct design concepts for your project:
-1. **${designs[0].name}**: ${designs[0].description} (Theme: ${designs[0].colorSystem.background})
-2. **${designs[1].name}**: ${designs[1].description} (Theme: ${designs[1].colorSystem.background})
-
-Please select one of the designs to proceed with implementation.`,
-          timestamp: Date.now(),
-          model: agentStore.selectedModel
-        }
-      ]);
-
-      bus.setGenerating(false);
-      BackgroundPreserver.deactivate();
-
+      const { jobId } = await response.json();
+      localStorage.setItem(`nexo_active_job_${chatId}`, jobId);
+      this.activeJobId = jobId;
+      this.activeChatId = chatId;
+      this.reconnectAttempts = 0;
+      
+      this.connectToJobStream(jobId, chatId);
     } catch (err: any) {
-      console.error("[Orchestrator] Flow execution failed:", err);
-      toast.error(`Execution failed: ${err.message}`);
-      workflowStore.setError(err.message || "Unknown error occurred during generation");
-      bus.setGenerating(false);
+      console.error("[Orchestrator] Failed to start backend build:", err);
+      toast.error(`Failed to start generation: ${err.message}`);
+      useProjectStore.getState().setBuildPhase("idle");
+      chatStore.setState(CompanionState.IDLE);
       BackgroundPreserver.deactivate();
+      AgentEventBus.getInstance().setGenerating(false);
     }
   }
 
@@ -287,19 +223,8 @@ Please select one of the designs to proceed with implementation.`,
 
             // Sync files
             if (job.files && Object.keys(job.files).length > 0) {
-              const projectMode = useAgentStore.getState().projectMode;
-              const filteredFiles: Record<string, string> = {};
-              for (const [fpath, contents] of Object.entries(job.files)) {
-                const validation = this.isCompatibleFile(fpath, contents as string, projectMode);
-                if (validation.compatible) {
-                  filteredFiles[fpath] = contents as string;
-                } else {
-                  console.warn(`[Orchestrator] Rejected file from job history: ${fpath}: ${validation.reason}`);
-                }
-              }
-
               projectStore.setCurrentContent({
-                files: filteredFiles,
+                files: job.files,
                 patches: {},
                 mainFile: job.mainFile || "index.html",
                 template: job.template || "web"
@@ -308,7 +233,7 @@ Please select one of the designs to proceed with implementation.`,
               // Write files to WebContainer runtime in background
               const wc = WebContainerService.getInstance().getWebContainer();
               if (wc) {
-                for (const [path, contents] of Object.entries(filteredFiles)) {
+                for (const [path, contents] of Object.entries(job.files)) {
                   try {
                     // Create parent folders if nested path
                     if (path.includes("/")) {
@@ -362,14 +287,6 @@ Please select one of the designs to proceed with implementation.`,
           }
           case "create_file": {
             const { path } = packet;
-            const projectMode = useAgentStore.getState().projectMode;
-            const validation = this.isCompatibleFile(path, "", projectMode);
-            if (!validation.compatible) {
-              console.warn(`[Orchestrator] Rejected file creation: ${path} (${validation.reason})`);
-              toast.error(`Blocked incompatible file: ${path}`);
-              break;
-            }
-
             projectStore.setBuildingFiles((prev) => ({
               ...prev,
               [path]: { status: "writing", charCount: 0 },
@@ -406,17 +323,6 @@ Please select one of the designs to proceed with implementation.`,
           }
           case "write_code": {
             const { path, chunk } = packet;
-            const projectMode = useAgentStore.getState().projectMode;
-            const currentFiles = projectStore.currentContent?.files || {};
-            const currentVal = currentFiles[path] || "";
-            const newVal = currentVal + chunk;
-            const validation = this.isCompatibleFile(path, newVal, projectMode);
-            if (!validation.compatible) {
-              console.warn(`[Orchestrator] Rejected code write to ${path} (${validation.reason})`);
-              toast.error(`Blocked incompatible code in: ${path}`);
-              break;
-            }
-
             projectStore.setBuildingFiles((prev) => ({
               ...prev,
               [path]: {
@@ -450,14 +356,6 @@ Please select one of the designs to proceed with implementation.`,
           }
           case "update_file": {
             const { path, content } = packet;
-            const projectMode = useAgentStore.getState().projectMode;
-            const validation = this.isCompatibleFile(path, content, projectMode);
-            if (!validation.compatible) {
-              console.warn(`[Orchestrator] Rejected file update: ${path} (${validation.reason})`);
-              toast.error(`Blocked incompatible update to: ${path}`);
-              break;
-            }
-
             projectStore.setBuildingFiles((prev) => ({
               ...prev,
               [path]: { status: "done", charCount: content.length },
@@ -491,22 +389,9 @@ Please select one of the designs to proceed with implementation.`,
           }
           case "files_update": {
             const files = packet.files;
-            const projectMode = useAgentStore.getState().projectMode;
-            const filteredFiles: Record<string, string> = {};
-            for (const [fpath, contents] of Object.entries(files)) {
-              const validation = this.isCompatibleFile(fpath, contents as string, projectMode);
-              if (validation.compatible) {
-                filteredFiles[fpath] = contents as string;
-              } else {
-                console.warn(`[Orchestrator] Rejected file update in batch: ${fpath} (${validation.reason})`);
-                toast.error(`Blocked incompatible file: ${fpath}`);
-              }
-            }
-            if (Object.keys(filteredFiles).length === 0) break;
-
             projectStore.setBuildingFiles((prev) => {
               const next = { ...prev };
-              Object.entries(filteredFiles).forEach(([fpath, contents]) => {
+              Object.entries(files).forEach(([fpath, contents]) => {
                 next[fpath] = { status: "done", charCount: (contents as string).length };
               });
               return next;
@@ -514,7 +399,7 @@ Please select one of the designs to proceed with implementation.`,
             projectStore.setCurrentContent((prev) => {
               const currentFiles = prev ? prev.files : {};
               return {
-                files: { ...currentFiles, ...filteredFiles },
+                files: { ...currentFiles, ...files },
                 patches: {},
                 mainFile: prev?.mainFile || "index.html",
                 template: prev?.template || "web"
@@ -524,7 +409,7 @@ Please select one of the designs to proceed with implementation.`,
             // Write files live to WebContainer
             const wc = WebContainerService.getInstance().getWebContainer();
             if (wc) {
-              for (const [path, contents] of Object.entries(filteredFiles)) {
+              for (const [path, contents] of Object.entries(files)) {
                 try {
                   if (path.includes("/")) {
                     const parts = path.split("/");
@@ -545,55 +430,7 @@ Please select one of the designs to proceed with implementation.`,
             break;
           }
           case "done": {
-            console.log("[Orchestrator] Generation done received. Performing validation...");
-            
-            const currentFiles = projectStore.currentContent?.files || {};
-            const projectMode = useAgentStore.getState().projectMode;
-            const validation = validateProjectFiles(currentFiles, projectMode);
-
-            if (!validation.valid) {
-              console.warn(`[Orchestrator] Post-generation validation failed: ${validation.reason}`);
-              toast.error(`Post-generation check failed: ${validation.reason || "Invalid project stack."}`);
-              
-              // Clean up and reject incompatible files
-              const cleanedFiles: Record<string, string> = {};
-              for (const [path, contents] of Object.entries(currentFiles)) {
-                if (this.isCompatibleFile(path, contents, projectMode).compatible) {
-                  cleanedFiles[path] = contents;
-                } else {
-                  console.warn(`[Orchestrator] Deleting incompatible file: ${path}`);
-                  const wc = WebContainerService.getInstance().getWebContainer();
-                  if (wc) {
-                    try {
-                      await wc.fs.rm(path);
-                    } catch (e) {
-                      console.error(`Failed to delete incompatible file ${path} from WebContainer:`, e);
-                    }
-                  }
-                }
-              }
-
-              projectStore.setCurrentContent((prev) => {
-                if (!prev) return prev;
-                return {
-                  ...prev,
-                  files: cleanedFiles
-                };
-              });
-
-              this.cleanupActiveJob(chatId);
-              source.close();
-              this.activeEventSource = null;
-
-              // Trigger automatic repair mechanism
-              const repairMessage = `The generated project structure or files violated the active project mode constraints for '${projectMode}': ${validation.reason}. Please re-generate and fix the project files to adhere strictly to ${projectMode === "frontend" ? "HTML, CSS and JavaScript static files only" : "React, TypeScript and Node.js backend files only"}.`;
-              toast.loading("Initiating auto-repair mechanism to align project stack...");
-              this.autoFixAttempts = 0;
-              await this.triggerSelfHealing(repairMessage);
-              break;
-            }
-
-            console.log("[Orchestrator] Generation validation passed. Booting runtime...");
+            console.log("[Orchestrator] Generation done received. Booting runtime...");
             this.cleanupActiveJob(chatId);
             
             projectStore.setBuildingFiles((prev) => {
@@ -914,22 +751,11 @@ Please select one of the designs to proceed with implementation.`,
   private updateProjectStore(text: string) {
     const parsed = extractCodeFromText(text);
     if (parsed.website) {
-      const projectMode = useAgentStore.getState().projectMode;
-      const filteredFiles: Record<string, string> = {};
-      for (const [fpath, contents] of Object.entries(parsed.website.files)) {
-        const validation = this.isCompatibleFile(fpath, contents, projectMode);
-        if (validation.compatible) {
-          filteredFiles[fpath] = contents;
-        } else {
-          console.warn(`[Orchestrator] Rejected file in updateProjectStore: ${fpath} (${validation.reason})`);
-          toast.error(`Blocked incompatible file: ${fpath}`);
-        }
-      }
       useProjectStore.getState().setCurrentContent((prev) => {
-        if (!prev) return { ...parsed.website!, files: filteredFiles };
+        if (!prev) return parsed.website!;
         return {
           ...prev,
-          files: { ...prev.files, ...filteredFiles },
+          files: { ...prev.files, ...parsed.website!.files },
         };
       });
     }
@@ -945,18 +771,7 @@ Please select one of the designs to proceed with implementation.`,
 
     const parsed = extractCodeFromText(text);
     if (parsed.website) {
-      const projectMode = useAgentStore.getState().projectMode;
-      const filteredFiles: Record<string, string> = {};
-      for (const [fpath, contents] of Object.entries(parsed.website.files)) {
-        const validation = this.isCompatibleFile(fpath, contents, projectMode);
-        if (validation.compatible) {
-          filteredFiles[fpath] = contents;
-        }
-      }
-      useProjectStore.getState().setCurrentContent({
-        ...parsed.website,
-        files: filteredFiles
-      });
+      useProjectStore.getState().setCurrentContent(parsed.website);
     }
   }
 
@@ -987,30 +802,10 @@ Please select one of the designs to proceed with implementation.`,
           );
         }
 
-        const buildFileTree = (files: Record<string, string>) => {
-          const tree: any = {};
-          for (let [path, contents] of Object.entries(files)) {
-            if (path.startsWith('/')) {
-              path = path.slice(1);
-            }
-            const parts = path.split('/');
-            let current = tree;
-            for (let i = 0; i < parts.length; i++) {
-              const part = parts[i];
-              if (i === parts.length - 1) {
-                current[part] = { file: { contents } };
-              } else {
-                if (!current[part]) {
-                  current[part] = { directory: {} };
-                }
-                current = current[part].directory;
-              }
-            }
-          }
-          return tree;
-        };
-
-        const wcFiles = buildFileTree(content.files);
+        const wcFiles: any = {};
+        Object.entries(content.files).forEach(([path, contents]) => {
+          wcFiles[path] = { file: { contents } };
+        });
         await wc.mount(wcFiles);
         
         bus.thinking("Installing dependencies...");
@@ -1090,19 +885,9 @@ Please select one of the designs to proceed with implementation.`,
 
       const parsed = extractCodeFromText(resultText);
       if (parsed.website) {
-        const projectMode = useAgentStore.getState().projectMode;
-        const filteredFiles: Record<string, string> = {};
-        for (const [fpath, contents] of Object.entries(parsed.website.files)) {
-          const validation = this.isCompatibleFile(fpath, contents as string, projectMode);
-          if (validation.compatible) {
-            filteredFiles[fpath] = contents as string;
-          } else {
-            toast.error(`Blocked incompatible file: ${fpath}`);
-          }
-        }
         const wcInstance = wc.getWebContainer();
         if (wcInstance) {
-          for (const [path, contents] of Object.entries(filteredFiles)) {
+          for (const [path, contents] of Object.entries(parsed.website.files)) {
             await wcInstance.fs.writeFile(path, contents as string);
           }
         }
@@ -1156,19 +941,9 @@ Please select one of the designs to proceed with implementation.`,
 
       const parsed = extractCodeFromText(resultText);
       if (parsed.website) {
-        const projectMode = useAgentStore.getState().projectMode;
-        const filteredFiles: Record<string, string> = {};
-        for (const [fpath, contents] of Object.entries(parsed.website.files)) {
-          const validation = this.isCompatibleFile(fpath, contents as string, projectMode);
-          if (validation.compatible) {
-            filteredFiles[fpath] = contents as string;
-          } else {
-            toast.error(`Blocked incompatible file: ${fpath}`);
-          }
-        }
         const wc = WebContainerService.getInstance().getWebContainer();
         if (wc) {
-          for (const [path, contents] of Object.entries(filteredFiles)) {
+          for (const [path, contents] of Object.entries(parsed.website.files)) {
             await wc.fs.writeFile(path, contents as string);
           }
         }
@@ -1214,19 +989,9 @@ Please select one of the designs to proceed with implementation.`,
 
       const parsed = extractCodeFromText(resultText);
       if (parsed.website) {
-        const projectMode = useAgentStore.getState().projectMode;
-        const filteredFiles: Record<string, string> = {};
-        for (const [fpath, contents] of Object.entries(parsed.website.files)) {
-          const validation = this.isCompatibleFile(fpath, contents as string, projectMode);
-          if (validation.compatible) {
-            filteredFiles[fpath] = contents as string;
-          } else {
-            toast.error(`Blocked incompatible file: ${fpath}`);
-          }
-        }
         const wc = WebContainerService.getInstance().getWebContainer();
         if (wc) {
-          for (const [path, contents] of Object.entries(filteredFiles)) {
+          for (const [path, contents] of Object.entries(parsed.website.files)) {
             await wc.fs.writeFile(path, contents as string);
           }
         }
@@ -1423,19 +1188,9 @@ Please select one of the designs to proceed with implementation.`,
 
       const parsed = extractCodeFromText(resultText);
       if (parsed.website) {
-        const projectMode = useAgentStore.getState().projectMode;
-        const filteredFiles: Record<string, string> = {};
-        for (const [fpath, contents] of Object.entries(parsed.website.files)) {
-          const validation = this.isCompatibleFile(fpath, contents as string, projectMode);
-          if (validation.compatible) {
-            filteredFiles[fpath] = contents as string;
-          } else {
-            toast.error(`Blocked incompatible file: ${fpath}`);
-          }
-        }
         const wc = WebContainerService.getInstance().getWebContainer();
         if (wc) {
-          for (const [path, contents] of Object.entries(filteredFiles)) {
+          for (const [path, contents] of Object.entries(parsed.website.files)) {
             await wc.fs.writeFile(path, contents as string);
           }
         }
@@ -1567,19 +1322,9 @@ Please select one of the designs to proceed with implementation.`,
 
       const parsed = extractCodeFromText(resultText);
       if (parsed.website) {
-        const projectMode = useAgentStore.getState().projectMode;
-        const filteredFiles: Record<string, string> = {};
-        for (const [fpath, contents] of Object.entries(parsed.website.files)) {
-          const validation = this.isCompatibleFile(fpath, contents as string, projectMode);
-          if (validation.compatible) {
-            filteredFiles[fpath] = contents as string;
-          } else {
-            toast.error(`Blocked incompatible file: ${fpath}`);
-          }
-        }
         const wc = WebContainerService.getInstance().getWebContainer();
         if (wc) {
-          for (const [path, contents] of Object.entries(filteredFiles)) {
+          for (const [path, contents] of Object.entries(parsed.website.files)) {
             await wc.fs.writeFile(path, contents as string);
           }
         }
@@ -1661,19 +1406,9 @@ Please select one of the designs to proceed with implementation.`,
       
       const parsed = extractCodeFromText(resultText);
       if (parsed.website) {
-        const projectMode = useAgentStore.getState().projectMode;
-        const filteredFiles: Record<string, string> = {};
-        for (const [fpath, contents] of Object.entries(parsed.website.files)) {
-          const validation = this.isCompatibleFile(fpath, contents as string, projectMode);
-          if (validation.compatible) {
-            filteredFiles[fpath] = contents as string;
-          } else {
-            toast.error(`Blocked incompatible file: ${fpath}`);
-          }
-        }
         const wc = WebContainerService.getInstance().getWebContainer();
         if (wc) {
-          for (const [path, contents] of Object.entries(filteredFiles)) {
+          for (const [path, contents] of Object.entries(parsed.website.files)) {
             await wc.fs.writeFile(path, contents as string);
           }
         }
@@ -1722,19 +1457,9 @@ Please select one of the designs to proceed with implementation.`,
       
       const parsed = extractCodeFromText(resultText);
       if (parsed.website) {
-        const projectMode = useAgentStore.getState().projectMode;
-        const filteredFiles: Record<string, string> = {};
-        for (const [fpath, contents] of Object.entries(parsed.website.files)) {
-          const validation = this.isCompatibleFile(fpath, contents as string, projectMode);
-          if (validation.compatible) {
-            filteredFiles[fpath] = contents as string;
-          } else {
-            toast.error(`Blocked incompatible file: ${fpath}`);
-          }
-        }
         const wc = WebContainerService.getInstance().getWebContainer();
         if (wc) {
-          for (const [path, contents] of Object.entries(filteredFiles)) {
+          for (const [path, contents] of Object.entries(parsed.website.files)) {
             await wc.fs.writeFile(path, contents as string);
           }
         }

@@ -58,7 +58,7 @@ export const DependencyGraph: React.FC = () => {
 
             {node.dependencies.length > 0 && (
               <div className="mt-2 pt-2 border-t border-stone-50 flex flex-wrap gap-1">
-                {node.dependencies.map((dep: string, j: number) => (
+                {node.dependencies.map((dep, j) => (
                   <span
                     key={j}
                     className="text-[9px] text-stone-400 bg-stone-50 px-1.5 py-0.5 rounded"

@@ -56,7 +56,7 @@ const PROVIDER_MODELS: Record<string, { id: string; name: string }[]> = {
   ],
   "NVIDIA NIM": [
     { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B" },
-    { id: "z-ai/glm-5.2", name: "GLM 5.2" },
+    { id: "z-ai/glm-5.1", name: "GLM 5.1" },
     { id: "moonshotai/kimi-k2.6", name: "Kimi K2.6" },
     { id: "stepfun-ai/step-3.7-flash", name: "Step 3.7 Flash" }
   ],
@@ -136,7 +136,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [copiedShareLink, setCopiedShareLink] = useState(false);
 
   React.useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user: any) => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
       setCurrentUser(user);
     });
     return () => unsubscribe();
@@ -614,8 +614,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     cost: "$0.30 / 1M input"
                   },
                   {
-                    id: "z-ai/glm-5.2",
-                    name: "GLM 5.2",
+                    id: "z-ai/glm-5.1",
+                    name: "GLM 5.1",
                     provider: "NVIDIA NIM",
                     desc: "State-of-the-art multilingual reasoning",
                     badge: "NVIDIA NIM",

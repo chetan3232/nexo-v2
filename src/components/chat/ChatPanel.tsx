@@ -52,7 +52,7 @@ const ALL_MODELS = [
   { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet", badge: "Premium" },
   { id: "openai/gpt-4o", name: "GPT-4o", badge: "Premium" },
   { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B", badge: "Nvidia" },
-  { id: "z-ai/glm-5.2", name: "GLM 5.2", badge: "Nvidia" },
+  { id: "z-ai/glm-5.1", name: "GLM 5.1", badge: "Nvidia" },
   { id: "moonshotai/kimi-k2.6", name: "Kimi K2.6", badge: "Nvidia" },
   { id: "stepfun-ai/step-3.7-flash", name: "Step 3.7 Flash", badge: "Nvidia" },
 ];
