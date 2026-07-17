@@ -1,6 +1,8 @@
 import { useProjectStore, BuildTask } from "../stores/projectStore";
 import { useChatStore } from "../stores/chatStore";
 import { useAgentStore } from "../stores/agentStore";
+import { useGenerationWorkflowStore } from "../stores/generationWorkflowStore";
+import { ProjectAnalysisService } from "../services/projectAnalysisService";
 import { PMAgent } from "./PMAgent";
 import { DesignerAgent } from "./DesignerAgent";
 import { FrontendAgent } from "./FrontendAgent";
@@ -72,20 +74,8 @@ export class Orchestrator {
   async executeFullFlow(prompt: string) {
     const chatStore = useChatStore.getState();
     const agentStore = useAgentStore.getState();
-    const chatId = chatStore.currentChatId || crypto.randomUUID();
-    if (!chatStore.currentChatId) chatStore.setCurrentChatId(chatId);
-
-    const options = {
-      model: agentStore.selectedModel,
-      projectMode: agentStore.projectMode,
-      techStack: agentStore.techStack,
-      selectedLanguage: agentStore.selectedLanguage,
-      temperature: agentStore.temperature,
-      topP: agentStore.topP,
-      systemPrompt: agentStore.systemPrompt,
-      enabledTools: agentStore.enabledTools,
-      customApiKey: agentStore.customApiKey,
-    };
+    const workflowStore = useGenerationWorkflowStore.getState();
+    const projectStore = useProjectStore.getState();
 
     // Close any previous event source
     if (this.activeEventSource) {
@@ -94,40 +84,93 @@ export class Orchestrator {
     }
 
     try {
+      // Step 1: Read selected projectMode.
+      const projectMode = agentStore.projectMode;
+
+      // Reset workflow state and start at ANALYZING
+      workflowStore.resetWorkflow();
+      workflowStore.setUserPrompt(prompt);
+      workflowStore.setProjectMode(projectMode);
+      workflowStore.transitionTo("ANALYZING");
+
+      // Set user-visible statuses (Step 4)
       chatStore.setState(CompanionState.THINKING);
-      useProjectStore.getState().setBuildPhase("analyzing");
-      useProjectStore.getState().setSubStatus("Analyzing requirements and planning architecture...");
+      projectStore.setSubStatus("Understanding your idea...");
       BackgroundPreserver.activate();
       AgentEventBus.getInstance().buildStart();
-      this.ensureVisibilityListener();
-      
-      const response = await fetch("/api/ai/build", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          ...(auth.currentUser ? {
-            "x-user-id": auth.currentUser.uid,
-            "x-user-email": auth.currentUser.email || ""
-          } : {})
-        },
-        body: JSON.stringify({ prompt, chatId, options })
-      });
 
-      if (!response.ok) {
-        throw new Error(`Failed to start job: ${response.statusText}`);
-      }
+      // Step 2 & 3: Run Project Request Analysis with projectMode rules
+      projectStore.setSubStatus("Analyzing project requirements...");
 
-      const { jobId } = await response.json();
-      localStorage.setItem(`nexo_active_job_${chatId}`, jobId);
-      this.activeJobId = jobId;
-      this.activeChatId = chatId;
-      this.reconnectAttempts = 0;
-      
-      this.connectToJobStream(jobId, chatId);
+      // Max retries is configurable. Default to 3.
+      const maxRetries = 3;
+      const analysisResult = await ProjectAnalysisService.getInstance().analyzeProjectRequest(
+        prompt,
+        projectMode,
+        maxRetries
+      );
+
+      // Store analysis results in store
+      workflowStore.setAnalysisResult(analysisResult);
+      workflowStore.setNormalizedPrompt(analysisResult.normalizedRequest);
+
+      // Step 4: Transition to THINKING & Update Status
+      workflowStore.transitionTo("THINKING");
+      projectStore.setSubStatus("Planning user experience...");
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      projectStore.setSubStatus("Choosing design direction...");
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      // Transition to GENERATING_DESIGNS & Update Status
+      workflowStore.transitionTo("GENERATING_DESIGNS");
+      projectStore.setSubStatus("Preparing two visual concepts...");
+
+      // Finish planning phase
+      chatStore.setState(CompanionState.IDLE);
+      projectStore.setBuildPhase("completed");
+      AgentEventBus.getInstance().setGenerating(false);
+
+      // Format markdown summary
+      const bulletList = (arr: string[]) => arr.map(item => `  - ${item}`).join("\n");
+      const summaryText = `🧠 **AI Request Analysis Completed**
+
+**Core Goal:** ${analysisResult.projectGoal}
+**Project Type:** ${analysisResult.projectType} (Complexity: *${analysisResult.complexity}*)
+**Target Audience:** ${analysisResult.targetAudience}
+
+**Required Pages:**
+${bulletList(analysisResult.requiredPages)}
+
+**Key Features:**
+${bulletList(analysisResult.requiredFeatures)}
+
+**Design Direction:** ${analysisResult.designDirection}
+
+**Technical Requirements:**
+${bulletList(analysisResult.technicalRequirements)}
+${analysisResult.modeConflicts.length > 0 ? `\n⚠️ **Mode Conflicts Resolved:**\n${bulletList(analysisResult.modeConflicts)}` : ""}
+
+*Transitioning to Design Concepts Exploration...*`;
+
+      chatStore.setMessages((prev: any[]) => [
+        ...prev,
+        {
+          id: `analysis_${Date.now()}`,
+          role: "assistant",
+          text: summaryText,
+          timestamp: Date.now(),
+          model: agentStore.selectedModel
+        }
+      ]);
+
+      toast.success("Analysis and planning complete! 🎉");
+
     } catch (err: any) {
-      console.error("[Orchestrator] Failed to start backend build:", err);
-      toast.error(`Failed to start generation: ${err.message}`);
-      useProjectStore.getState().setBuildPhase("idle");
+      console.error("[Orchestrator] Failed during analysis flow:", err);
+      toast.error(`Analysis failed: ${err.message}`);
+      workflowStore.transitionTo("ERROR");
+      workflowStore.setError(err.message);
       chatStore.setState(CompanionState.IDLE);
       BackgroundPreserver.deactivate();
       AgentEventBus.getInstance().setGenerating(false);

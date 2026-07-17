@@ -1,6 +1,6 @@
 import { sendMessageToGemini } from './gemini';
 
-export type ModelProvider = 'google';
+export type ModelProvider = 'google' | 'openai';
 
 export const sendMessageToAI = async (
   provider: ModelProvider,

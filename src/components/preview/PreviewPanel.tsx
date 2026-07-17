@@ -7,6 +7,7 @@ import { VisualDesignPanel } from "../editor/VisualDesignPanel";
 interface PreviewPanelProps {
   isVisualMode: boolean;
   setIsVisualMode?: (val: boolean) => void;
+  onDesignSelect?: (id: string) => void;
 }
 
 /**

@@ -1,10 +1,8 @@
 import { create } from "zustand";
-import { useProjectStore } from "./projectStore";
-import { useChatStore } from "./chatStore";
-import { CompanionState } from "../types";
 import { DesignConcept } from "../types/designConcept";
+import { useProjectStore } from "./projectStore";
 
-export type GenerationPhase =
+export type WorkflowPhase =
   | "IDLE"
   | "ANALYZING"
   | "THINKING"
@@ -20,71 +18,86 @@ export type GenerationPhase =
   | "COMPLETED"
   | "ERROR";
 
+export interface AnalysisResult {
+  projectGoal: string;
+  targetAudience: string;
+  projectType: string;
+  requiredPages: string[];
+  requiredFeatures: string[];
+  designDirection: string;
+  technicalRequirements: string[];
+  complexity: "low" | "medium" | "high";
+  modeConflicts: string[];
+  normalizedRequest: string;
+  [key: string]: any;
+}
+
+export interface ValidationResult {
+  success: boolean;
+  errors: string[];
+  logs?: string;
+  [key: string]: any;
+}
+
 export interface GenerationWorkflowState {
-  currentPhase: GenerationPhase;
+  currentPhase: WorkflowPhase;
   userPrompt: string;
   normalizedPrompt: string;
   projectMode: "frontend" | "fullstack";
-  analysisResult: any;
+  analysisResult: AnalysisResult | null;
   designConcepts: DesignConcept[];
-  designHistory: Record<string, DesignConcept[]>;
   selectedDesignId: string | null;
   selectedDesign: DesignConcept | null;
   designFeedback: string;
-  implementationPlan: any | null;
-  editedImplementationPlan: any | null;
+  designHistory: Record<string, DesignConcept[]>;
+  implementationPlan: string;
+  editedImplementationPlan: string;
   generatedFiles: Record<string, string>;
-  validationResults: any;
+  validationResults: ValidationResult | null;
   repairAttempts: number;
   error: string | null;
-}
 
-export interface GenerationWorkflowActions {
-  transitionTo: (nextPhase: GenerationPhase) => void;
-  startAnalysis: (prompt: string, mode: "frontend" | "fullstack") => void;
-  setAnalysisResult: (result: any) => void;
-  setNormalizedPrompt: (normalized: string) => void;
-  startThinking: () => void;
-  startGeneratingDesigns: () => void;
+  // Actions
+  transitionTo: (phase: WorkflowPhase) => boolean;
+  setUserPrompt: (prompt: string) => void;
+  setNormalizedPrompt: (prompt: string) => void;
+  setProjectMode: (mode: "frontend" | "fullstack") => void;
+  setAnalysisResult: (result: AnalysisResult | null) => void;
   setDesignConcepts: (concepts: DesignConcept[]) => void;
-  addDesignVersion: (designId: string, updatedConcept: DesignConcept) => void;
-  restoreDesignVersion: (designId: string, versionIndex: number) => void;
-  selectDesign: (designId: string) => void;
-  submitDesignFeedback: (feedback: string) => void;
-  startGeneratingPlan: () => void;
-  setImplementationPlan: (plan: any) => void;
-  approvePlan: (editedPlan?: any) => void;
-  startImplementation: () => void;
-  updateGeneratedFiles: (files: Record<string, string>) => void;
-  startValidation: () => void;
-  setValidationResults: (results: any) => void;
-  triggerRepair: (attempt: number) => void;
-  runApplication: () => void;
-  completeGeneration: () => void;
-  setError: (err: string) => void;
+  setSelectedDesignId: (id: string | null) => void;
+  selectDesign: (id: string | null) => void;
+  setDesignFeedback: (feedback: string) => void;
+  addDesignVersion: (conceptId: string, refinedConcept: DesignConcept) => void;
+  restoreDesignVersion: (conceptId: string, versionIndex: number) => void;
+  setImplementationPlan: (plan: string) => void;
+  setEditedImplementationPlan: (plan: string) => void;
+  setGeneratedFiles: (files: Record<string, string>) => void;
+  setValidationResults: (results: ValidationResult | null) => void;
+  setRepairAttempts: (attempts: number | ((prev: number) => number)) => void;
+  setError: (error: string | null) => void;
   resetWorkflow: () => void;
 }
 
-export type GenerationWorkflowStore = GenerationWorkflowState & GenerationWorkflowActions;
-
-const VALID_TRANSITIONS: Record<GenerationPhase, GenerationPhase[]> = {
+const VALID_TRANSITIONS: Record<WorkflowPhase, WorkflowPhase[]> = {
   IDLE: ["ANALYZING"],
-  ANALYZING: ["THINKING", "ERROR", "IDLE"],
-  THINKING: ["GENERATING_DESIGNS", "ERROR", "IDLE"],
-  GENERATING_DESIGNS: ["AWAITING_DESIGN_SELECTION", "ERROR", "IDLE"],
-  AWAITING_DESIGN_SELECTION: ["DESIGN_SELECTED", "GENERATING_DESIGNS", "ERROR", "IDLE"],
-  DESIGN_SELECTED: ["GENERATING_IMPLEMENTATION_PLAN", "ERROR", "IDLE"],
-  GENERATING_IMPLEMENTATION_PLAN: ["AWAITING_PLAN_APPROVAL", "ERROR", "IDLE"],
-  AWAITING_PLAN_APPROVAL: ["IMPLEMENTING", "GENERATING_IMPLEMENTATION_PLAN", "ERROR", "IDLE"],
-  IMPLEMENTING: ["VALIDATING", "ERROR", "IDLE"],
-  VALIDATING: ["RUNNING", "REPAIRING", "ERROR", "IDLE"],
-  REPAIRING: ["VALIDATING", "ERROR", "IDLE"],
-  RUNNING: ["COMPLETED", "ERROR", "IDLE"],
-  COMPLETED: ["IDLE"],
-  ERROR: ["IDLE"],
+  ANALYZING: ["THINKING", "ERROR"],
+  THINKING: ["GENERATING_DESIGNS", "GENERATING_IMPLEMENTATION_PLAN", "ERROR"],
+  GENERATING_DESIGNS: ["AWAITING_DESIGN_SELECTION", "ERROR"],
+  AWAITING_DESIGN_SELECTION: ["DESIGN_SELECTED", "THINKING", "GENERATING_DESIGNS", "ERROR"],
+  DESIGN_SELECTED: ["GENERATING_IMPLEMENTATION_PLAN", "ERROR"],
+  GENERATING_IMPLEMENTATION_PLAN: ["AWAITING_PLAN_APPROVAL", "ERROR"],
+  AWAITING_PLAN_APPROVAL: ["IMPLEMENTING", "GENERATING_IMPLEMENTATION_PLAN", "THINKING", "ERROR"],
+  IMPLEMENTING: ["VALIDATING", "ERROR"],
+  VALIDATING: ["REPAIRING", "RUNNING", "COMPLETED", "ERROR"],
+  REPAIRING: ["VALIDATING", "ERROR"],
+  RUNNING: ["COMPLETED", "ERROR"],
+  COMPLETED: ["IDLE", "ANALYZING"],
+  ERROR: ["IDLE", "ANALYZING", "REPAIRING"]
 };
 
-function mapGenerationPhaseToBuildPhase(phase: GenerationPhase): "idle" | "analyzing" | "planning" | "designing" | "generating" | "building" | "testing" | "fixing" | "previewing" | "deploying" | "completed" {
+const mapWorkflowToProjectPhase = (
+  phase: WorkflowPhase
+): "idle" | "analyzing" | "planning" | "designing" | "generating" | "building" | "testing" | "fixing" | "previewing" | "deploying" | "completed" => {
   switch (phase) {
     case "IDLE":
       return "idle";
@@ -94,8 +107,8 @@ function mapGenerationPhaseToBuildPhase(phase: GenerationPhase): "idle" | "analy
       return "planning";
     case "GENERATING_DESIGNS":
     case "AWAITING_DESIGN_SELECTION":
-      return "designing";
     case "DESIGN_SELECTED":
+      return "designing";
     case "GENERATING_IMPLEMENTATION_PLAN":
     case "AWAITING_PLAN_APPROVAL":
       return "planning";
@@ -106,229 +119,134 @@ function mapGenerationPhaseToBuildPhase(phase: GenerationPhase): "idle" | "analy
     case "REPAIRING":
       return "fixing";
     case "RUNNING":
-      return "building";
+      return "previewing";
     case "COMPLETED":
       return "completed";
     case "ERROR":
     default:
       return "idle";
   }
-}
+};
 
-function mapGenerationPhaseToCompanionState(phase: GenerationPhase): CompanionState {
-  switch (phase) {
-    case "IDLE":
-    case "AWAITING_DESIGN_SELECTION":
-    case "AWAITING_PLAN_APPROVAL":
-    case "COMPLETED":
-    case "ERROR":
-      return CompanionState.IDLE;
-    case "ANALYZING":
-    case "THINKING":
-    case "DESIGN_SELECTED":
-    case "GENERATING_DESIGNS":
-    case "GENERATING_IMPLEMENTATION_PLAN":
-      return CompanionState.THINKING;
-    case "IMPLEMENTING":
-      return CompanionState.CODING;
-    case "VALIDATING":
-    case "REPAIRING":
-    case "RUNNING":
-      return CompanionState.BUILDING;
-    default:
-      return CompanionState.IDLE;
-  }
-}
-
-const initialState: GenerationWorkflowState = {
+export const useGenerationWorkflowStore = create<GenerationWorkflowState>((set, get) => ({
   currentPhase: "IDLE",
   userPrompt: "",
   normalizedPrompt: "",
   projectMode: "frontend",
   analysisResult: null,
   designConcepts: [],
-  designHistory: {},
   selectedDesignId: null,
   selectedDesign: null,
   designFeedback: "",
-  implementationPlan: null,
-  editedImplementationPlan: null,
+  designHistory: {},
+  implementationPlan: "",
+  editedImplementationPlan: "",
   generatedFiles: {},
   validationResults: null,
   repairAttempts: 0,
   error: null,
-};
 
-export const useGenerationWorkflowStore = create<GenerationWorkflowStore>((set, get) => ({
-  ...initialState,
-
-  transitionTo: (nextPhase: GenerationPhase) => {
-    const current = get().currentPhase;
-    const allowed = VALID_TRANSITIONS[current];
-    if (!allowed.includes(nextPhase)) {
-      throw new Error(`Invalid workflow transition from ${current} to ${nextPhase}`);
+  transitionTo: (nextPhase: WorkflowPhase) => {
+    const { currentPhase } = get();
+    
+    // Explicit transition to ERROR is always allowed
+    if (nextPhase === "ERROR") {
+      set({ currentPhase: nextPhase });
+      useProjectStore.getState().setBuildPhase(mapWorkflowToProjectPhase(nextPhase));
+      return true;
     }
 
-    set({ currentPhase: nextPhase });
+    const allowed = VALID_TRANSITIONS[currentPhase];
+    if (allowed && allowed.includes(nextPhase)) {
+      set({ currentPhase: nextPhase });
+      useProjectStore.getState().setBuildPhase(mapWorkflowToProjectPhase(nextPhase));
+      return true;
+    }
 
-    // Sync with projectStore
-    const oldBuildPhase = mapGenerationPhaseToBuildPhase(nextPhase);
-    useProjectStore.getState().setBuildPhase(oldBuildPhase);
-
-    // Sync with chatStore
-    const oldCompanionState = mapGenerationPhaseToCompanionState(nextPhase);
-    useChatStore.getState().setState(oldCompanionState);
+    console.warn(
+      `[Workflow State Machine] Invalid phase transition attempted from "${currentPhase}" to "${nextPhase}"`
+    );
+    return false;
   },
 
-  startAnalysis: (prompt: string, mode: "frontend" | "fullstack") => {
-    // Force transition to ANALYZING from IDLE (or start a new one directly)
-    if (get().currentPhase !== "IDLE") {
-      set({ currentPhase: "IDLE" });
-    }
-    get().transitionTo("ANALYZING");
+  setUserPrompt: (userPrompt: string) => set({ userPrompt }),
+  setNormalizedPrompt: (normalizedPrompt: string) => set({ normalizedPrompt }),
+  setProjectMode: (projectMode: "frontend" | "fullstack") => set({ projectMode }),
+  setAnalysisResult: (analysisResult: AnalysisResult | null) => set({ analysisResult }),
+  setDesignConcepts: (designConcepts: DesignConcept[]) => {
+    const designHistory: Record<string, DesignConcept[]> = {};
+    designConcepts.forEach((d) => {
+      designHistory[d.id] = [d];
+    });
+    set({ designConcepts, designHistory });
+  },
+  setSelectedDesignId: (selectedDesignId: string | null) => {
+    const { designConcepts } = get();
+    const selectedDesign = designConcepts.find((d) => d.id === selectedDesignId) || null;
+    set({ selectedDesignId, selectedDesign });
+  },
+  selectDesign: (id: string | null) => {
+    const { designConcepts } = get();
+    const selectedDesign = designConcepts.find((d) => d.id === id) || null;
+    set({ selectedDesignId: id, selectedDesign });
+    get().transitionTo("DESIGN_SELECTED");
+  },
+  setDesignFeedback: (designFeedback: string) => set({ designFeedback }),
+  addDesignVersion: (conceptId: string, refinedConcept: DesignConcept) => {
+    const { designConcepts, designHistory } = get();
+    const history = designHistory[conceptId] || [];
+    const updatedHistory = [...history, refinedConcept];
+    const updatedConcepts = designConcepts.map((d) =>
+      d.id === conceptId ? refinedConcept : d
+    );
     set({
-      userPrompt: prompt,
-      projectMode: mode,
-      error: null,
+      designConcepts: updatedConcepts,
+      designHistory: {
+        ...designHistory,
+        [conceptId]: updatedHistory,
+      },
+    });
+  },
+  restoreDesignVersion: (conceptId: string, versionIndex: number) => {
+    const { designConcepts, designHistory } = get();
+    const history = designHistory[conceptId] || [];
+    const restoredConcept = history[versionIndex];
+    if (restoredConcept) {
+      const updatedConcepts = designConcepts.map((d) =>
+        d.id === conceptId ? restoredConcept : d
+      );
+      set({ designConcepts: updatedConcepts });
+    }
+  },
+  setImplementationPlan: (implementationPlan: string) => set({ implementationPlan }),
+  setEditedImplementationPlan: (editedImplementationPlan: string) => set({ editedImplementationPlan }),
+  setGeneratedFiles: (generatedFiles: Record<string, string>) => set({ generatedFiles }),
+  setValidationResults: (validationResults: ValidationResult | null) => set({ validationResults }),
+  setRepairAttempts: (updater: number | ((prev: number) => number)) => {
+    set((state) => ({
+      repairAttempts: typeof updater === "function" ? updater(state.repairAttempts) : updater,
+    }));
+  },
+  setError: (error: string | null) => set({ error }),
+  resetWorkflow: () => {
+    set({
+      currentPhase: "IDLE",
+      userPrompt: "",
       normalizedPrompt: "",
+      projectMode: "frontend",
       analysisResult: null,
       designConcepts: [],
       selectedDesignId: null,
       selectedDesign: null,
       designFeedback: "",
-      implementationPlan: null,
-      editedImplementationPlan: null,
+      designHistory: {},
+      implementationPlan: "",
+      editedImplementationPlan: "",
       generatedFiles: {},
       validationResults: null,
       repairAttempts: 0,
+      error: null,
     });
-  },
-
-  setAnalysisResult: (result: any) => {
-    set({ analysisResult: result });
-  },
-
-  setNormalizedPrompt: (normalized: string) => {
-    set({ normalizedPrompt: normalized });
-  },
-
-  startThinking: () => {
-    get().transitionTo("THINKING");
-  },
-
-  startGeneratingDesigns: () => {
-    get().transitionTo("GENERATING_DESIGNS");
-  },
-
-  setDesignConcepts: (concepts: DesignConcept[]) => {
-    const history: Record<string, DesignConcept[]> = {};
-    concepts.forEach((c) => {
-      history[c.id] = [c];
-    });
-    set({ designConcepts: concepts, designHistory: history });
-  },
-
-  addDesignVersion: (designId: string, updatedConcept: DesignConcept) => {
-    set((state) => {
-      const currentHistory = state.designHistory[designId] || [];
-      const updatedHistory = [...currentHistory, updatedConcept];
-      const updatedConcepts = state.designConcepts.map((c) =>
-        c.id === designId ? updatedConcept : c
-      );
-      return {
-        designHistory: {
-          ...state.designHistory,
-          [designId]: updatedHistory,
-        },
-        designConcepts: updatedConcepts,
-      };
-    });
-  },
-
-  restoreDesignVersion: (designId: string, versionIndex: number) => {
-    set((state) => {
-      const history = state.designHistory[designId] || [];
-      const targetVersion = history[versionIndex];
-      if (!targetVersion) return {};
-      const updatedConcepts = state.designConcepts.map((c) =>
-        c.id === designId ? targetVersion : c
-      );
-      return {
-        designConcepts: updatedConcepts,
-      };
-    });
-  },
-
-  selectDesign: (designId: string) => {
-    const concept = get().designConcepts.find((c) => c.id === designId) || null;
-    set({ selectedDesignId: designId, selectedDesign: concept });
-    get().transitionTo("DESIGN_SELECTED");
-  },
-
-  submitDesignFeedback: (feedback: string) => {
-    set({ designFeedback: feedback });
-    get().transitionTo("GENERATING_DESIGNS"); // Return to generating designs with feedback
-  },
-
-  startGeneratingPlan: () => {
-    get().transitionTo("GENERATING_IMPLEMENTATION_PLAN");
-  },
-
-  setImplementationPlan: (plan: any) => {
-    set({ implementationPlan: plan, editedImplementationPlan: plan });
-    get().transitionTo("AWAITING_PLAN_APPROVAL");
-  },
-
-  approvePlan: (editedPlan?: any) => {
-    if (editedPlan !== undefined) {
-      set({ editedImplementationPlan: editedPlan });
-    }
-    get().transitionTo("IMPLEMENTING");
-  },
-
-  startImplementation: () => {
-    get().transitionTo("IMPLEMENTING");
-  },
-
-  updateGeneratedFiles: (files: Record<string, string>) => {
-    set((state) => ({
-      generatedFiles: { ...state.generatedFiles, ...files },
-    }));
-  },
-
-  startValidation: () => {
-    get().transitionTo("VALIDATING");
-  },
-
-  setValidationResults: (results: any) => {
-    set({ validationResults: results });
-  },
-
-  triggerRepair: (attempt: number) => {
-    set({ repairAttempts: attempt });
-    get().transitionTo("REPAIRING");
-  },
-
-  runApplication: () => {
-    get().transitionTo("RUNNING");
-  },
-
-  completeGeneration: () => {
-    get().transitionTo("COMPLETED");
-  },
-
-  setError: (err: string) => {
-    set({ error: err });
-    get().transitionTo("ERROR");
-  },
-
-  resetWorkflow: () => {
-    set(initialState);
-    
-    // Sync with projectStore
     useProjectStore.getState().setBuildPhase("idle");
-
-    // Sync with chatStore
-    useChatStore.getState().setState(CompanionState.IDLE);
   },
 }));

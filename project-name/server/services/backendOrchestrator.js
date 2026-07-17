@@ -784,29 +784,6 @@ Only output the files that need changes to address these security issues. Keep a
             });
             job.updateTasks(tasks);
             job.fail(error.message || 'Workflow process crashed');
-        }omplete(
-                `${modeLabel} ${fileCount} files successfully. Ready to build runtime preview!`,
-                fileCount,
-                {
-                    mainFile: finalParsed.mainFile || 'index.html',
-                    template: 'web',
-                    wasEnhanced,
-                    isRefactor,
-                    hasImage,
-                    plannerModel,
-                    codeModel,
-                }
-            );
-
-        } catch (error) {
-            console.error('[BackendOrchestrator] Error during generation workflow:', error);
-            tasks.forEach(t => {
-                if (t.status === 'running' || t.status === 'pending') {
-                    t.status = 'error';
-                }
-            });
-            job.updateTasks(tasks);
-            job.fail(error.message || 'Workflow process crashed');
         }
     }
 }
