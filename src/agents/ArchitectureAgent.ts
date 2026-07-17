@@ -56,6 +56,7 @@ Perform a deep audit.
       model: options.model,
       messages: this.formatMessages(history, analysisPrompt, finalSystemPrompt),
       temperature: 0.1,
+      priority: "CRITICAL",
     });
   }
 }

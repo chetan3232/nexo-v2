@@ -90,6 +90,7 @@ For new files or large rewrites, use the FILE format:
       top_p: options.topP || 1.0,
       projectMode: options.projectMode,
       techStack: options.techStack,
+      priority: "CRITICAL",
     };
 
     return this.streamResponse(payload, onChunk);

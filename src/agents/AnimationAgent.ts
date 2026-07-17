@@ -31,6 +31,7 @@ Output the full files with integrated animations using ---FILE: path--- blocks.
       model: options.model,
       messages: this.formatMessages(history, prompt, finalSystemPrompt),
       temperature: 0.7,
+      priority: "CRITICAL",
     });
   }
 }

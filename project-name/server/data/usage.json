@@ -590,10 +590,30 @@
       "cost": 0.004778,
       "speed": 34,
       "durationMs": 454005
+    },
+    {
+      "timestamp": "2026-07-17T17:02:56.899Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1750,
+      "outputTokens": 417,
+      "tokens": 2167,
+      "cost": 0.000256,
+      "speed": 82,
+      "durationMs": 5087
+    },
+    {
+      "timestamp": "2026-07-17T17:04:55.950Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 2709,
+      "outputTokens": 14973,
+      "tokens": 17682,
+      "cost": 0.004695,
+      "speed": 128,
+      "durationMs": 116955
     }
   ],
-  "totalTokens": 414341,
-  "totalInputTokens": 165824,
-  "totalOutputTokens": 174381,
-  "totalCost": 0.057094
+  "totalTokens": 434190,
+  "totalInputTokens": 170283,
+  "totalOutputTokens": 189771,
+  "totalCost": 0.062045
 }

@@ -56,6 +56,8 @@ Recommended Template: [React-SaaS | E-commerce | Dashboard | AI-Chat]
       options.model,
       options.temperature,
       options.topP,
+      true,
+      "HIGH"
     );
   }
 }

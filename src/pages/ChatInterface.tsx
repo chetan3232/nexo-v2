@@ -47,6 +47,7 @@ import { useDesignStore } from "../stores/designStore";
 import { useRuntimeStore } from "../stores/runtimeStore";
 import { useGenerationWorkflowStore } from "../stores/generationWorkflowStore";
 import { DesignSelectionPanel } from "../components/design/DesignSelectionPanel";
+import { ImplementationPlanPanel } from "../components/planning/ImplementationPlanPanel";
 import { saveCurrentProject } from "../services/saveService";
 import { Orchestrator } from "../agents/Orchestrator";
 import { Message } from "../types";
@@ -1089,6 +1090,8 @@ const ChatInterface: React.FC = () => {
                   >
                     {currentPhase === "AWAITING_DESIGN_SELECTION" ? (
                       <DesignSelectionPanel />
+                    ) : currentPhase === "AWAITING_PLAN_APPROVAL" ? (
+                      <ImplementationPlanPanel />
                     ) : (
                       <PreviewPanel
                         isVisualMode={isVisualMode}
@@ -1203,6 +1206,8 @@ const ChatInterface: React.FC = () => {
                   <div className={workspaceTab === "preview" ? "h-full w-full block" : "h-full w-full hidden"}>
                     {currentPhase === "AWAITING_DESIGN_SELECTION" ? (
                       <DesignSelectionPanel />
+                    ) : currentPhase === "AWAITING_PLAN_APPROVAL" ? (
+                      <ImplementationPlanPanel />
                     ) : (
                       <PreviewPanel
                         isVisualMode={isVisualMode}

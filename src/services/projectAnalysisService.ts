@@ -113,7 +113,9 @@ Output ONLY the JSON block. Do not write any other explanation or text.
           ],
           model,
           0.2, // Low temperature for high JSON structure consistency
-          1
+          1,
+          true,
+          "HIGH"
         );
 
         let parsed: any;

@@ -22,6 +22,7 @@ Return the tests in ---FILE: path--- format.
         finalSystemPrompt,
       ),
       temperature: 0.3,
+      priority: "CRITICAL",
     });
   }
 }

@@ -189,7 +189,7 @@ export const WorkspaceSidebar: React.FC = () => {
     // @ts-ignore
     if (window.process?.env) {
       // @ts-ignore
-      window.process.env.API_KEY = "AIzaSyBdwndziQV1EcJkzxjMkzq3HrL2u-YCQ7c"; // Default fallback
+      window.process.env.API_KEY = ""; // Default fallback
     }
     toast.success("API Key cleared. Using default key.");
   };

@@ -1,9 +1,8 @@
 import { Message } from "../types";
-
-import { auth } from "./firebase";
+import { AIRequestManager, RequestPriority } from "./aiRequestManager";
 
 /**
- * Low-level AI invocation via the Nexo backend (Google Gemini).
+ * Low-level AI invocation routed via the centralized AI Request Manager.
  */
 export const invokeAI = async (
   messages: any[],
@@ -11,39 +10,15 @@ export const invokeAI = async (
   temperature: number = 0.7,
   topP: number = 1,
   enableThinking: boolean = true,
+  priority: RequestPriority = "NORMAL",
+  signal?: AbortSignal,
 ): Promise<string> => {
-  const API_URL = "/api/chat";
-  const customApiKey = localStorage.getItem("nexo_custom_api_key") || "";
-
-  const response = await fetch(API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(auth.currentUser ? {
-        "x-user-id": auth.currentUser.uid,
-        "x-user-email": auth.currentUser.email || "",
-      } : {}),
-    },
-    body: JSON.stringify({
-      model,
-      messages: messages.map((m) => ({
-        role:
-          m.role === "model" || m.role === "assistant" ? "assistant" : "user",
-        content: m.content || m.text || "",
-      })),
-      temperature,
-      top_p: topP,
-      stream: false,
-      enableThinking,
-      customApiKey,
-    }),
+  return AIRequestManager.getInstance().request(messages, {
+    model,
+    temperature,
+    topP,
+    enableThinking,
+    priority,
+    signal,
   });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Nexo API Error: ${response.status} - ${errText}`);
-  }
-
-  const data = await response.json();
-  return data.choices[0].message.content;
 };

@@ -191,7 +191,9 @@ Output ONLY the JSON block. Do not write any other explanation or text.
           ],
           useAgentStore.getState().selectedModel,
           0.7, // Normal temperature for creative UI generation
-          1
+          1,
+          true,
+          "HIGH"
         );
 
         let parsed: any;
@@ -319,7 +321,9 @@ Output ONLY the JSON block. Do not write any other explanation or text.
           ],
           useAgentStore.getState().selectedModel,
           0.7,
-          1
+          1,
+          true,
+          "HIGH"
         );
 
         let parsed: any;

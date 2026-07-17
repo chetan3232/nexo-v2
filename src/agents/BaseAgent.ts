@@ -1,5 +1,5 @@
-import { auth } from "../services/firebase";
 import { Message } from "../types";
+import { AIRequestManager, RequestPriority } from "../services/aiRequestManager";
 
 export interface AgentResponse {
   fullText: string;
@@ -13,66 +13,15 @@ export abstract class BaseAgent {
     payload: any,
     onChunk?: (text: string) => void,
   ): Promise<string> {
-    const API_URL = "/api/chat";
-    const customApiKey = localStorage.getItem("nexo_custom_api_key") || "";
-
-    const response = await fetch(API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(auth.currentUser ? {
-          "x-user-id": auth.currentUser.uid,
-          "x-user-email": auth.currentUser.email || "",
-        } : {}),
-      },
-      body: JSON.stringify({
-        ...payload,
-        customApiKey,
-        stream: true,
-      }),
+    const priority = (payload.priority || "NORMAL") as RequestPriority;
+    return AIRequestManager.getInstance().request(payload.messages, {
+      model: payload.model,
+      temperature: payload.temperature,
+      topP: payload.top_p,
+      enableThinking: payload.enableThinking,
+      priority,
+      onChunk,
     });
-
-    if (!response.ok) {
-      const errText = await response.text().catch(() => "");
-      throw new Error(`Nexo API returned ${response.status}: ${errText}`);
-    }
-
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error("No response stream available");
-
-    const decoder = new TextDecoder();
-    let fullText = "";
-    let buffer = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed === "data: [DONE]") continue;
-        if (!trimmed.startsWith("data: ")) continue;
-
-        try {
-          const json = JSON.parse(trimmed.slice(6));
-          const delta = json.choices?.[0]?.delta;
-          const content = delta?.content || "";
-
-          if (content) {
-            fullText += content;
-            if (onChunk) onChunk(fullText);
-          }
-        } catch (e) {
-          // Ignore parse errors
-        }
-      }
-    }
-
-    return fullText;
   }
 
   protected formatMessages(

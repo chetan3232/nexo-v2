@@ -6,6 +6,7 @@ import { ProjectAnalysisService } from "../services/projectAnalysisService";
 import { DesignGenerationService } from "../services/designGenerationService";
 import { DesignLockService } from "../services/designLockService";
 import { SelectedDesignSnapshot } from "../types/designConcept";
+import { ImplementationPlanService, ImplementationPlan } from "../services/implementationPlanService";
 import { PMAgent } from "./PMAgent";
 import { DesignerAgent } from "./DesignerAgent";
 import { FrontendAgent } from "./FrontendAgent";
@@ -55,7 +56,382 @@ export class Orchestrator {
     return Orchestrator.instance;
   }
 
-  private constructor() {}
+  private constructor() {
+    this.setupWorkflowListener();
+  }
+
+  private setupWorkflowListener() {
+    let lastPhase = useGenerationWorkflowStore.getState().currentPhase;
+    useGenerationWorkflowStore.subscribe((state) => {
+      const newPhase = state.currentPhase;
+      if (newPhase !== lastPhase) {
+        lastPhase = newPhase;
+        if (newPhase === "GENERATING_IMPLEMENTATION_PLAN") {
+          this.handleImplementationPlanning();
+        } else if (newPhase === "IMPLEMENTING") {
+          this.handleCodeGeneration();
+        }
+      }
+    });
+  }
+
+  private async handleImplementationPlanning() {
+    const workflowStore = useGenerationWorkflowStore.getState();
+    const chatStore = useChatStore.getState();
+    const projectStore = useProjectStore.getState();
+    const agentStore = useAgentStore.getState();
+
+    try {
+      chatStore.setState(CompanionState.THINKING);
+      projectStore.setSubStatus("Generating implementation plan...");
+
+      const normalizedRequest = workflowStore.normalizedPrompt || workflowStore.userPrompt;
+      const projectMode = workflowStore.projectMode;
+      const snapshot = workflowStore.selectedDesignSnapshot;
+      const analysis = workflowStore.analysisResult;
+      const requiredFeatures = analysis ? analysis.requiredFeatures : [];
+
+      if (!snapshot || !analysis) {
+        throw new Error("Selected design snapshot or requirements analysis is missing.");
+      }
+
+      const plan = await ImplementationPlanService.getInstance().generateImplementationPlan(
+        normalizedRequest,
+        projectMode,
+        snapshot,
+        analysis,
+        requiredFeatures,
+        3
+      );
+
+      const bulletList = (arr: string[]) => arr.map(item => `  - ${item}`).join("\n");
+      const planMarkdown = `# Implementation Plan: ${snapshot.designName}
+
+## Project Summary
+${plan.projectSummary}
+
+## Selected Design Summary
+${plan.selectedDesignSummary}
+
+## Technology Stack
+${bulletList(plan.technologyStack)}
+
+## Architecture
+${plan.architecture}
+
+## Pages & Structure
+${bulletList(plan.pages)}
+
+## Components
+${bulletList(plan.components)}
+
+## Key Features
+${bulletList(plan.features)}
+
+## Data Flow
+${plan.dataFlow}
+
+## API Requirements
+${bulletList(plan.apiRequirements)}
+
+## Security Requirements
+${bulletList(plan.securityRequirements)}
+
+## Implementation Steps
+${bulletList(plan.implementationSteps)}
+
+## Validation Steps
+${bulletList(plan.validationSteps)}
+
+## Deployment Requirements
+${bulletList(plan.deploymentRequirements)}`;
+
+      workflowStore.setImplementationPlan(planMarkdown);
+      workflowStore.setEditedImplementationPlan(planMarkdown);
+      workflowStore.setParsedImplementationPlan(plan);
+
+      // Move workflow to AWAITING_PLAN_APPROVAL
+      workflowStore.transitionTo("AWAITING_PLAN_APPROVAL");
+      projectStore.setSubStatus("Awaiting plan approval...");
+
+      chatStore.setState(CompanionState.IDLE);
+      projectStore.setBuildPhase("completed");
+      AgentEventBus.getInstance().setGenerating(false);
+
+      // Post plan to chat messages timeline
+      chatStore.setMessages((prev: any[]) => [
+        ...prev,
+        {
+          id: `plan_${Date.now()}`,
+          role: "assistant",
+          text: `📋 **Implementation Plan Ready**
+
+I have prepared the technical implementation plan for your project. Please review the proposed architecture, components, and pages.
+
+${planMarkdown}`,
+          timestamp: Date.now(),
+          model: agentStore.selectedModel
+        }
+      ]);
+
+      toast.success("Implementation plan generated! 📋");
+
+    } catch (err: any) {
+      console.error("[Orchestrator] Planning failed:", err);
+      toast.error(`Planning failed: ${err.message}`);
+      workflowStore.transitionTo("ERROR");
+      workflowStore.setError(err.message);
+      chatStore.setState(CompanionState.IDLE);
+      BackgroundPreserver.deactivate();
+      AgentEventBus.getInstance().setGenerating(false);
+    }
+  }
+
+  private async handleCodeGeneration() {
+    const workflowStore = useGenerationWorkflowStore.getState();
+    const chatStore = useChatStore.getState();
+    const projectStore = useProjectStore.getState();
+    const agentStore = useAgentStore.getState();
+
+    // 1. Receive/retrieve snapshots before invoking agents
+    const projectMode = workflowStore.projectMode;
+    const analysis = workflowStore.analysisResult;
+    const snapshot = workflowStore.selectedDesignSnapshot;
+    const plan = (workflowStore.implementationPlanSnapshot || workflowStore.parsedImplementationPlan) as ImplementationPlan;
+
+    if (!analysis || !snapshot || !plan) {
+      toast.error("Code generation context is missing.");
+      workflowStore.transitionTo("ERROR");
+      return;
+    }
+
+    try {
+      chatStore.setState(CompanionState.THINKING);
+      projectStore.setBuildPhase("generating");
+      AgentEventBus.getInstance().setGenerating(true);
+      
+      // Clear previous files or set building state
+      projectStore.setBuildingFiles({});
+
+      // 2. Prepare generation context containing strict guidelines
+      const generationContext = `
+=========================================
+GENERATION CONTEXT (STRICT CONSTRAINTS)
+=========================================
+1. PROJECT MODE: ${projectMode.toUpperCase()}
+2. USER REQUIREMENTS:
+   - Request Goal: ${analysis.projectGoal}
+   - Required Features: ${plan.features.join(", ")}
+3. SELECTED DESIGN (Locked visual direction):
+   - Name: ${snapshot.designName}
+   - Layout Structure: ${snapshot.layoutStructure}
+   - Color Palette: ${JSON.stringify(snapshot.colorSystem)}
+   - Typography: ${JSON.stringify(snapshot.typography)}
+   - Component Style: ${snapshot.componentStyle}
+   - Animation Style: ${snapshot.animationStyle}
+4. APPROVED IMPLEMENTATION PLAN:
+   - Summary: ${plan.projectSummary}
+   - Architecture: ${plan.architecture}
+   - Pages: ${plan.pages.join(", ")}
+   - Components: ${plan.components.join(", ")}
+5. TECH STACK: ${plan.technologyStack.join(", ")}
+6. SECURITY REQUIREMENTS: ${plan.securityRequirements.join(", ")}
+
+STRICT DESIGN LOCK RULE: The generated application must visually match the selected design. Do not allow the creation of a new design. Interpret and implement ONLY the locked design.
+=========================================
+`;
+
+      // 3. Batch Generation setup
+      const batches = projectMode === "frontend" 
+        ? [
+            {
+              name: "Batch 1: HTML Structure & Styles",
+              files: ["index.html", "style.css"],
+              prompt: `Generate the complete structure in 'index.html' and styling in 'style.css' for the project. 
+The files must match the locked visual design snapshot (colors, layout, styles).`
+            },
+            {
+              name: "Batch 2: Interactivity Script",
+              files: ["script.js"],
+              prompt: `Generate the complete interactive logic in 'script.js' to power the HTML pages.
+Implement all features listed in the approved plan.`
+            }
+          ]
+        : [
+            {
+              name: "Batch 1: Backend APIs & Server Setup",
+              files: ["server.js", "package.json"],
+              prompt: `Set up the server.js mock database, Express routes, and Node.js dependencies in package.json.
+Include endpoints for: ${plan.apiRequirements.join(", ")}.`
+            },
+            {
+              name: "Batch 2: Reusable UI Components",
+              files: plan.components.map((c: string) => `src/components/${c.split(" ")[0]}.tsx`),
+              prompt: `Generate the React Tailwind components under src/components/: ${plan.components.join(", ")}.
+Ensure they implement the component styles: ${snapshot.componentStyle}.`
+            },
+            {
+              name: "Batch 3: Pages, Router & Core App",
+              files: [...plan.pages.map((p: string) => `src/pages/${p.split(" ")[0]}.tsx`), "src/App.tsx", "src/main.tsx"],
+              prompt: `Generate the React pages: ${plan.pages.join(", ")} under src/pages/, along with src/App.tsx routing/layout and src/main.tsx.
+Ensure page structure follows the design lock.`
+            }
+          ];
+
+      const generatedFiles: Record<string, string> = { ...(projectStore.currentContent?.files || {}) };
+
+      for (let i = 0; i < batches.length; i++) {
+        const batch = batches[i];
+        projectStore.setSubStatus(`Generating ${batch.name}...`);
+        
+        let success = false;
+        let retries = 0;
+        const maxBatchRetries = 2;
+
+        while (!success && retries <= maxBatchRetries) {
+          try {
+            console.log(`[Orchestrator] Generating ${batch.name} (Attempt ${retries + 1}/${maxBatchRetries + 1})`);
+            
+            const frontendAgent = new FrontendAgent();
+            
+            const promptForAgent = `${generationContext}
+
+TASK:
+You are implementing ${batch.name}.
+${batch.prompt}
+
+FILES TO GENERATE:
+${batch.files.map(f => `- ${f}`).join("\n")}
+
+Respond ONLY with code blocks in the standard format:
+---FILE: filename.ext---
+[code content]
+---END FILE---
+`;
+
+            const agentResponse = await frontendAgent.generateUI(
+              promptForAgent,
+              [],
+              {
+                model: agentStore.selectedModel,
+                projectMode: projectMode,
+                techStack: plan.technologyStack.join(", "),
+                selectedLanguage: projectMode === "frontend" ? "JavaScript" : "TypeScript",
+                temperature: 0.2,
+              }
+            );
+
+            const extracted = extractCodeFromText(agentResponse);
+            if (!extracted.website || Object.keys(extracted.website.files).length === 0) {
+              throw new Error("No files were generated in agent response.");
+            }
+
+            // Store successfully generated files immediately
+            Object.entries(extracted.website.files).forEach(([fpath, contents]) => {
+              generatedFiles[fpath] = contents as string;
+              
+              projectStore.setBuildingFiles(prev => ({
+                ...prev,
+                [fpath]: { status: "done", charCount: (contents as string).length }
+              }));
+            });
+
+            projectStore.setCurrentContent({
+              files: { ...generatedFiles },
+              patches: {},
+              mainFile: projectMode === "frontend" ? "index.html" : "src/main.tsx",
+              template: projectMode === "frontend" ? "web" : "react"
+            });
+
+            success = true;
+          } catch (err: any) {
+            console.warn(`[Orchestrator] ${batch.name} attempt ${retries + 1} failed:`, err);
+            retries++;
+            if (retries > maxBatchRetries) {
+              throw new Error(`Failed to generate ${batch.name} after ${maxBatchRetries + 1} attempts.`);
+            }
+            await new Promise(r => setTimeout(r, 1000));
+          }
+        }
+      }
+
+      // 4. Animation Batch (constrained to selected animations)
+      projectStore.setSubStatus("Applying visual animations...");
+      const animationAgent = new AnimationAgent();
+      const animatedCodeResponse = await animationAgent.animate(
+        `Apply design locked animation style '${snapshot.animationStyle}' to the UI. Do not change animation direction.`,
+        [],
+        { model: agentStore.selectedModel }
+      );
+      const animExtracted = extractCodeFromText(animatedCodeResponse);
+      if (animExtracted.website) {
+        Object.entries(animExtracted.website.files).forEach(([fpath, contents]) => {
+          generatedFiles[fpath] = contents as string;
+        });
+        projectStore.setCurrentContent({
+          files: { ...generatedFiles },
+          patches: {},
+          mainFile: projectMode === "frontend" ? "index.html" : "src/main.tsx",
+          template: projectMode === "frontend" ? "web" : "react"
+        });
+      }
+
+      // 5. QA Batch
+      projectStore.setSubStatus("Creating automated tests...");
+      const qaAgent = new QAAgent();
+      const testCodeResponse = await qaAgent.runTests(
+        "Generate vitest unit tests.",
+        generatedFiles[projectMode === "frontend" ? "script.js" : "src/App.tsx"] || "",
+        { model: agentStore.selectedModel }
+      );
+      const qaExtracted = extractCodeFromText(testCodeResponse);
+      if (qaExtracted.website) {
+        Object.entries(qaExtracted.website.files).forEach(([fpath, contents]) => {
+          generatedFiles[fpath] = contents as string;
+        });
+        projectStore.setCurrentContent({
+          files: { ...generatedFiles },
+          patches: {},
+          mainFile: projectMode === "frontend" ? "index.html" : "src/main.tsx",
+          template: projectMode === "frontend" ? "web" : "react"
+        });
+      }
+
+      // 6. Transition to VALIDATING and boot runtime
+      workflowStore.transitionTo("VALIDATING");
+      projectStore.setSubStatus("Validating build and booting runtime...");
+
+      await this.bootRuntime();
+
+      workflowStore.transitionTo("RUNNING");
+      workflowStore.transitionTo("COMPLETED");
+      projectStore.setBuildPhase("completed");
+      chatStore.setState(CompanionState.IDLE);
+      AgentEventBus.getInstance().setGenerating(false);
+
+      chatStore.setMessages((prev: any[]) => [
+        ...prev,
+        {
+          id: `done_gen_${Date.now()}`,
+          role: "assistant",
+          text: `🎉 **Application Created Successfully!**\n\nThe code matches the locked design **${snapshot.designName}** and the approved implementation plan. Switch to the **Preview** tab to interact with it live!`,
+          timestamp: Date.now(),
+          model: agentStore.selectedModel
+        }
+      ]);
+
+      toast.success("Application generated successfully! 🚀");
+      
+    } catch (err: any) {
+      console.error("[Orchestrator] Code generation failed:", err);
+      toast.error(`Code generation failed: ${err.message}`);
+      workflowStore.transitionTo("ERROR");
+      workflowStore.setError(err.message);
+      chatStore.setState(CompanionState.IDLE);
+      BackgroundPreserver.deactivate();
+      AgentEventBus.getInstance().setGenerating(false);
+    }
+  }
 
   private activeEventSource: EventSource | null = null;
   private activeJobId: string | null = null;

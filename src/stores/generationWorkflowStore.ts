@@ -54,6 +54,8 @@ export interface GenerationWorkflowState {
   designHistory: Record<string, DesignConcept[]>;
   implementationPlan: string;
   editedImplementationPlan: string;
+  parsedImplementationPlan: any | null;
+  implementationPlanSnapshot: any | null;
   generatedFiles: Record<string, string>;
   validationResults: ValidationResult | null;
   repairAttempts: number;
@@ -73,6 +75,8 @@ export interface GenerationWorkflowState {
   restoreDesignVersion: (conceptId: string, versionIndex: number) => void;
   setImplementationPlan: (plan: string) => void;
   setEditedImplementationPlan: (plan: string) => void;
+  setParsedImplementationPlan: (plan: any) => void;
+  approvePlan: () => void;
   setGeneratedFiles: (files: Record<string, string>) => void;
   setValidationResults: (results: ValidationResult | null) => void;
   setRepairAttempts: (attempts: number | ((prev: number) => number)) => void;
@@ -144,6 +148,8 @@ export const useGenerationWorkflowStore = create<GenerationWorkflowState>((set, 
   designHistory: {},
   implementationPlan: "",
   editedImplementationPlan: "",
+  parsedImplementationPlan: null,
+  implementationPlanSnapshot: null,
   generatedFiles: {},
   validationResults: null,
   repairAttempts: 0,
@@ -228,6 +234,13 @@ export const useGenerationWorkflowStore = create<GenerationWorkflowState>((set, 
   },
   setImplementationPlan: (implementationPlan: string) => set({ implementationPlan }),
   setEditedImplementationPlan: (editedImplementationPlan: string) => set({ editedImplementationPlan }),
+  setParsedImplementationPlan: (parsedImplementationPlan: any) => set({ parsedImplementationPlan }),
+  approvePlan: () => {
+    const { parsedImplementationPlan } = get();
+    const snapshot = parsedImplementationPlan ? Object.freeze(JSON.parse(JSON.stringify(parsedImplementationPlan))) : null;
+    set({ implementationPlanSnapshot: snapshot });
+    get().transitionTo("IMPLEMENTING");
+  },
   setGeneratedFiles: (generatedFiles: Record<string, string>) => set({ generatedFiles }),
   setValidationResults: (validationResults: ValidationResult | null) => set({ validationResults }),
   setRepairAttempts: (updater: number | ((prev: number) => number)) => {
@@ -251,6 +264,8 @@ export const useGenerationWorkflowStore = create<GenerationWorkflowState>((set, 
       designHistory: {},
       implementationPlan: "",
       editedImplementationPlan: "",
+      parsedImplementationPlan: null,
+      implementationPlanSnapshot: null,
       generatedFiles: {},
       validationResults: null,
       repairAttempts: 0,
