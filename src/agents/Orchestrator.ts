@@ -7,6 +7,7 @@ import { DesignGenerationService } from "../services/designGenerationService";
 import { DesignLockService } from "../services/designLockService";
 import { SelectedDesignSnapshot } from "../types/designConcept";
 import { ImplementationPlanService, ImplementationPlan } from "../services/implementationPlanService";
+import { ValidationService } from "../services/validationService";
 import { PMAgent } from "./PMAgent";
 import { DesignerAgent } from "./DesignerAgent";
 import { FrontendAgent } from "./FrontendAgent";
@@ -278,7 +279,7 @@ Ensure page structure follows the design lock.`
             }
           ];
 
-      const generatedFiles: Record<string, string> = { ...(projectStore.currentContent?.files || {}) };
+      let generatedFiles: Record<string, string> = { ...(projectStore.currentContent?.files || {}) };
 
       for (let i = 0; i < batches.length; i++) {
         const batch = batches[i];
@@ -399,6 +400,95 @@ Respond ONLY with code blocks in the standard format:
 
       // 6. Transition to VALIDATING and boot runtime
       workflowStore.transitionTo("VALIDATING");
+      projectStore.setSubStatus("Running post-generation validation pipeline...");
+
+      const validationResult = ValidationService.getInstance().validate(
+        generatedFiles,
+        projectMode,
+        snapshot,
+        plan
+      );
+
+      let currentFiles = { ...generatedFiles };
+      if (!validationResult.isValid) {
+        let attempts = 0;
+        const maxAttempts = 3;
+        let checkResult = validationResult;
+
+        while (!checkResult.isValid && attempts < maxAttempts) {
+          attempts++;
+          projectStore.setSubStatus(`Running targeted repair attempt ${attempts}/${maxAttempts} for ${checkResult.failure?.errorType}...`);
+          console.log(`[Orchestrator] Validation failed: ${checkResult.failure?.errorMessage}. Attempting targeted repair ${attempts}/${maxAttempts}`);
+          
+          toast.error(`Validation failed: ${checkResult.failure?.errorType}. Repairing... 🛠️`);
+
+          const archAgent = new ArchitectureAgent();
+          const repairResponse = await archAgent.repair(
+            checkResult.failure,
+            { model: agentStore.selectedModel }
+          );
+
+          const repairExtracted = extractCodeFromText(repairResponse);
+          if (repairExtracted.website && Object.keys(repairExtracted.website.files).length > 0) {
+            Object.entries(repairExtracted.website.files).forEach(([fpath, contents]) => {
+              currentFiles[fpath] = contents as string;
+            });
+
+            projectStore.setCurrentContent({
+              files: { ...currentFiles },
+              patches: {},
+              mainFile: projectMode === "frontend" ? "index.html" : "src/main.tsx",
+              template: projectMode === "frontend" ? "web" : "react"
+            });
+
+            // Determine appropriate validation stage to rerun first
+            const failedStage = checkResult.failure?.errorType === "Project Mode Violation" ? "Project Mode Validation"
+              : checkResult.failure?.errorType === "Project Entrypoint Missing" ? "Project Mode Validation"
+              : checkResult.failure?.errorType === "Configuration File Missing" ? "Project Mode Validation"
+              : checkResult.failure?.errorType === "Design Non-Compliance" ? "Selected Design Compliance"
+              : checkResult.failure?.errorType === "Implementation Plan Mismatch" ? "Implementation Plan Compliance"
+              : checkResult.failure?.errorType === "Syntax / Compile Error" ? "TypeScript / Syntax Validation"
+              : checkResult.failure?.errorType === "Missing Dependency" ? "Dependency Validation"
+              : checkResult.failure?.errorType === "Malformed Configuration" ? "Dependency Validation"
+              : checkResult.failure?.errorType === "Security Violation" ? "Security Validation"
+              : checkResult.failure?.errorType === "Build Failure" ? "Build Validation"
+              : "Runtime Validation";
+
+            const stageResult = ValidationService.getInstance().rerunStage(
+              failedStage,
+              currentFiles,
+              projectMode,
+              snapshot,
+              plan
+            );
+
+            if (stageResult.isValid) {
+              console.log(`[Orchestrator] Targeted check passed for ${failedStage}. Running full validation...`);
+              checkResult = ValidationService.getInstance().validate(
+                currentFiles,
+                projectMode,
+                snapshot,
+                plan
+              );
+            } else {
+              checkResult = {
+                isValid: false,
+                failure: stageResult.failure,
+                passedStages: []
+              };
+            }
+          } else {
+            console.warn("[Orchestrator] Repair agent returned no files.");
+            break;
+          }
+        }
+
+        if (!checkResult.isValid) {
+          throw new Error(`Self-healing failed to resolve validation errors after ${maxAttempts} attempts: ${checkResult.failure?.errorMessage}`);
+        }
+      }
+
+      generatedFiles = currentFiles;
       projectStore.setSubStatus("Validating build and booting runtime...");
 
       await this.bootRuntime();
