@@ -9,9 +9,17 @@ export const DependencyGraph: React.FC = () => {
   if (depNodes.length === 0) return null;
 
   const handleNodeClick = (node: any) => {
-    // Trigger AI Explanation (simulated for now)
+    const descriptions: Record<string, string> = {
+      project: "Project Architecture:\nCentral configurations, files and structure blueprints.",
+      pages: "Pages Layer:\nTop-level page views (e.g. Home.tsx) mapped to approved plan layouts.",
+      components: "UI Components:\nModular, reusable design-token based layout blocks (Header, Button, Card) generated in Batch 2.",
+      api: "Express API Endpoints:\nBackend mock API endpoints serving the frontend data requirements.",
+      database: "Database Schema:\nLocal mock database storing persistent collection schemas.",
+      auth: "Firebase / Google Auth:\nAuthentication guard routing and secure sign-in states.",
+      deployment: "Live Deployment Sandbox:\nRuntime environments serving the build bundle."
+    };
     setAnalysisInsights(
-      `Analyzing ${node.id}... \n\n- Dependencies: ${node.dependencies.length}\n- Status: ${node.isUnused ? "Dead Code Detected" : "Active"}\n- Suggested Refactor: Move shared logic to a hook.`,
+      descriptions[node.id] || `Analyzing ${node.id}...\n\nDependencies: ${node.dependencies.join(", ")}`
     );
   };
 
@@ -21,7 +29,7 @@ export const DependencyGraph: React.FC = () => {
         <div className="flex items-center gap-2">
           <Share2 className="w-4 h-4 text-indigo-500" />
           <span className="text-xs font-black uppercase tracking-widest text-stone-900">
-            Dependency Graph
+            Memory Graph
           </span>
         </div>
       </div>

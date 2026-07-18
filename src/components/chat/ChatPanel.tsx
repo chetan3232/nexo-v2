@@ -117,6 +117,7 @@ const SkeletonLoader: React.FC = () => {
 export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
   const { messages, input, setInput } = useChatStore();
   const { buildPhase, subStatus, tasks } = useProjectStore();
+  const [viewMode, setViewMode] = useState<"chat" | "kanban">("chat");
   const { selectedModel, setSelectedModel, projectMode } = useAgentStore();
   const { fileBuffers, activeFiles, createdFiles } = useAgentEventStore();
 
@@ -466,7 +467,25 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
       <div className="h-[52px] border-b border-[#e8e8e8] flex items-center justify-between px-4 shrink-0 select-none bg-white relative z-20">
         <div className="flex items-center gap-2">
           <Sparkles className="w-3.5 h-3.5 text-[#0ea5e9]" />
-          <span className="text-sm font-semibold text-[#111]">Nexo</span>
+          <span className="text-sm font-semibold text-[#111] mr-3">Nexo</span>
+          <div className="flex bg-[#f3f3f3] p-0.5 rounded-lg border border-[#e8e8e8]">
+            <button
+              onClick={() => setViewMode("chat")}
+              className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all ${
+                viewMode === "chat" ? "bg-white text-[#111] shadow-sm" : "text-[#aaa] hover:text-[#555]"
+              }`}
+            >
+              Chat
+            </button>
+            <button
+              onClick={() => setViewMode("kanban")}
+              className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all ${
+                viewMode === "kanban" ? "bg-white text-[#111] shadow-sm" : "text-[#aaa] hover:text-[#555]"
+              }`}
+            >
+              Tasks
+            </button>
+          </div>
         </div>
         <div className="flex items-center gap-1">
           {messages.length > 0 && (
@@ -509,7 +528,62 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
 
       {/* ── Messages ── */}
       <div className="flex-grow overflow-y-auto p-4 space-y-3 pb-[160px] scrollbar-hide relative z-10">
-        {(buildPhase !== "idle" && buildPhase !== "completed") ? (
+        {viewMode === "kanban" ? (
+          <div className="flex flex-col gap-5 h-full">
+            {[
+              {
+                title: "Todo",
+                color: "border-stone-200 bg-stone-50/40 text-stone-500",
+                tasks: [
+                  { id: "task1", label: "Create Responsive Navbar", desc: "Build Navbar with logo and link animations." },
+                  { id: "task2", label: "Implement Router", desc: "Define React Router endpoints and guard subpages." }
+                ]
+              },
+              {
+                title: "In Progress",
+                color: "border-indigo-200 bg-indigo-50/10 text-indigo-500",
+                tasks: [
+                  { id: "task3", label: "Animate Hero Block", desc: "Build Hero component with keyframe transitions." }
+                ]
+              },
+              {
+                title: "Done",
+                color: "border-emerald-200 bg-emerald-50/10 text-emerald-500",
+                tasks: [
+                  { id: "task4", label: "Initialize Project Framework", desc: "Compile core file layouts and build package settings." },
+                  { id: "task5", label: "Generate Design Tokens", desc: "Define typography, colors and radius style variables." }
+                ]
+              }
+            ].map((col, idx) => (
+              <div key={idx} className="space-y-2.5">
+                <div className="flex items-center justify-between px-1">
+                  <span className={`text-[10px] font-black uppercase tracking-wider ${col.color.split(" ").pop()}`}>
+                    {col.title} ({col.tasks.length})
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {col.tasks.map((task) => (
+                    <div key={task.id} className={`p-4 rounded-2xl border bg-white shadow-sm flex flex-col gap-2 transition-all hover:shadow-md ${col.color.split(" ")[0]}`}>
+                      <h4 className="text-xs font-bold text-stone-900">{task.label}</h4>
+                      <p className="text-[10px] text-stone-500 leading-normal">{task.desc}</p>
+                      {col.title !== "Done" && (
+                        <button
+                          onClick={() => {
+                            setViewMode("chat");
+                            onSend(`Resume task: ${task.label}`);
+                          }}
+                          className="mt-1 px-3 py-1.5 rounded-lg bg-stone-900 hover:bg-black text-white text-[9px] font-black uppercase tracking-wider transition-all self-start"
+                        >
+                          {col.title === "In Progress" ? "Continue" : "Resume Task"}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (buildPhase !== "idle" && buildPhase !== "completed") ? (
           <div className="h-full flex flex-col justify-start px-4 py-6 space-y-6 select-none bg-stone-50/20 rounded-2xl">
             <div className="flex items-center gap-2 mb-4 pb-3 border-b border-[#e8e8e8]">
               <Cpu className="w-4 h-4 text-[#0ea5e9] animate-pulse" />

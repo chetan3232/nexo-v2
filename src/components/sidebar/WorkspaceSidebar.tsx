@@ -43,8 +43,12 @@ import { DeploymentService } from "../../services/deploymentService";
 import JSZip from "jszip";
 import toast from "react-hot-toast";
 import { BlockLibrary } from "../ui/BlockLibrary";
+import { DependencyGraph } from "./DependencyGraph";
+import { HealthDashboard } from "./HealthDashboard";
+import { ProductionScanner } from "./ProductionScanner";
+import { Share2, ShieldCheck } from "lucide-react";
 
-type SidebarTab = "projects" | "chats" | "templates" | "assets" | "keys" | "deploy" | "settings" | "blocks";
+type SidebarTab = "projects" | "chats" | "templates" | "assets" | "keys" | "deploy" | "settings" | "blocks" | "graph" | "health" | "checklist";
 
 const PROVIDER_MODELS: Record<string, { id: string; name: string }[]> = {
   "Google AI": [
@@ -300,6 +304,9 @@ export const WorkspaceSidebar: React.FC = () => {
   const tabs = [
     { id: "projects", icon: FolderOpen, label: "Explorer" },
     { id: "chats", icon: MessageSquare, label: "Chats" },
+    { id: "graph", icon: Share2, label: "Memory Graph" },
+    { id: "health", icon: Activity, label: "Health Dashboard" },
+    { id: "checklist", icon: ShieldCheck, label: "Production Checklist" },
     { id: "templates", icon: Compass, label: "Starters" },
     { id: "blocks", icon: Layers, label: "Blocks" },
     { id: "assets", icon: Image, label: "Assets" },
@@ -747,6 +754,27 @@ export const WorkspaceSidebar: React.FC = () => {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* MEMORY GRAPH VIEW */}
+              {activeTab === "graph" && (
+                <div className="space-y-4 h-full flex flex-col">
+                  <DependencyGraph />
+                </div>
+              )}
+
+              {/* HEALTH DASHBOARD VIEW */}
+              {activeTab === "health" && (
+                <div className="space-y-4 h-full flex flex-col">
+                  <HealthDashboard />
+                </div>
+              )}
+
+              {/* PRODUCTION CHECKLIST VIEW */}
+              {activeTab === "checklist" && (
+                <div className="space-y-4 h-full flex flex-col">
+                  <ProductionScanner />
                 </div>
               )}
 

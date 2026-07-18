@@ -929,6 +929,17 @@ const ChatInterface: React.FC = () => {
                 <Sparkles className="w-3.5 h-3.5 text-[#0ea5e9]" />
                 Remix
               </button>
+              <button 
+                onClick={() => {
+                  toast.success("Triggering AI Project Enhancer... ✨");
+                  Orchestrator.getInstance().enhanceProject();
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#555] hover:text-amber-600 hover:bg-amber-50 border border-[#e8e8e8] hover:border-amber-200 transition-all"
+                title="Enhance Project UI/UX/Performance/SEO"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                Enhance Project
+              </button>
               <button
                 onClick={handleDeploy}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 transition-all shadow-md shadow-emerald-700/10 active:scale-95"

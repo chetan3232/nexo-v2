@@ -3,6 +3,8 @@ import Editor from "@monaco-editor/react";
 import { FileCode, X, Minimize2, Text, Type, Sparkles, Cpu, Hammer, Code } from "lucide-react";
 import { useProjectStore } from "../../stores/projectStore";
 import { Orchestrator } from "../../agents/Orchestrator";
+import ReactMarkdown from "react-markdown";
+import { useAgentStore } from "../../stores/agentStore";
 
 interface EditorPanelProps {
   selectedFileName: string | null;
@@ -28,6 +30,71 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
   const [wordWrap, setWordWrap] = useState<"on" | "off">("on");
 
   const serverValueRef = useRef<string>("");
+
+  const [showExplainer, setShowExplainer] = useState(false);
+  const [explainerCache, setExplainerCache] = useState<Record<string, string>>({});
+  const [explainerLoading, setExplainerLoading] = useState(false);
+  const [explainerText, setExplainerText] = useState("");
+
+  useEffect(() => {
+    if (!selectedFileName || !showExplainer || !currentContent) {
+      setExplainerText("");
+      return;
+    }
+    
+    const fileCode = currentContent.files[selectedFileName] || "";
+    const cacheKey = `${selectedFileName}_${fileCode.length}`;
+
+    if (explainerCache[cacheKey]) {
+      setExplainerText(explainerCache[cacheKey]);
+      return;
+    }
+
+    const fetchExplanation = async () => {
+      setExplainerLoading(true);
+      setExplainerText("");
+      try {
+        const { invokeAI } = await import("../../services/geminiService");
+        const prompt = `Deconstruct and explain the following code file in detail.
+File Path: ${selectedFileName}
+
+Provide your explanation structured EXACTLY with these sections:
+1. **Purpose**: What is the core goal of this file?
+2. **Dependencies**: List key imports, external modules, or internal components it relies on.
+3. **Props**: Detail the React props or interface (if applicable). If not a React component, explain its inputs/parameters.
+4. **Functions**: Summary of main functions, methods, or hooks defined here.
+5. **Complexity**: Estimate its complexity (algorithmic, readability, state density).
+6. **Performance**: Analyze any performance implications or potential bottlenecks.
+7. **Possible Improvements**: Suggest code optimizations, structural refactorings, or safety checks.
+
+Return the response in clean, beautiful markdown.
+
+CODE:
+${fileCode}`;
+
+        const model = useAgentStore.getState().selectedModel;
+        const responseText = await invokeAI(
+          [
+            { role: "system", content: "You are a Senior Architect. Your goal is to review and explain code files in detail." },
+            { role: "user", content: prompt }
+          ],
+          model,
+          0.3,
+          1
+        );
+
+        setExplainerCache(prev => ({ ...prev, [cacheKey]: responseText }));
+        setExplainerText(responseText);
+      } catch (err) {
+        console.error("Explainer failed:", err);
+        setExplainerText("Failed to generate explanation for this file. Please check your connection and try again.");
+      } finally {
+        setExplainerLoading(false);
+      }
+    };
+
+    fetchExplanation();
+  }, [selectedFileName, showExplainer, currentContent?.files]);
 
   // Sync open tabs with selectedFileName
   useEffect(() => {
@@ -269,64 +336,131 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
           >
             <Text className="w-3.5 h-3.5" />
           </button>
+
+          {/* AI Explainer Toggle */}
+          <button
+            onClick={() => setShowExplainer(!showExplainer)}
+            className={`p-2 rounded-xl border transition-all duration-300 ${
+              showExplainer
+                ? "bg-studio-accent/15 text-studio-accent border-studio-accent/30 shadow-md shadow-studio-accent/5"
+                : "bg-studio-bg text-studio-muted border-studio-border/60 hover:text-studio-text hover:bg-studio-panel"
+            }`}
+            title="AI File Explainer"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
 
       {/* Editor Window wrapper capturing ContextMenu */}
       <div 
-        className="flex-grow overflow-hidden relative bg-studio-bg/10"
+        className="flex-grow flex overflow-hidden relative bg-studio-bg/10"
         onContextMenu={handleContextMenu}
       >
-        {selectedFileName ? (
-          <Editor
-            height="100%"
-            theme="vs-dark"
-            path={selectedFileName}
-            language={
-              selectedFileName.split(".").pop() === "tsx" ||
-              selectedFileName.split(".").pop() === "ts"
-                ? "typescript"
-                : selectedFileName.split(".").pop() === "json"
-                ? "json"
-                : "javascript"
-            }
-            value={localValue}
-            onChange={(val) => {
-              userEditingRef.current = true;
-              setLocalValue(val || "");
-            }}
-            onMount={handleEditorDidMount}
-            options={{
-              fontSize,
-              minimap: { enabled: minimap },
-              wordWrap,
-              fontFamily: "JetBrains Mono, monospace",
-              lineHeight: 1.6,
-              padding: { top: 12 },
-              automaticLayout: true,
-              scrollBeyondLastLine: false,
-              smoothScrolling: true,
-              cursorSmoothCaretAnimation: "on",
-              renderLineHighlight: "all",
-              contextmenu: false, // Disable default Monaco context menu
-            }}
-          />
-        ) : (
-          <div className="h-full flex flex-col items-center justify-center text-studio-muted gap-5 bg-studio-bg/60 rounded-3xl border border-studio-border/50 border-dashed m-6">
-            <div className="w-14 h-14 rounded-2xl bg-studio-panel border border-studio-border/80 flex items-center justify-center shadow-lg shadow-black/40">
-              <FileCode className="w-7 h-7 text-studio-accent animate-pulse" />
+        <div className="flex-1 h-full overflow-hidden relative">
+          {selectedFileName ? (
+            <Editor
+              height="100%"
+              theme="vs-dark"
+              path={selectedFileName}
+              language={
+                selectedFileName.split(".").pop() === "tsx" ||
+                selectedFileName.split(".").pop() === "ts"
+                  ? "typescript"
+                  : selectedFileName.split(".").pop() === "json"
+                  ? "json"
+                  : "javascript"
+              }
+              value={localValue}
+              onChange={(val) => {
+                userEditingRef.current = true;
+                setLocalValue(val || "");
+              }}
+              onMount={handleEditorDidMount}
+              options={{
+                fontSize,
+                minimap: { enabled: minimap },
+                wordWrap,
+                fontFamily: "JetBrains Mono, monospace",
+                lineHeight: 1.6,
+                padding: { top: 12 },
+                automaticLayout: true,
+                scrollBeyondLastLine: false,
+                smoothScrolling: true,
+                cursorSmoothCaretAnimation: "on",
+                renderLineHighlight: "all",
+                contextmenu: false, // Disable default Monaco context menu
+              }}
+            />
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-studio-muted gap-5 bg-studio-bg/60 rounded-3xl border border-studio-border/50 border-dashed m-6">
+              <div className="w-14 h-14 rounded-2xl bg-studio-panel border border-studio-border/80 flex items-center justify-center shadow-lg shadow-black/40">
+                <FileCode className="w-7 h-7 text-studio-accent animate-pulse" />
+              </div>
+              <div className="text-center space-y-1.5 select-none">
+                <span className="block text-xs font-black uppercase tracking-[0.25em] text-studio-text">
+                  No File Selected
+                </span>
+                <span className="block text-[10px] text-studio-muted">
+                  Select a workspace file from the explorer sidebar to begin editing.
+                </span>
+              </div>
             </div>
-            <div className="text-center space-y-1.5 select-none">
-              <span className="block text-xs font-black uppercase tracking-[0.25em] text-studio-text">
-                No File Selected
-              </span>
-              <span className="block text-[10px] text-studio-muted">
-                Select a workspace file from the explorer sidebar to begin editing.
-              </span>
+          )}
+        </div>
+
+        {/* AI File Explainer Panel */}
+        {showExplainer && selectedFileName && (
+          <div className="w-[380px] h-full border-l border-studio-border border-opacity-60 bg-studio-panel bg-opacity-90 backdrop-blur-2xl flex flex-col overflow-hidden z-20 shadow-2xl animate-fade-in">
+            <div className="p-4 border-b border-studio-border border-opacity-60 flex items-center justify-between shrink-0 bg-studio-panel bg-opacity-50">
+              <div className="flex items-center gap-2 animate-pulse">
+                <Sparkles className="w-4 h-4 text-studio-accent" />
+                <span className="text-[11px] font-black uppercase tracking-wider text-studio-text">AI File Explainer</span>
+              </div>
+              <button 
+                onClick={() => setShowExplainer(false)}
+                className="text-[9px] font-black uppercase text-studio-muted hover:text-studio-text px-2 py-1 rounded-md border border-studio-border border-opacity-60 hover:bg-studio-panel bg-opacity-50 transition-all"
+              >
+                Hide
+              </button>
+            </div>
+            <div className="flex-grow overflow-y-auto p-5 custom-scrollbar text-studio-text bg-studio-bg bg-opacity-40">
+              {explainerLoading ? (
+                <div className="h-full flex flex-col items-center justify-center gap-4 text-center">
+                  <div className="relative flex items-center justify-center">
+                    <div className="w-8 h-8 border-2 border-studio-accent border-opacity-20 border-t-studio-accent rounded-full animate-spin" />
+                  </div>
+                  <span className="text-[10px] font-bold text-studio-muted uppercase tracking-[0.2em] animate-pulse">
+                    Deconstructing Code...
+                  </span>
+                </div>
+              ) : explainerText ? (
+                <div className="prose prose-invert prose-xs max-w-none text-xs leading-relaxed space-y-4">
+                  <ReactMarkdown
+                    components={{
+                      h1: ({node, ...props}) => <h1 className="text-xs font-black text-studio-text uppercase tracking-wider border-b border-studio-border border-opacity-60 pb-1 mb-2 mt-4" {...props} />,
+                      h2: ({node, ...props}) => <h2 className="text-[11px] font-black text-studio-text uppercase tracking-wider mb-1.5 mt-3" {...props} />,
+                      h3: ({node, ...props}) => <h3 className="text-[10px] font-bold text-studio-accent uppercase mb-1 mt-2.5" {...props} />,
+                      p: ({node, ...props}) => <p className="text-[11px] text-studio-muted leading-relaxed mb-2.5 font-medium" {...props} />,
+                      ul: ({node, ...props}) => <ul className="list-disc pl-4 mb-2.5 space-y-1 text-[11px] text-studio-muted font-medium" {...props} />,
+                      ol: ({node, ...props}) => <ol className="list-decimal pl-4 mb-2.5 space-y-1 text-[11px] text-studio-muted font-medium" {...props} />,
+                      li: ({node, ...props}) => <li className="pl-0.5" {...props} />,
+                      code: ({node, ...props}) => <code className="bg-studio-panel bg-opacity-60 px-1 py-0.5 rounded font-mono text-[10px] text-studio-accent font-bold" {...props} />,
+                      strong: ({node, ...props}) => <strong className="text-studio-text font-black" {...props} />,
+                    }}
+                  >
+                    {explainerText}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-center text-studio-muted gap-3">
+                  <Sparkles className="w-6 h-6 text-studio-accent opacity-50" />
+                  <span className="text-[10px] uppercase font-bold tracking-wider">No explanation available</span>
+                </div>
+              )}
             </div>
           </div>
         )}
-
         {/* Custom Glassmorphic Context Menu */}
         {contextMenu && selectedFileName && (
           <div
