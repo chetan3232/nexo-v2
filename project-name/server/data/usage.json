@@ -610,10 +610,90 @@
       "cost": 0.004695,
       "speed": 128,
       "durationMs": 116955
+    },
+    {
+      "timestamp": "2026-07-17T18:09:15.517Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1750,
+      "outputTokens": 388,
+      "tokens": 2138,
+      "cost": 0.000248,
+      "speed": 66,
+      "durationMs": 5854
+    },
+    {
+      "timestamp": "2026-07-17T18:10:19.236Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 2682,
+      "outputTokens": 9524,
+      "tokens": 12206,
+      "cost": 0.003058,
+      "speed": 155,
+      "durationMs": 61516
+    },
+    {
+      "timestamp": "2026-07-17T18:11:06.119Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 2682,
+      "outputTokens": 7107,
+      "tokens": 9789,
+      "cost": 0.002333,
+      "speed": 146,
+      "durationMs": 48625
+    },
+    {
+      "timestamp": "2026-07-17T18:11:36.238Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 5632,
+      "outputTokens": 1893,
+      "tokens": 7525,
+      "cost": 0.00099,
+      "speed": 98,
+      "durationMs": 19229
+    },
+    {
+      "timestamp": "2026-07-17T18:12:49.454Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 3749,
+      "outputTokens": 4404,
+      "tokens": 8153,
+      "cost": 0.001602,
+      "speed": 114,
+      "durationMs": 38663
+    },
+    {
+      "timestamp": "2026-07-17T18:12:56.813Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 3734,
+      "outputTokens": 771,
+      "tokens": 4505,
+      "cost": 0.000511,
+      "speed": 109,
+      "durationMs": 7101
+    },
+    {
+      "timestamp": "2026-07-17T18:13:33.890Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 2136,
+      "outputTokens": 4393,
+      "tokens": 6529,
+      "cost": 0.001478,
+      "speed": 120,
+      "durationMs": 36572
+    },
+    {
+      "timestamp": "2026-07-17T18:13:53.474Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 2706,
+      "outputTokens": 3600,
+      "tokens": 6306,
+      "cost": 0.001283,
+      "speed": 187,
+      "durationMs": 19289
     }
   ],
-  "totalTokens": 434190,
-  "totalInputTokens": 170283,
-  "totalOutputTokens": 189771,
-  "totalCost": 0.062045
+  "totalTokens": 491341,
+  "totalInputTokens": 195354,
+  "totalOutputTokens": 221851,
+  "totalCost": 0.073548
 }

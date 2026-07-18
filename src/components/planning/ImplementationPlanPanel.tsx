@@ -99,16 +99,16 @@ export const ImplementationPlanPanel: React.FC = () => {
             <Layers className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-extrabold text-stone-900 text-sm uppercase tracking-tight">Technical Review</h3>
+            <h3 className="font-extrabold text-stone-900 text-sm uppercase tracking-tight">Architecture Report</h3>
             <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">
-              Selected Design: {selectedDesignSnapshot?.designName || "Default"}
+              Review and customize technical blueprint specifications
             </p>
           </div>
         </div>
         <button
           onClick={() => {
             approvePlan();
-            toast.success("Implementation plan approved! Launching agents... 🚀");
+            toast.success("Architecture blueprint approved! Launching agents... 🚀");
           }}
           className="flex items-center gap-1.5 px-6 py-2.5 bg-stone-900 hover:bg-black text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95"
         >
@@ -135,7 +135,7 @@ export const ImplementationPlanPanel: React.FC = () => {
         {/* Selected Design Section */}
         <div className="bg-white border border-stone-200 rounded-3xl p-6 shadow-sm space-y-4">
           <h4 className="font-black text-stone-900 text-sm uppercase tracking-wider border-b border-stone-100 pb-2">
-            Selected Design Style
+            Visual Concept & Design Style
           </h4>
           <textarea
             value={plan.selectedDesignSummary}

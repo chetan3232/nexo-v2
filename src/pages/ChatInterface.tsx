@@ -48,6 +48,7 @@ import { useRuntimeStore } from "../stores/runtimeStore";
 import { useGenerationWorkflowStore } from "../stores/generationWorkflowStore";
 import { DesignSelectionPanel } from "../components/design/DesignSelectionPanel";
 import { ImplementationPlanPanel } from "../components/planning/ImplementationPlanPanel";
+import { FeatureTimelinePanel } from "../components/planning/FeatureTimelinePanel";
 import { saveCurrentProject } from "../services/saveService";
 import { Orchestrator } from "../agents/Orchestrator";
 import { Message } from "../types";
@@ -207,9 +208,13 @@ const ChatInterface: React.FC = () => {
     }
   }, [projectStore.buildPhase, isMobile]);
 
-  // Auto-switch to Preview tab when design selection is awaited
+  // Auto-switch to Preview tab when design selection, plan approval, or timeline is active
   useEffect(() => {
-    if (currentPhase === "AWAITING_DESIGN_SELECTION") {
+    if (
+      currentPhase === "AWAITING_DESIGN_SELECTION" ||
+      currentPhase === "AWAITING_PLAN_APPROVAL" ||
+      currentPhase === "FEATURE_TIMELINE"
+    ) {
       setWorkspaceTab("preview");
       if (isMobile) {
         setActiveMobileTab("preview");
@@ -1092,6 +1097,8 @@ const ChatInterface: React.FC = () => {
                       <DesignSelectionPanel />
                     ) : currentPhase === "AWAITING_PLAN_APPROVAL" ? (
                       <ImplementationPlanPanel />
+                    ) : currentPhase === "FEATURE_TIMELINE" ? (
+                      <FeatureTimelinePanel />
                     ) : (
                       <PreviewPanel
                         isVisualMode={isVisualMode}
@@ -1208,6 +1215,8 @@ const ChatInterface: React.FC = () => {
                       <DesignSelectionPanel />
                     ) : currentPhase === "AWAITING_PLAN_APPROVAL" ? (
                       <ImplementationPlanPanel />
+                    ) : currentPhase === "FEATURE_TIMELINE" ? (
+                      <FeatureTimelinePanel />
                     ) : (
                       <PreviewPanel
                         isVisualMode={isVisualMode}

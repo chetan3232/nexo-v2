@@ -583,36 +583,39 @@ Respond ONLY with code blocks in the standard format:
       workflowStore.setAnalysisResult(analysisResult);
       workflowStore.setNormalizedPrompt(analysisResult.normalizedRequest);
 
-      // Step 4: Transition to THINKING & Update Status
-      workflowStore.transitionTo("THINKING");
-      projectStore.setSubStatus("Planning user experience...");
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      // Setup default design snapshot for the workflow
+      const defaultDesignSnapshot: SelectedDesignSnapshot = {
+        designId: "default_sleek",
+        designVersion: 1,
+        designName: "Sleek Studio",
+        layoutStructure: "Modern responsive web app with optimized grid layout",
+        colorSystem: {
+          primary: "#0ea5e9",
+          secondary: "#6366f1",
+          accent: "#f59e0b",
+          background: "#0b0f19",
+          surface: "#111827",
+          text: "#f3f4f6"
+        },
+        typography: {
+          fontFamily: "Inter, sans-serif",
+          headings: "Inter, sans-serif",
+          body: "Inter, sans-serif"
+        },
+        componentStyle: "Glassmorphic panels, rounded borders, clean typography, custom scrollbars",
+        animationStyle: "Sleek micro-animations, fade-in transitions, layout-id motion bindings",
+        pageStructure: analysisResult.requiredPages,
+        previewReference: {},
+        selectedAt: Date.now(),
+        fingerprint: "lock_default_sleek"
+      };
 
-      projectStore.setSubStatus("Choosing design direction...");
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      // Transition to GENERATING_DESIGNS & Update Status
-      workflowStore.transitionTo("GENERATING_DESIGNS");
-      projectStore.setSubStatus("Preparing two visual concepts...");
-
-      const designs = await DesignGenerationService.getInstance().generateDesigns(
-        prompt,
-        analysisResult,
-        projectMode,
-        maxRetries
-      );
-
-      // Store both designs inside generationWorkflowStore
-      workflowStore.setDesignConcepts(designs);
-
-      // Transition to AWAITING_DESIGN_SELECTION & Update Status
-      workflowStore.transitionTo("AWAITING_DESIGN_SELECTION");
-      projectStore.setSubStatus("Awaiting design selection...");
-
-      // Finish planning phase
-      chatStore.setState(CompanionState.IDLE);
-      projectStore.setBuildPhase("completed");
-      AgentEventBus.getInstance().setGenerating(false);
+      // Store the default design snapshot in store
+      useGenerationWorkflowStore.setState({
+        selectedDesignSnapshot: defaultDesignSnapshot,
+        selectedDesignId: "default_sleek",
+        selectedDesign: null
+      });
 
       // Format markdown summary
       const bulletList = (arr: string[]) => arr.map(item => `  - ${item}`).join("\n");
@@ -634,7 +637,7 @@ ${bulletList(analysisResult.requiredFeatures)}
 ${bulletList(analysisResult.technicalRequirements)}
 ${analysisResult.modeConflicts.length > 0 ? `\n⚠️ **Mode Conflicts Resolved:**\n${bulletList(analysisResult.modeConflicts)}` : ""}
 
-*Design A and Design B have been generated successfully. Compare and select your preferred visual concept in the preview panel.*`;
+*AI Analysis completed. AI Architecture Review is now generating the technical blueprint report.*`;
 
       chatStore.setMessages((prev: any[]) => [
         ...prev,
@@ -647,7 +650,10 @@ ${analysisResult.modeConflicts.length > 0 ? `\n⚠️ **Mode Conflicts Resolved:
         }
       ]);
 
-      toast.success("Analysis and planning complete! 🎉");
+      toast.success("AI Analysis complete! Starting Architecture Review... 🔍");
+
+      // Transition directly to GENERATING_IMPLEMENTATION_PLAN (AI Architecture Review)
+      workflowStore.transitionTo("GENERATING_IMPLEMENTATION_PLAN");
 
     } catch (err: any) {
       console.error("[Orchestrator] Failed during analysis flow:", err);

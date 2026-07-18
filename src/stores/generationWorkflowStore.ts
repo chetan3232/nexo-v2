@@ -12,6 +12,7 @@ export type WorkflowPhase =
   | "DESIGN_SELECTED"
   | "GENERATING_IMPLEMENTATION_PLAN"
   | "AWAITING_PLAN_APPROVAL"
+  | "FEATURE_TIMELINE"
   | "IMPLEMENTING"
   | "VALIDATING"
   | "REPAIRING"
@@ -77,6 +78,7 @@ export interface GenerationWorkflowState {
   setEditedImplementationPlan: (plan: string) => void;
   setParsedImplementationPlan: (plan: any) => void;
   approvePlan: () => void;
+  startImplementation: () => void;
   setGeneratedFiles: (files: Record<string, string>) => void;
   setValidationResults: (results: ValidationResult | null) => void;
   setRepairAttempts: (attempts: number | ((prev: number) => number)) => void;
@@ -86,13 +88,14 @@ export interface GenerationWorkflowState {
 
 const VALID_TRANSITIONS: Record<WorkflowPhase, WorkflowPhase[]> = {
   IDLE: ["ANALYZING"],
-  ANALYZING: ["THINKING", "ERROR"],
+  ANALYZING: ["THINKING", "GENERATING_IMPLEMENTATION_PLAN", "ERROR"],
   THINKING: ["GENERATING_DESIGNS", "GENERATING_IMPLEMENTATION_PLAN", "ERROR"],
   GENERATING_DESIGNS: ["AWAITING_DESIGN_SELECTION", "ERROR"],
   AWAITING_DESIGN_SELECTION: ["DESIGN_SELECTED", "THINKING", "GENERATING_DESIGNS", "ERROR"],
   DESIGN_SELECTED: ["GENERATING_IMPLEMENTATION_PLAN", "ERROR"],
   GENERATING_IMPLEMENTATION_PLAN: ["AWAITING_PLAN_APPROVAL", "ERROR"],
-  AWAITING_PLAN_APPROVAL: ["IMPLEMENTING", "GENERATING_IMPLEMENTATION_PLAN", "THINKING", "ERROR"],
+  AWAITING_PLAN_APPROVAL: ["FEATURE_TIMELINE", "IMPLEMENTING", "GENERATING_IMPLEMENTATION_PLAN", "THINKING", "ERROR"],
+  FEATURE_TIMELINE: ["IMPLEMENTING", "ERROR"],
   IMPLEMENTING: ["VALIDATING", "ERROR"],
   VALIDATING: ["REPAIRING", "RUNNING", "COMPLETED", "ERROR"],
   REPAIRING: ["VALIDATING", "ERROR"],
@@ -117,6 +120,7 @@ const mapWorkflowToProjectPhase = (
       return "designing";
     case "GENERATING_IMPLEMENTATION_PLAN":
     case "AWAITING_PLAN_APPROVAL":
+    case "FEATURE_TIMELINE":
       return "planning";
     case "IMPLEMENTING":
       return "generating";
@@ -239,6 +243,9 @@ export const useGenerationWorkflowStore = create<GenerationWorkflowState>((set, 
     const { parsedImplementationPlan } = get();
     const snapshot = parsedImplementationPlan ? Object.freeze(JSON.parse(JSON.stringify(parsedImplementationPlan))) : null;
     set({ implementationPlanSnapshot: snapshot });
+    get().transitionTo("FEATURE_TIMELINE");
+  },
+  startImplementation: () => {
     get().transitionTo("IMPLEMENTING");
   },
   setGeneratedFiles: (generatedFiles: Record<string, string>) => set({ generatedFiles }),
