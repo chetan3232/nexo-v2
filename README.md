@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/Status-Production--Ready-emerald?style=for-the-badge&logo=rocket" alt="Status" />
   <img src="https://img.shields.io/badge/Version-2.5.0-indigo?style=for-the-badge&logo=git" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-orange?style=for-the-badge" alt="License" />
-  <img src="https://img.shields.io/badge/Built%20With-Gemini%203.5-flash-blue?style=for-the-badge&logo=google-gemini" alt="Built With Gemini" />
+  <img src="https://img.shields.io/badge/Built%20With-Gemini%203.5 flash-blue?style=for-the-badge&logo=google-gemini" alt="Built With Gemini" />
 </p>
 
 ---
