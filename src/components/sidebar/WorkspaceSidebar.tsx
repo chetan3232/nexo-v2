@@ -53,23 +53,16 @@ type SidebarTab = "projects" | "chats" | "templates" | "assets" | "keys" | "depl
 const PROVIDER_MODELS: Record<string, { id: string; name: string }[]> = {
   "Google AI": [
     { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
-    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" }
+    { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash" }
   ],
   "OpenRouter": [
-    { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B" },
-    { id: "openrouter/owl-alpha", name: "Owl Alpha" }
+    { id: "poolside/laguna-xs-2.1:free", name: "poolside" },
+    { id: "nvidia/nemotron-3-ultra-550b-a55b:free", name: "nemotron-3-ultra-550b" }
   ],
   "NVIDIA NIM": [
-    { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B" },
-    { id: "z-ai/glm-5.1", name: "GLM 5.1" },
+    { id: "z-ai/glm-5.2", name: "GLM 5.2" },
     { id: "moonshotai/kimi-k2.6", name: "Kimi K2.6" },
     { id: "stepfun-ai/step-3.7-flash", name: "Step 3.7 Flash" }
-  ],
-  "Anthropic": [
-    { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet" }
-  ],
-  "OpenAI": [
-    { id: "openai/gpt-4o", name: "GPT-4o" }
   ]
 };
 
@@ -89,7 +82,7 @@ export const WorkspaceSidebar: React.FC = () => {
   // States from stores
   const { currentContent, selectedFileName, setSelectedFileName, deployStatus, deployUrl, setDeployStatus, setDeployUrl, buildPhase } = useProjectStore();
   const { messages, setMessages, currentChatId, setCurrentChatId, setHasStarted } = useChatStore();
-  
+
   // Event stores
   const { activeFiles } = useAgentEventStore();
   const { members } = useTeamStore();
@@ -289,12 +282,11 @@ export const WorkspaceSidebar: React.FC = () => {
   };
 
   const models = [
-    { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B", desc: "Free OpenRouter reasoning model" },
-    { id: "openrouter/owl-alpha", name: "Owl Alpha", desc: "OpenRouter's state-of-the-art owl reasoning model" },
+    { id: "poolside/laguna-xs-2.1:free", name: "poolside", desc: "Free OpenRouter poolside coding model" },
+    { id: "nvidia/nemotron-3-ultra-550b-a55b:free", name: "nemotron-3-ultra-550b", desc: "Free OpenRouter high-quality reasoning model" },
     { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", desc: "Fast reasoning, high quota" },
-    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", desc: "Best quality, deep reasoning" },
-    { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B (Nvidia)", desc: "Deep coding capabilities" },
-    { id: "z-ai/glm-5.1", name: "GLM 5.1 (Nvidia)", desc: "GLM multilingual generation model" },
+    { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash", desc: "Latest state-of-the-art flash model" },
+    { id: "z-ai/glm-5.2", name: "GLM 5.2 (Nvidia)", desc: "GLM v2 multilingual generation model" },
     { id: "moonshotai/kimi-k2.6", name: "Kimi K2.6 (Nvidia)", desc: "Moonshot long-context generation model" },
     { id: "stepfun-ai/step-3.7-flash", name: "Step 3.7 Flash (Nvidia)", desc: "StepFun generation model" },
   ];
@@ -385,11 +377,10 @@ export const WorkspaceSidebar: React.FC = () => {
               >
                 <button
                   onClick={() => handleTabClick(tab.id as SidebarTab)}
-                  className={`p-3 rounded-xl transition-all duration-300 ${
-                    isTabActive
-                      ? "bg-studio-panel text-studio-accent border border-studio-border/60 shadow-lg shadow-black/30"
-                      : "text-studio-muted hover:text-studio-text hover:bg-studio-panel/40"
-                  }`}
+                  className={`p-3 rounded-xl transition-all duration-300 ${isTabActive
+                    ? "bg-studio-panel text-studio-accent border border-studio-border/60 shadow-lg shadow-black/30"
+                    : "text-studio-muted hover:text-studio-text hover:bg-studio-panel/40"
+                    }`}
                 >
                   <Icon className="w-5 h-5" />
                   {isTabActive && (
@@ -427,11 +418,10 @@ export const WorkspaceSidebar: React.FC = () => {
         >
           <button
             onClick={() => handleTabClick("settings")}
-            className={`p-3 rounded-xl transition-all duration-300 ${
-              activeTab === "settings" && isExpanded
-                ? "bg-studio-panel text-studio-accent border border-studio-border/60"
-                : "text-studio-muted hover:text-studio-text hover:bg-studio-panel/40"
-            }`}
+            className={`p-3 rounded-xl transition-all duration-300 ${activeTab === "settings" && isExpanded
+              ? "bg-studio-panel text-studio-accent border border-studio-border/60"
+              : "text-studio-muted hover:text-studio-text hover:bg-studio-panel/40"
+              }`}
           >
             <Settings className="w-5 h-5" />
             {activeTab === "settings" && isExpanded && (
@@ -489,7 +479,7 @@ export const WorkspaceSidebar: React.FC = () => {
                   {activeTab}
                 </span>
                 {buildPhase !== "idle" && buildPhase !== "completed" && (
-                  <span 
+                  <span
                     className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-mono font-bold text-white shrink-0 shadow-sm bg-studio-accent"
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
@@ -524,13 +514,12 @@ export const WorkspaceSidebar: React.FC = () => {
                             <button
                               key={filename}
                               onClick={() => setSelectedFileName(filename)}
-                              className={`w-full px-3 py-2 flex flex-col gap-1 rounded-xl text-xs font-semibold tracking-wide text-left transition-all border ${
-                                selectedFileName === filename
-                                  ? "bg-studio-accent/10 text-studio-text border-studio-accent/25 shadow-md shadow-studio-accent/5"
-                                  : isWriting
-                                    ? "bg-indigo-500/5 text-indigo-400 border-indigo-500/20"
-                                    : "bg-transparent border-transparent text-studio-muted hover:text-studio-text hover:bg-studio-panel/40"
-                              }`}
+                              className={`w-full px-3 py-2 flex flex-col gap-1 rounded-xl text-xs font-semibold tracking-wide text-left transition-all border ${selectedFileName === filename
+                                ? "bg-studio-accent/10 text-studio-text border-studio-accent/25 shadow-md shadow-studio-accent/5"
+                                : isWriting
+                                  ? "bg-indigo-500/5 text-indigo-400 border-indigo-500/20"
+                                  : "bg-transparent border-transparent text-studio-muted hover:text-studio-text hover:bg-studio-panel/40"
+                                }`}
                             >
                               <div className="flex items-center gap-2.5 w-full">
                                 {isWriting ? (
@@ -573,13 +562,12 @@ export const WorkspaceSidebar: React.FC = () => {
                         {members.map((member) => {
                           const isMemberActive = getIsMemberActiveForPhase(member.role, buildPhase);
                           return (
-                            <div 
-                              key={member.id} 
-                              className={`flex items-center gap-2 p-2 rounded-xl border transition-all ${
-                                isMemberActive 
-                                  ? "bg-studio-accent/5 border-studio-accent/20" 
-                                  : "opacity-40 border-transparent bg-transparent"
-                              }`}
+                            <div
+                              key={member.id}
+                              className={`flex items-center gap-2 p-2 rounded-xl border transition-all ${isMemberActive
+                                ? "bg-studio-accent/5 border-studio-accent/20"
+                                : "opacity-40 border-transparent bg-transparent"
+                                }`}
                             >
                               <img src={member.avatar} alt={member.name} className="w-6 h-6 rounded bg-studio-card border border-studio-border/60" />
                               <div className="flex-1 min-w-0">
@@ -626,11 +614,10 @@ export const WorkspaceSidebar: React.FC = () => {
                         <div
                           key={chat.id || index}
                           onClick={() => handleLoadChat(chat)}
-                          className={`group p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col gap-2 relative overflow-hidden ${
-                            currentChatId === chat.id
-                              ? "bg-studio-accent/10 border-studio-accent/30 shadow-lg"
-                              : "bg-studio-card/50 border-studio-border/60 hover:border-studio-border hover:bg-studio-card"
-                          }`}
+                          className={`group p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col gap-2 relative overflow-hidden ${currentChatId === chat.id
+                            ? "bg-studio-accent/10 border-studio-accent/30 shadow-lg"
+                            : "bg-studio-card/50 border-studio-border/60 hover:border-studio-border hover:bg-studio-card"
+                            }`}
                         >
                           <div className="flex items-start justify-between gap-2 z-10">
                             <span className="text-xs font-bold text-studio-text truncate flex-1">
@@ -641,12 +628,12 @@ export const WorkspaceSidebar: React.FC = () => {
                                 onClick={async (e) => {
                                   e.stopPropagation();
                                   handleLoadChat(chat);
-                                  
+
                                   const pStore = useProjectStore.getState();
                                   pStore.setShowDeployModal(true);
                                   pStore.setDeployStatus("deploying");
                                   pStore.setDeployUrl("");
-                                  
+
                                   try {
                                     const { DeploymentService } = await import("../../services/deploymentService");
                                     const url = await DeploymentService.getInstance().deployProject();
@@ -857,13 +844,12 @@ export const WorkspaceSidebar: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-bold text-studio-muted uppercase tracking-wider">Live Status</span>
                       <span
-                        className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
-                          deployStatus === "done"
-                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                            : deployStatus === "deploying"
-                              ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
-                              : "bg-studio-panel text-studio-muted border-studio-border"
-                        }`}
+                        className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${deployStatus === "done"
+                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                          : deployStatus === "deploying"
+                            ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
+                            : "bg-studio-panel text-studio-muted border-studio-border"
+                          }`}
                       >
                         {deployStatus === "done" ? "Active" : deployStatus === "deploying" ? "Building" : "Idle"}
                       </span>
@@ -926,11 +912,10 @@ export const WorkspaceSidebar: React.FC = () => {
                               setSelectedModel(m.id);
                               setIsModelDropdownOpen(false);
                             }}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                              selectedModel === m.id
-                                ? "bg-studio-accent text-white"
-                                : "hover:bg-studio-panel text-studio-muted"
-                            }`}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors ${selectedModel === m.id
+                              ? "bg-studio-accent text-white"
+                              : "hover:bg-studio-panel text-studio-muted"
+                              }`}
                           >
                             {m.name}
                           </button>
@@ -945,17 +930,15 @@ export const WorkspaceSidebar: React.FC = () => {
                     <div className="flex bg-studio-bg p-1 rounded-xl border border-studio-border">
                       <button
                         onClick={() => setProjectMode("frontend")}
-                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                          projectMode === "frontend" ? "bg-studio-accent text-studio-text shadow" : "text-studio-muted hover:text-studio-text"
-                        }`}
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${projectMode === "frontend" ? "bg-studio-accent text-studio-text shadow" : "text-studio-muted hover:text-studio-text"
+                          }`}
                       >
                         <Palette className="w-3.5 h-3.5" /> UI Design
                       </button>
                       <button
                         onClick={() => setProjectMode("fullstack")}
-                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                          projectMode === "fullstack" ? "bg-studio-accent text-studio-text shadow" : "text-studio-muted hover:text-studio-text"
-                        }`}
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${projectMode === "fullstack" ? "bg-studio-accent text-studio-text shadow" : "text-studio-muted hover:text-studio-text"
+                          }`}
                       >
                         <Database className="w-3.5 h-3.5" /> Fullstack
                       </button>
@@ -982,11 +965,10 @@ export const WorkspaceSidebar: React.FC = () => {
                                 setSelectedLanguage(lang);
                                 setIsLangDropdownOpen(false);
                               }}
-                              className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
-                                selectedLanguage === lang
-                                  ? "bg-studio-accent text-white"
-                                  : "hover:bg-studio-panel text-studio-muted"
-                              }`}
+                              className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${selectedLanguage === lang
+                                ? "bg-studio-accent text-white"
+                                : "hover:bg-studio-panel text-studio-muted"
+                                }`}
                             >
                               {lang}
                             </button>

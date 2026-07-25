@@ -243,7 +243,7 @@ export const useGenerationWorkflowStore = create<GenerationWorkflowState>((set, 
     const { parsedImplementationPlan } = get();
     const snapshot = parsedImplementationPlan ? Object.freeze(JSON.parse(JSON.stringify(parsedImplementationPlan))) : null;
     set({ implementationPlanSnapshot: snapshot });
-    get().transitionTo("FEATURE_TIMELINE");
+    get().transitionTo("IMPLEMENTING");
   },
   startImplementation: () => {
     get().transitionTo("IMPLEMENTING");

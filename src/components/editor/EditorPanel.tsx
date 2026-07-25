@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
-import { FileCode, X, Minimize2, Text, Type, Sparkles, Cpu, Hammer, Code } from "lucide-react";
+import { FileCode, X, Minimize2, Text, Type, Sparkles, Cpu, Hammer, Code, Plus, Trash2 } from "lucide-react";
 import { useProjectStore } from "../../stores/projectStore";
 import { Orchestrator } from "../../agents/Orchestrator";
 import ReactMarkdown from "react-markdown";
 import { useAgentStore } from "../../stores/agentStore";
+import {
+  Panel,
+  Group as PanelGroup,
+  Separator as PanelResizeHandle,
+} from "react-resizable-panels";
 
 interface EditorPanelProps {
   selectedFileName: string | null;
@@ -231,6 +236,33 @@ ${fileCode}`;
 
   const handleEditorDidMount = (editor: any) => {
     editorRef.current = editor;
+    
+    // Flush updates to global store immediately when editor loses focus (e.g. tab switch)
+    editor.onDidBlurEditorText(() => {
+      if (userEditingRef.current && selectedFileName && currentContent) {
+        const latestVal = editor.getValue();
+        if (latestVal !== currentContent.files[selectedFileName]) {
+          setCurrentContent((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              files: { ...prev.files, [selectedFileName]: latestVal },
+            };
+          });
+
+          // Sync with WebContainer filesystem
+          import("../../services/runtime/webcontainer")
+            .then(async ({ WebContainerService }) => {
+              const wc = WebContainerService.getInstance().getWebContainer();
+              if (wc) {
+                console.log(`[EditorPanel] Flushing ${selectedFileName} to WebContainer on blur...`);
+                await wc.fs.writeFile(selectedFileName, latestVal);
+              }
+            })
+            .catch((e) => console.error("[EditorPanel] Failed to write changes on blur:", e));
+        }
+      }
+    });
   };
 
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -249,6 +281,76 @@ ${fileCode}`;
       }
     }
     return localValue;
+  };
+
+  const handleCreateFile = async () => {
+    const filepath = prompt("Enter new file path (e.g., src/utils/helper.ts):");
+    if (!filepath) return;
+    
+    if (currentContent?.files[filepath] !== undefined) {
+      alert("File already exists!");
+      return;
+    }
+
+    // 1. Update React store
+    setCurrentContent((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        files: { ...prev.files, [filepath]: "" },
+      };
+    });
+
+    // 2. Select the new file
+    setSelectedFileName(filepath);
+
+    // 3. Write to WebContainer
+    try {
+      const { WebContainerService } = await import("../../services/runtime/webcontainer");
+      const wc = WebContainerService.getInstance().getWebContainer();
+      if (wc) {
+        if (filepath.includes("/")) {
+          const parts = filepath.split("/");
+          parts.pop();
+          await wc.fs.mkdir(parts.join("/"), { recursive: true });
+        }
+        await wc.fs.writeFile(filepath, "");
+      }
+    } catch (e) {
+      console.error("Failed to write new file to WebContainer:", e);
+    }
+  };
+
+  const handleDeleteFile = async (e: React.MouseEvent, filepath: string) => {
+    e.stopPropagation();
+    if (!confirm(`Are you sure you want to delete ${filepath}?`)) return;
+
+    // 1. Update React store
+    setCurrentContent((prev) => {
+      if (!prev) return prev;
+      const updatedFiles = { ...prev.files };
+      delete updatedFiles[filepath];
+      return {
+        ...prev,
+        files: updatedFiles,
+      };
+    });
+
+    // 2. Deselect file if it was open
+    if (selectedFileName === filepath) {
+      setSelectedFileName(null);
+    }
+
+    // 3. Delete from WebContainer
+    try {
+      const { WebContainerService } = await import("../../services/runtime/webcontainer");
+      const wc = WebContainerService.getInstance().getWebContainer();
+      if (wc) {
+        await wc.fs.rm(filepath, { force: true });
+      }
+    } catch (e) {
+      console.error("Failed to delete file from WebContainer:", e);
+    }
   };
 
   const handleCloseTab = (e: React.MouseEvent, tabName: string) => {
@@ -349,65 +451,128 @@ ${fileCode}`;
           >
             <Sparkles className="w-3.5 h-3.5" />
           </button>
-        </div>
       </div>
+    </div>
 
       {/* Editor Window wrapper capturing ContextMenu */}
       <div 
         className="flex-grow flex overflow-hidden relative bg-studio-bg/10"
         onContextMenu={handleContextMenu}
       >
-        <div className="flex-1 h-full overflow-hidden relative">
-          {selectedFileName ? (
-            <Editor
-              height="100%"
-              theme="vs-dark"
-              path={selectedFileName}
-              language={
-                selectedFileName.split(".").pop() === "tsx" ||
-                selectedFileName.split(".").pop() === "ts"
-                  ? "typescript"
-                  : selectedFileName.split(".").pop() === "json"
-                  ? "json"
-                  : "javascript"
-              }
-              value={localValue}
-              onChange={(val) => {
-                userEditingRef.current = true;
-                setLocalValue(val || "");
-              }}
-              onMount={handleEditorDidMount}
-              options={{
-                fontSize,
-                minimap: { enabled: minimap },
-                wordWrap,
-                fontFamily: "JetBrains Mono, monospace",
-                lineHeight: 1.6,
-                padding: { top: 12 },
-                automaticLayout: true,
-                scrollBeyondLastLine: false,
-                smoothScrolling: true,
-                cursorSmoothCaretAnimation: "on",
-                renderLineHighlight: "all",
-                contextmenu: false, // Disable default Monaco context menu
-              }}
-            />
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center text-studio-muted gap-5 bg-studio-bg/60 rounded-3xl border border-studio-border/50 border-dashed m-6">
-              <div className="w-14 h-14 rounded-2xl bg-studio-panel border border-studio-border/80 flex items-center justify-center shadow-lg shadow-black/40">
-                <FileCode className="w-7 h-7 text-studio-accent animate-pulse" />
-              </div>
-              <div className="text-center space-y-1.5 select-none">
-                <span className="block text-xs font-black uppercase tracking-[0.25em] text-studio-text">
-                  No File Selected
-                </span>
-                <span className="block text-[10px] text-studio-muted">
-                  Select a workspace file from the explorer sidebar to begin editing.
-                </span>
+        <PanelGroup orientation="horizontal" className="h-full w-full">
+          {/* LEFT: Standalone Left-Side File Explorer */}
+          <Panel defaultSize={20} minSize={12} maxSize={35} className="flex flex-col h-full bg-studio-panel/20 border-r border-studio-border/60">
+            <div className="p-3 border-b border-studio-border/40 flex items-center justify-between select-none">
+              <span className="text-[10px] text-studio-muted font-black uppercase tracking-wider">
+                Workspace Files
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleCreateFile}
+                  className="p-1 rounded-md hover:bg-studio-panel/60 text-studio-muted hover:text-studio-accent transition-colors"
+                  title="New File"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
-          )}
-        </div>
+            <div className="flex-grow overflow-y-auto p-2 space-y-1 custom-scrollbar">
+              {currentContent?.files && Object.keys(currentContent.files).length > 0 ? (
+                Object.keys(currentContent.files).map((filename) => {
+                  const isSelected = selectedFileName === filename;
+                  return (
+                    <div
+                      key={filename}
+                      onClick={() => setSelectedFileName(filename)}
+                      className={`group/item w-full px-2.5 py-1.5 flex items-center justify-between rounded-xl text-xs font-semibold text-left transition-all border cursor-pointer ${
+                        isSelected
+                          ? "bg-studio-accent/10 text-studio-accent border-studio-accent/25 shadow-md shadow-studio-accent/5"
+                          : "bg-transparent border-transparent text-studio-muted hover:text-studio-text hover:bg-studio-panel/40"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 overflow-hidden flex-1">
+                        <FileCode className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate font-medium">{filename}</span>
+                      </div>
+                      <button
+                        onClick={(e) => handleDeleteFile(e, filename)}
+                        className="opacity-0 group-hover/item:opacity-100 p-0.5 rounded-md hover:bg-studio-panel/80 text-studio-muted hover:text-red-500 transition-all shrink-0"
+                        title="Delete File"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-studio-muted text-[10px] italic text-center py-4 select-none">
+                  No files generated yet
+                </div>
+              )}
+            </div>
+          </Panel>
+
+          {/* Resize handle */}
+          <PanelResizeHandle className="w-1.5 relative flex items-center justify-center hover:bg-studio-accent/15 transition-colors cursor-col-resize group">
+            <div className="absolute inset-y-0 w-0.5 bg-studio-border/60 group-hover:bg-studio-accent transition-colors" />
+          </PanelResizeHandle>
+
+          {/* RIGHT: Monaco Editor */}
+          <Panel className="h-full overflow-hidden relative">
+            <div className="h-full w-full overflow-hidden relative">
+              {selectedFileName ? (
+                <Editor
+                  key={selectedFileName}
+                  height="100%"
+                  theme="vs-dark"
+                  path={selectedFileName}
+                  language={
+                    selectedFileName.split(".").pop() === "tsx" ||
+                    selectedFileName.split(".").pop() === "ts"
+                      ? "typescript"
+                      : selectedFileName.split(".").pop() === "json"
+                      ? "json"
+                      : "javascript"
+                  }
+                  value={localValue}
+                  onChange={(val) => {
+                    userEditingRef.current = true;
+                    setLocalValue(val || "");
+                  }}
+                  onMount={handleEditorDidMount}
+                  options={{
+                    fontSize,
+                    minimap: { enabled: minimap },
+                    wordWrap,
+                    fontFamily: "JetBrains Mono, monospace",
+                    lineHeight: 1.6,
+                    padding: { top: 12 },
+                    automaticLayout: true,
+                    scrollBeyondLastLine: false,
+                    smoothScrolling: true,
+                    cursorSmoothCaretAnimation: "on",
+                    renderLineHighlight: "all",
+                    contextmenu: false, // Disable default Monaco context menu
+                  }}
+                />
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-studio-muted gap-5 bg-studio-bg/60 rounded-3xl border border-studio-border/50 border-dashed m-6">
+                  <div className="w-14 h-14 rounded-2xl bg-studio-panel border border-studio-border/80 flex items-center justify-center shadow-lg shadow-black/40">
+                    <FileCode className="w-7 h-7 text-studio-accent animate-pulse" />
+                  </div>
+                  <div className="text-center space-y-1.5 select-none">
+                    <span className="block text-xs font-black uppercase tracking-[0.25em] text-studio-text">
+                      No File Selected
+                    </span>
+                    <span className="block text-[10px] text-studio-muted">
+                      Select a workspace file from the explorer sidebar to begin editing.
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Panel>
+        </PanelGroup>
 
         {/* AI File Explainer Panel */}
         {showExplainer && selectedFileName && (

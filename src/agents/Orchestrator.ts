@@ -275,6 +275,25 @@ STRICT DESIGN LOCK RULE: The generated application must visually match the selec
       };
       generatedFiles[".nexo/context-engine.json"] = JSON.stringify(contextData, null, 2);
 
+      // Write Design Tokens and Context Engine to WebContainer immediately
+      try {
+        const wc = WebContainerService.getInstance().getWebContainer();
+        if (wc) {
+          for (const [fpath, contents] of Object.entries(generatedFiles)) {
+            if (fpath.startsWith("src/design/") || fpath === ".nexo/context-engine.json") {
+              if (fpath.includes("/")) {
+                const parts = fpath.split("/");
+                parts.pop();
+                await wc.fs.mkdir(parts.join("/"), { recursive: true });
+              }
+              await wc.fs.writeFile(fpath, contents);
+            }
+          }
+        }
+      } catch (wcErr) {
+        console.error("Failed to write design tokens or context to WebContainer:", wcErr);
+      }
+
       // 2.4 Pre-fill Memory Graph Nodes (Phase 22)
       projectStore.setDepNodes([
         { id: "project", label: "Project (Nexo v2)", dependencies: ["pages"], isUnused: false },
@@ -401,22 +420,36 @@ Respond ONLY with code blocks in the standard format:
                 [fpath]: { status: "writing", charCount: 0 }
               }));
               
-              await new Promise(r => setTimeout(r, 600));
+              await new Promise(r => setTimeout(r, 150));
               
               generatedFiles[fpath] = contents as string;
+
+              try {
+                const wc = WebContainerService.getInstance().getWebContainer();
+                if (wc) {
+                  if (fpath.includes("/")) {
+                    const parts = fpath.split("/");
+                    parts.pop();
+                    await wc.fs.mkdir(parts.join("/"), { recursive: true });
+                  }
+                  await wc.fs.writeFile(fpath, contents as string);
+                }
+              } catch (wcErr) {
+                console.error(`Failed to write file ${fpath} to WebContainer:`, wcErr);
+              }
               
               projectStore.setBuildingFiles(prev => ({
                 ...prev,
                 [fpath]: { status: "done", charCount: (contents as string).length }
               }));
-              
-              projectStore.setCurrentContent({
-                files: { ...generatedFiles },
-                patches: {},
-                mainFile: projectMode === "frontend" ? "index.html" : "src/main.tsx",
-                template: projectMode === "frontend" ? "web" : "react"
-              });
             }
+
+            projectStore.setCurrentContent({
+              files: { ...generatedFiles },
+              patches: {},
+              mainFile: projectMode === "frontend" ? "index.html" : "src/main.tsx",
+              template: projectMode === "frontend" ? "web" : "react"
+            });
 
             success = true;
           } catch (err: any) {
@@ -453,22 +486,36 @@ Respond ONLY with code blocks in the standard format:
             [fpath]: { status: "writing", charCount: 0 }
           }));
           
-          await new Promise(r => setTimeout(r, 400));
+          await new Promise(r => setTimeout(r, 100));
           
           generatedFiles[fpath] = contents as string;
+
+          try {
+            const wc = WebContainerService.getInstance().getWebContainer();
+            if (wc) {
+              if (fpath.includes("/")) {
+                const parts = fpath.split("/");
+                parts.pop();
+                await wc.fs.mkdir(parts.join("/"), { recursive: true });
+              }
+              await wc.fs.writeFile(fpath, contents as string);
+            }
+          } catch (wcErr) {
+            console.error(`Failed to write animated file ${fpath} to WebContainer:`, wcErr);
+          }
           
           projectStore.setBuildingFiles(prev => ({
             ...prev,
             [fpath]: { status: "done", charCount: (contents as string).length }
           }));
-          
-          projectStore.setCurrentContent({
-            files: { ...generatedFiles },
-            patches: {},
-            mainFile: projectMode === "frontend" ? "index.html" : "src/main.tsx",
-            template: projectMode === "frontend" ? "web" : "react"
-          });
         }
+
+        projectStore.setCurrentContent({
+          files: { ...generatedFiles },
+          patches: {},
+          mainFile: projectMode === "frontend" ? "index.html" : "src/main.tsx",
+          template: projectMode === "frontend" ? "web" : "react"
+        });
       }
 
       // 5. QA Batch
@@ -494,22 +541,35 @@ Respond ONLY with code blocks in the standard format:
             [fpath]: { status: "writing", charCount: 0 }
           }));
           
-          await new Promise(r => setTimeout(r, 400));
+          await new Promise(r => setTimeout(r, 150));
           
           generatedFiles[fpath] = contents as string;
+
+          try {
+            const wc = WebContainerService.getInstance().getWebContainer();
+            if (wc) {
+              if (fpath.includes("/")) {
+                const parts = fpath.split("/");
+                parts.pop();
+                await wc.fs.mkdir(parts.join("/"), { recursive: true });
+              }
+              await wc.fs.writeFile(fpath, contents as string);
+            }
+          } catch (wcErr) {
+            console.error(`Failed to write QA file ${fpath} to WebContainer:`, wcErr);
+          }
           
           projectStore.setBuildingFiles(prev => ({
             ...prev,
             [fpath]: { status: "done", charCount: (contents as string).length }
           }));
-          
-          projectStore.setCurrentContent({
-            files: { ...generatedFiles },
-            patches: {},
-            mainFile: projectMode === "frontend" ? "index.html" : "src/main.tsx",
-            template: projectMode === "frontend" ? "web" : "react"
-          });
         }
+        projectStore.setCurrentContent({
+          files: { ...generatedFiles },
+          patches: {},
+          mainFile: projectMode === "frontend" ? "index.html" : "src/main.tsx",
+          template: projectMode === "frontend" ? "web" : "react"
+        });
       }
 
       // 6. Transition to VALIDATING and boot runtime
@@ -544,9 +604,22 @@ Respond ONLY with code blocks in the standard format:
 
           const repairExtracted = extractCodeFromText(repairResponse);
           if (repairExtracted.website && Object.keys(repairExtracted.website.files).length > 0) {
-            Object.entries(repairExtracted.website.files).forEach(([fpath, contents]) => {
+            for (const [fpath, contents] of Object.entries(repairExtracted.website.files)) {
               currentFiles[fpath] = contents as string;
-            });
+              try {
+                const wc = WebContainerService.getInstance().getWebContainer();
+                if (wc) {
+                  if (fpath.includes("/")) {
+                    const parts = fpath.split("/");
+                    parts.pop();
+                    await wc.fs.mkdir(parts.join("/"), { recursive: true });
+                  }
+                  await wc.fs.writeFile(fpath, contents as string);
+                }
+              } catch (wcErr) {
+                console.error(`Failed to write repair file ${fpath} to WebContainer:`, wcErr);
+              }
+            }
 
             projectStore.setCurrentContent({
               files: { ...currentFiles },
@@ -631,6 +704,14 @@ Respond ONLY with code blocks in the standard format:
           "<head>",
           `<head>\n  <meta name="description" content="Premium project designed with Nexo v2">\n  <meta name="keywords" content="react, nexo, dynamic, responsive">`
         );
+        try {
+          const wc = WebContainerService.getInstance().getWebContainer();
+          if (wc) {
+            await wc.fs.writeFile("index.html", generatedFiles["index.html"]);
+          }
+        } catch (wcErr) {
+          console.error("Failed to write index.html during self-review healing:", wcErr);
+        }
       }
       
       selfReviewReport.metrics[3] = {

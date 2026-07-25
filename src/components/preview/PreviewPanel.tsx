@@ -222,6 +222,8 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
 
   // Keep track of the last stable srcdoc to avoid constantly reloading the iframe during generation
   const [srcdocHtml, setSrcdocHtml] = React.useState<string | null>(null);
+  const [srcdocVersion, setSrcdocVersion] = React.useState<number>(0);
+  const [previewMethod, setPreviewMethod] = React.useState<"html" | "sandbox">("html");
 
   useEffect(() => {
     // Only update the srcdoc when we are not actively generating/planning/building/fixing
@@ -231,6 +233,12 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
       setSrcdocHtml(html);
     }
   }, [currentContent?.files, buildPhase, previewKey]);
+
+  useEffect(() => {
+    if (srcdocHtml) {
+      setSrcdocVersion((v) => v + 1);
+    }
+  }, [srcdocHtml]);
 
   // Sync visual mode state to iframe
   useEffect(() => {
@@ -243,13 +251,39 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
   }, [isVisualMode, previewKey]);
 
   // Determine what to show
-  const hasWebContainerPreview = isBooted && url;
-  const hasFallbackPreview = !hasWebContainerPreview && srcdocHtml;
-  const isLoading = isBooted && !url;
-  const isEmpty = !isBooted && !srcdocHtml;
+  const hasFallbackPreview = previewMethod === "html" && !!srcdocHtml;
+  const hasWebContainerPreview = previewMethod === "sandbox" && isBooted && url;
+  const isLoading = previewMethod === "sandbox" && isBooted && !url;
+  const isEmpty = (previewMethod === "html" && !srcdocHtml) || (previewMethod === "sandbox" && !isBooted && !srcdocHtml);
 
   return (
     <div className="h-full w-full relative overflow-hidden bg-white">
+      {/* Preview Method Toggle */}
+      {srcdocHtml && (
+        <div className="absolute top-3 right-3 bg-white/95 dark:bg-stone-900/95 border border-stone-200/50 dark:border-stone-800/80 p-0.5 rounded-xl shadow-md flex items-center gap-0.5 z-20 select-none">
+          <button
+            onClick={() => setPreviewMethod("html")}
+            className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+              previewMethod === "html"
+                ? "bg-stone-900 text-white dark:bg-white dark:text-stone-900 shadow-sm"
+                : "text-stone-500 hover:text-stone-800"
+            }`}
+          >
+            HTML Preview
+          </button>
+          <button
+            onClick={() => setPreviewMethod("sandbox")}
+            className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+              previewMethod === "sandbox"
+                ? "bg-stone-900 text-white dark:bg-white dark:text-stone-900 shadow-sm"
+                : "text-stone-500 hover:text-stone-800"
+            }`}
+          >
+            Full Sandbox
+          </button>
+        </div>
+      )}
+
       {/* Premium Glassmorphic Overlay during code updates */}
       {["planning", "generating", "building", "fixing"].includes(buildPhase) && srcdocHtml && (
         <div className="absolute inset-0 bg-white/40 dark:bg-stone-950/40 backdrop-blur-[2px] flex flex-col items-center justify-center gap-3 z-30 select-none animate-in fade-in duration-300">
@@ -285,7 +319,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
       {hasFallbackPreview && (
         <>
           <iframe
-            key={`srcdoc-${previewKey}`}
+            key={`srcdoc-${previewKey}-${srcdocVersion}`}
             ref={iframeRef}
             srcDoc={srcdocHtml!}
             className="w-full h-full border-none bg-white"

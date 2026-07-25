@@ -23,14 +23,11 @@ import toast from "react-hot-toast";
 
 // Models list including Claude, GPT, Gemini
 const STUDIO_MODELS = [
-  { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B", provider: "OpenRouter", badge: "Free", desc: "Free OpenRouter reasoning model" },
-  { id: "openrouter/owl-alpha", name: "Owl Alpha", provider: "OpenRouter", badge: "New", desc: "OpenRouter state-of-the-art owl reasoning" },
+  { id: "poolside/laguna-xs-2.1:free", name: "poolside", provider: "OpenRouter", badge: "Free", desc: "Free OpenRouter poolside coding model" },
+  { id: "nvidia/nemotron-3-ultra-550b-a55b:free", name: "nemotron-3-ultra-550b", provider: "OpenRouter", badge: "Free", desc: "Free OpenRouter high-quality reasoning model" },
   { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", provider: "Google AI", badge: "Default", desc: "Fast & highly versatile" },
-  { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", provider: "Google AI", badge: "Pro", desc: "Complex code reasoning" },
-  { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet", provider: "Anthropic", badge: "Premium", desc: "Industry benchmark for coding" },
-  { id: "openai/gpt-4o", name: "GPT-4o", provider: "OpenAI", badge: "Premium", desc: "High reasoning & speed" },
-  { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B", provider: "NVIDIA NIM", badge: "NVIDIA", desc: "State-of-the-art coding" },
-  { id: "z-ai/glm-5.1", name: "GLM 5.1", provider: "NVIDIA NIM", badge: "NVIDIA", desc: "State-of-the-art multilingual reasoning" },
+  { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash", provider: "Google AI", badge: "Pro", desc: "Latest state-of-the-art flash model" },
+  { id: "z-ai/glm-5.2", name: "GLM 5.2", provider: "NVIDIA NIM", badge: "NVIDIA", desc: "State-of-the-art multilingual reasoning v2" },
   { id: "moonshotai/kimi-k2.6", name: "Kimi K2.6", provider: "NVIDIA NIM", badge: "NVIDIA", desc: "Advanced long-context generation" },
   { id: "stepfun-ai/step-3.7-flash", name: "Step 3.7 Flash", provider: "NVIDIA NIM", badge: "NVIDIA", desc: "High speed reasoning and structures" },
 ];
@@ -38,23 +35,16 @@ const STUDIO_MODELS = [
 const PROVIDER_MODELS: Record<string, { id: string; name: string }[]> = {
   "Google AI": [
     { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
-    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" }
+    { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash" }
   ],
   "OpenRouter": [
-    { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B" },
-    { id: "openrouter/owl-alpha", name: "Owl Alpha" }
+    { id: "poolside/laguna-xs-2.1:free", name: "poolside" },
+    { id: "nvidia/nemotron-3-ultra-550b-a55b:free", name: "nemotron-3-ultra-550b" }
   ],
   "NVIDIA NIM": [
-    { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B" },
-    { id: "z-ai/glm-5.1", name: "GLM 5.1" },
+    { id: "z-ai/glm-5.2", name: "GLM 5.2" },
     { id: "moonshotai/kimi-k2.6", name: "Kimi K2.6" },
     { id: "stepfun-ai/step-3.7-flash", name: "Step 3.7 Flash" }
-  ],
-  "Anthropic": [
-    { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet" }
-  ],
-  "OpenAI": [
-    { id: "openai/gpt-4o", name: "GPT-4o" }
   ]
 };
 
@@ -321,11 +311,10 @@ You are NEXO Brain.`;
               <button
                 key={preset.label}
                 onClick={() => setTemperature(preset.value)}
-                className={`py-1.5 rounded transition-all ${
-                  Math.abs(temperature - preset.value) < 0.1
+                className={`py-1.5 rounded transition-all ${Math.abs(temperature - preset.value) < 0.1
                     ? "bg-white text-stone-900 shadow-sm"
                     : "hover:text-stone-800"
-                }`}
+                  }`}
               >
                 {preset.label}
               </button>
@@ -376,14 +365,12 @@ You are NEXO Brain.`;
                   </div>
                   <button
                     onClick={() => toggleTool(t.id)}
-                    className={`w-9 h-5 rounded-full p-0.5 transition-colors shrink-0 outline-none ${
-                      enabled ? "bg-stone-900" : "bg-stone-200"
-                    }`}
+                    className={`w-9 h-5 rounded-full p-0.5 transition-colors shrink-0 outline-none ${enabled ? "bg-stone-900" : "bg-stone-200"
+                      }`}
                   >
                     <div
-                      className={`bg-white w-4 h-4 rounded-full shadow transition-transform ${
-                        enabled ? "translate-x-4" : "translate-x-0"
-                      }`}
+                      className={`bg-white w-4 h-4 rounded-full shadow transition-transform ${enabled ? "translate-x-4" : "translate-x-0"
+                        }`}
                     />
                   </button>
                 </div>

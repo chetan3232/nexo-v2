@@ -21,7 +21,8 @@ import {
   Smartphone,
   Rocket,
   Check,
-  Download
+  Download,
+  FileCode
 } from "lucide-react";
 import { useChatStore } from "../../stores/chatStore";
 import { useProjectStore } from "../../stores/projectStore";
@@ -45,14 +46,11 @@ interface ChatPanelProps {
 
 // All supported models
 const ALL_MODELS = [
-  { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B", badge: "Free" },
-  { id: "openrouter/owl-alpha", name: "Owl Alpha", badge: "New" },
+  { id: "poolside/laguna-xs-2.1:free", name: "poolside", badge: "Free" },
+  { id: "nvidia/nemotron-3-ultra-550b-a55b:free", name: "nemotron-3-ultra-550b", badge: "Free" },
   { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", badge: "Default" },
-  { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", badge: "Pro" },
-  { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet", badge: "Premium" },
-  { id: "openai/gpt-4o", name: "GPT-4o", badge: "Premium" },
-  { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B", badge: "Nvidia" },
-  { id: "z-ai/glm-5.1", name: "GLM 5.1", badge: "Nvidia" },
+  { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash", badge: "Pro" },
+  { id: "z-ai/glm-5.2", name: "GLM 5.2", badge: "Nvidia" },
   { id: "moonshotai/kimi-k2.6", name: "Kimi K2.6", badge: "Nvidia" },
   { id: "stepfun-ai/step-3.7-flash", name: "Step 3.7 Flash", badge: "Nvidia" },
 ];
@@ -82,9 +80,8 @@ const CollapsibleMessageContent: React.FC<{ text: string; role: string }> = ({ t
       </div>
       <button
         onClick={() => setExpanded(!expanded)}
-        className={`mt-1.5 text-[9px] font-bold uppercase tracking-wider hover:underline flex items-center gap-1 select-none ${
-          role === "user" ? "text-sky-300" : "text-[#0ea5e9]"
-        }`}
+        className={`mt-1.5 text-[9px] font-bold uppercase tracking-wider hover:underline flex items-center gap-1 select-none ${role === "user" ? "text-sky-300" : "text-[#0ea5e9]"
+          }`}
       >
         {expanded ? "Show Less" : "Read More"}
       </button>
@@ -205,7 +202,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
-      
+
       const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
       mediaRecorderRef.current = mediaRecorder;
 
@@ -235,7 +232,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
           reader.readAsDataURL(audioBlob);
           reader.onloadend = async () => {
             const base64Data = (reader.result as string).split(",")[1];
-            
+
             try {
               const res = await fetch("/api/ai/transcribe", {
                 method: "POST",
@@ -287,7 +284,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
 
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
-      
+
       const updateVolume = () => {
         if (mediaRecorder.state === "inactive") return;
         analyser.getByteFrequencyData(dataArray);
@@ -310,7 +307,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
-        
+
         // Auto fallback user's browser language if not en-US
         recognition.lang = navigator.language || "en-US";
         recognitionRef.current = recognition;
@@ -326,7 +323,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
             }
           }
           setLiveTranscript(interim || final || "Listening...");
-          
+
           // Append text in real-time to the text area
           const textToAdd = (final + " " + interim).trim();
           if (textToAdd) {
@@ -385,7 +382,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
       // Follow-up edit, post-build, or frontend-only mode → send directly to build engine
       onSend(finalText, attachments.length > 0 ? attachments : undefined);
     }
-    
+
     // Add user message to chat UI immediately
     const userMsg = {
       role: "user",
@@ -394,7 +391,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
       model: selectedModel,
     };
     useChatStore.getState().setMessages((prev: any) => [...prev, userMsg]);
-    
+
     setInput("");
     setAttachments([]);
   };
@@ -471,17 +468,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
           <div className="flex bg-[#f3f3f3] p-0.5 rounded-lg border border-[#e8e8e8]">
             <button
               onClick={() => setViewMode("chat")}
-              className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all ${
-                viewMode === "chat" ? "bg-white text-[#111] shadow-sm" : "text-[#aaa] hover:text-[#555]"
-              }`}
+              className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all ${viewMode === "chat" ? "bg-white text-[#111] shadow-sm" : "text-[#aaa] hover:text-[#555]"
+                }`}
             >
               Chat
             </button>
             <button
               onClick={() => setViewMode("kanban")}
-              className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all ${
-                viewMode === "kanban" ? "bg-white text-[#111] shadow-sm" : "text-[#aaa] hover:text-[#555]"
-              }`}
+              className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all ${viewMode === "kanban" ? "bg-white text-[#111] shadow-sm" : "text-[#aaa] hover:text-[#555]"
+                }`}
             >
               Tasks
             </button>
@@ -497,7 +492,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                     return `[${roleName}]:\n${m.text}\n`;
                   })
                   .join("\n----------------------------------------\n\n");
-                
+
                 const blob = new Blob([log], { type: "text/plain;charset=utf-8" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
@@ -591,14 +586,14 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                 Active Build Timeline
               </h3>
             </div>
-            
+
             <div className="space-y-4">
               {tasks.length > 0 ? (
                 tasks.map((task, idx) => {
                   const isRunning = task.status === "running";
                   const isDone = task.status === "done";
                   const isError = task.status === "error";
-                  
+
                   return (
                     <motion.div
                       key={task.id}
@@ -618,12 +613,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                           <div className="w-1.5 h-1.5 rounded-full bg-[#ddd]" />
                         )}
                       </div>
-                      <span className={`font-semibold tracking-wide ${
-                        isDone ? "text-stone-400 line-through decoration-emerald-500/25" :
-                        isRunning ? "text-sky-500 font-bold animate-pulse" :
-                        isError ? "text-red-500 font-bold" :
-                        "text-[#bbb]"
-                      }`}>
+                      <span className={`font-semibold tracking-wide ${isDone ? "text-stone-400 line-through decoration-emerald-500/25" :
+                          isRunning ? "text-sky-500 font-bold animate-pulse" :
+                            isError ? "text-red-500 font-bold" :
+                              "text-[#bbb]"
+                        }`}>
                         {task.label}
                       </span>
                     </motion.div>
@@ -633,6 +627,42 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                 <div className="text-stone-400 text-xs italic">Initializing workspace timeline...</div>
               )}
             </div>
+
+            {/* File Generation Progress */}
+            {createdFiles.length > 0 && (
+              <div className="mt-5 pt-4 border-t border-[#e8e8e8] space-y-3">
+                <div className="flex items-center gap-1.5 px-1">
+                  <FileCode className="w-3.5 h-3.5 text-[#0ea5e9]" />
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[#555]">
+                    File Operations ({createdFiles.length})
+                  </span>
+                </div>
+                <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1 no-scrollbar">
+                  {createdFiles.map((file) => {
+                    const isActive = activeFiles.has(file);
+                    return (
+                      <div key={file} className="flex items-center justify-between text-xs py-0.5 px-1">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {isActive ? (
+                            <Loader2 className="w-3.5 h-3.5 text-sky-500 animate-spin shrink-0" />
+                          ) : (
+                            <div className="w-3.5 h-3.5 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+                              <Check className="w-2.5 h-2.5 text-emerald-500" />
+                            </div>
+                          )}
+                          <span className={`font-semibold truncate ${isActive ? "text-sky-500 animate-pulse" : "text-stone-400"}`}>
+                            {file}
+                          </span>
+                        </div>
+                        <span className={`text-[9px] font-bold uppercase tracking-wider select-none shrink-0 ${isActive ? "text-sky-500" : "text-emerald-500"}`}>
+                          {isActive ? "Writing" : "Complete"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         ) : messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center px-6 space-y-4">
@@ -658,13 +688,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                   className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`px-4 py-3 rounded-2xl text-xs leading-relaxed max-w-[88%] chat-msg-bubble ${
-                      msg.role === "user"
+                    className={`px-4 py-3 rounded-2xl text-xs leading-relaxed max-w-[88%] chat-msg-bubble ${msg.role === "user"
                         ? "bg-[#111] text-white rounded-br-sm chat-msg-user"
                         : msg.isError
-                        ? "bg-red-50 border border-red-200 text-red-700 rounded-bl-sm flex gap-2 chat-msg-error"
-                        : "bg-[#f3f3f3] border border-[#e8e8e8] text-[#111] rounded-bl-sm chat-msg-assistant"
-                    }`}
+                          ? "bg-red-50 border border-red-200 text-red-700 rounded-bl-sm flex gap-2 chat-msg-error"
+                          : "bg-[#f3f3f3] border border-[#e8e8e8] text-[#111] rounded-bl-sm chat-msg-assistant"
+                      }`}
                   >
                     {msg.role !== "user" && !msg.isError && (
                       <div className="flex items-center gap-1.5 mb-2 select-none">
@@ -683,10 +712,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
               ))}
               {/* Intent & Design Exploration UI */}
               {exploringPrompt && (
-                <DesignExploration 
-                  prompt={exploringPrompt} 
-                  onConfirm={handleExplorationConfirm} 
-                  onCancel={handleExplorationCancel} 
+                <DesignExploration
+                  prompt={exploringPrompt}
+                  onConfirm={handleExplorationConfirm}
+                  onCancel={handleExplorationCancel}
                 />
               )}
             </AnimatePresence>
@@ -697,6 +726,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
 
       {/* ── Floating Input ── */}
       <div className="absolute bottom-0 left-0 right-0 px-3 pb-3 pt-8 bg-gradient-to-t from-white via-white/90 to-transparent dark:from-[#09090b] dark:via-[#09090b]/90 z-20">
+        <div className="flex items-center justify-between mb-1.5 px-1">
+          <div />
+          <div className="text-[9px] font-black uppercase tracking-wider text-[#0ea5e9] select-none bg-sky-50 dark:bg-sky-950/30 px-2 py-0.5 rounded-md border border-sky-100 dark:border-sky-900/50 flex items-center gap-1 shadow-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#0ea5e9] animate-pulse" />
+            Now available: GLM 5.2 or Gemini 3.5 Flash
+          </div>
+        </div>
         <div className="border border-[#e8e8e8] bg-white rounded-2xl shadow-sm focus-within:border-[#0ea5e9]/40 focus-within:shadow-[0_0_0_3px_rgba(14,165,233,0.08)] transition-all">
 
           {/* Attachment previews */}
@@ -811,10 +847,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
               }
             }}
             placeholder={
-              isTranscribing 
-                ? "🤖 Transcribing voice..." 
-                : isListening 
-                  ? "🎙️ Listening... speak your idea" 
+              isTranscribing
+                ? "🤖 Transcribing voice..."
+                : isListening
+                  ? "🎙️ Listening... speak your idea"
                   : "Make changes, add new features, ask for anything"
             }
             disabled={isTranscribing}
@@ -850,20 +886,18 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                           setSelectedModel(m.id);
                           setIsModelMenuOpen(false);
                         }}
-                        className={`w-full text-left px-3 py-2 rounded-lg transition-all flex items-center justify-between gap-2 ${
-                          selectedModel === m.id
+                        className={`w-full text-left px-3 py-2 rounded-lg transition-all flex items-center justify-between gap-2 ${selectedModel === m.id
                             ? "bg-[#0ea5e9] text-white"
                             : "hover:bg-[#f3f3f3] text-[#333]"
-                        }`}
+                          }`}
                       >
                         <span className="text-[11px] font-medium">{m.name}</span>
                         {m.badge && (
                           <span
-                            className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide shrink-0 ${
-                              selectedModel === m.id
+                            className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide shrink-0 ${selectedModel === m.id
                                 ? "bg-white/20 text-white"
                                 : "bg-[#e8e8e8] text-[#666]"
-                            }`}
+                              }`}
                           >
                             {m.badge}
                           </span>
@@ -899,13 +933,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                 type="button"
                 onClick={toggleVoice}
                 disabled={isTranscribing}
-                className={`relative p-1.5 rounded-lg transition-all ${
-                  isTranscribing
+                className={`relative p-1.5 rounded-lg transition-all ${isTranscribing
                     ? "text-[#0ea5e9] bg-sky-50 hover:bg-sky-100 ring-2 ring-sky-300"
                     : isListening
                       ? "text-red-500 bg-red-50 hover:bg-red-100 ring-2 ring-red-300"
                       : "text-[#aaa] hover:text-[#555] hover:bg-[#f3f3f3]"
-                }`}
+                  }`}
                 title={isTranscribing ? "Transcribing..." : isListening ? "Stop voice input" : "Voice-to-App: Speak your idea"}
               >
                 {isTranscribing ? (

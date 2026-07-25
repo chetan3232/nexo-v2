@@ -36,12 +36,12 @@ const rateLimiter = new RateLimiterMemory({
 
 const getMasterSystemPrompt = (projectMode) => {
   const isFullstack = projectMode === "fullstack";
-  
+
   const modeParams = {
     MODE_NAME: isFullstack ? "Fullstack" : "Frontend",
     MODE_ROLE: isFullstack ? "Senior Fullstack Engineer" : "expert UI/UX & Frontend Developer",
     MODE_GOAL: isFullstack ? "scalable, production-ready web applications" : "stunning, responsive landing pages, portfolios, and marketing websites",
-    MODE_ARCHITECTURE_MANDATE: isFullstack 
+    MODE_ARCHITECTURE_MANDATE: isFullstack
       ? `- Primary Stack: React with Vite, Next.js, Tailwind CSS, Node.js, and cloud databases (Firebase/Supabase).\n- Structure your response into multiple files: Components, Hooks, API routes, and Database schemas.\n- Implement proper authentication, state management, database schemas, and API handlers.\n- Ensure the code is production-ready, modular, and follows clean architecture principles.`
       : `- Primary Stack: HTML5, CSS3 (Tailwind CDN), JavaScript (Vanilla).\n- Do not use complex frameworks like React/Next.js unless specifically asked.\n- Output should be a single-file solution or clear separate files for index.html, style.css, and script.js.\n- Focus on animations (GSAP/Animate.css, CSS keyframes) and modern UI aesthetics.\n- Ensure all styles are handled via Tailwind CSS CDN inside index.html for immediate browser preview.`,
     MODE_PREVIEW_ENTRY: isFullstack ? "src/App.tsx" : "index.html"
@@ -110,7 +110,7 @@ ${PRODUCTION_DEVELOPMENT_RULES}`;
 const buildSystemPrompt = (basePrompt, enabledTools, projectMode, techStack) => {
   const isGenericBase = !basePrompt || basePrompt.includes("NEXO Brain") || basePrompt.includes("NEXO AI Workspace Engine");
   let prompt;
-  
+
   if (isGenericBase) {
     prompt = getMasterSystemPrompt(projectMode);
   } else {
@@ -236,16 +236,19 @@ const logUsage = (model, inputTokens = 0, outputTokens = 0, durationMs = 0, user
 
     const rates = {
       "gemini-2.5-flash": { input: 0.075, output: 0.30 },
-      "gemini-2.5-pro": { input: 1.25, output: 5.00 },
-      "gemini-2.0-flash": { input: 0.075, output: 0.30 },
-      "qwen/qwen3-coder-480b-a35b-instruct": { input: 0.00, output: 0.00 },
-      "z-ai/glm-5.1": { input: 0.00, output: 0.00 },
-      "moonshotai/kimi-k2.6": { input: 0.00, output: 0.00 },
-      "stepfun-ai/step-3.7-flash": { input: 0.00, output: 0.00 }
+      "gemini-3.5-flash": { input: 1.00, output: 1.00 },
+      "poolside/laguna-xs-2.1:free": { input: 0.05, output: 0.05 },
+      "nvidia/nemotron-3-ultra-550b-a55b:free": { input: 0.08, output: 0.08 },
+      "z-ai/glm-5.2": { input: 1.00, output: 1.00 },
+      "moonshotai/kimi-k2.6": { input: 0.09, output: 0.09 },
+      "stepfun-ai/step-3.7-flash": { input: 0.07, output: 0.07 }
     };
 
     const isNvidiaModel = model.includes("nvidia") || model.includes("stepfun") || model.includes("qwen/qwen3-coder-480b-a35b-instruct") || model.includes("z-ai") || model.includes("moonshotai");
-    const rate = isNvidiaModel ? { input: 0.00, output: 0.00 } : (rates[Object.keys(rates).find(k => model.includes(k)) || "default"] || { input: 0.10, output: 0.30 });
+    const matchedKey = Object.keys(rates).find(k => model.includes(k));
+    const rate = matchedKey 
+      ? rates[matchedKey] 
+      : (isNvidiaModel ? { input: 0.00, output: 0.00 } : { input: 0.10, output: 0.30 });
 
     const cost = ((inputTokens * rate.input) + (outputTokens * rate.output)) / 1000000;
     const tokens = inputTokens + outputTokens;
@@ -306,19 +309,19 @@ const callWithRetry = async (fn, maxRetries = 3, initialDelay = 500) => {
     } catch (err) {
       const status = err.status || err.statusCode;
       const msg = (err.message || "").toLowerCase();
-      const isTransient = !status || 
-                          [429, 500, 502, 503, 504].includes(status) || 
-                          msg.includes("timeout") || 
-                          msg.includes("network") || 
-                          msg.includes("rate limit") || 
-                          msg.includes("too many requests") || 
-                          msg.includes("429") || 
-                          msg.includes("503");
-      
+      const isTransient = !status ||
+        [429, 500, 502, 503, 504].includes(status) ||
+        msg.includes("timeout") ||
+        msg.includes("network") ||
+        msg.includes("rate limit") ||
+        msg.includes("too many requests") ||
+        msg.includes("429") ||
+        msg.includes("503");
+
       if (!isTransient || attempt === maxRetries) {
         throw err;
       }
-      
+
       console.warn(`[AI Gateway] Attempt ${attempt} failed with transient error (${err.message}). Retrying in ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
       delay *= 2;
@@ -330,12 +333,12 @@ const callWithRetry = async (fn, maxRetries = 3, initialDelay = 500) => {
 const getClient = (provider, customApiKey) => {
   const apiKey = customApiKey || (
     provider === "nvidia" ? process.env.NVIDIA_API_KEY :
-    provider === "groq" ? process.env.GROQ_API_KEY :
-    provider === "openai" ? (process.env.OPENAI_API_KEY || customApiKey) :
-    provider === "anthropic" ? (process.env.ANTHROPIC_API_KEY || customApiKey) :
-    provider === "google" ? (process.env.GEMINI_API_KEY || customApiKey) :
-    provider === "openrouter" ? (process.env.OPENROUTER_API_KEY || customApiKey || process.env.GEMINI_API_KEY) :
-    process.env.GEMINI_API_KEY
+      provider === "groq" ? process.env.GROQ_API_KEY :
+        provider === "openai" ? (process.env.OPENAI_API_KEY || customApiKey) :
+          provider === "anthropic" ? (process.env.ANTHROPIC_API_KEY || customApiKey) :
+            provider === "google" ? (process.env.GEMINI_API_KEY || customApiKey) :
+              provider === "openrouter" ? (process.env.OPENROUTER_API_KEY || customApiKey || process.env.GEMINI_API_KEY) :
+                process.env.GEMINI_API_KEY
   );
 
   if (provider === "nvidia") {
@@ -378,7 +381,7 @@ const getClient = (provider, customApiKey) => {
 
 // Define fallback list based on model requested
 const getFallbackChain = (requestedModel, customApiKey) => {
-  const isNvidia = (requestedModel.startsWith("nvidia/") && requestedModel !== "nvidia/nemotron-3-super-120b-a12b:free") || requestedModel === "minimaxai/minimax-m2.7" || requestedModel.startsWith("stepfun-ai/") || requestedModel.startsWith("z-ai/") || requestedModel.startsWith("moonshotai/") || requestedModel === "qwen/qwen3-coder-480b-a35b-instruct";
+  const isNvidia = (requestedModel.startsWith("nvidia/") && requestedModel !== "nvidia/nemotron-3-super-120b-a12b:free" && requestedModel !== "nvidia/nemotron-3-ultra-550b-a55b:free") || requestedModel === "minimaxai/minimax-m2.7" || requestedModel.startsWith("stepfun-ai/") || requestedModel.startsWith("z-ai/") || requestedModel.startsWith("moonshotai/") || requestedModel === "qwen/qwen3-coder-480b-a35b-instruct";
   const isOpenAI = requestedModel.startsWith("openai/") || requestedModel.startsWith("gpt-");
   const isAnthropic = requestedModel.startsWith("anthropic/") || requestedModel.startsWith("claude-");
   const isGoogleDirect = requestedModel.startsWith("google/") || requestedModel.startsWith("gemini-");
@@ -408,11 +411,6 @@ const getFallbackChain = (requestedModel, customApiKey) => {
       { provider: "openrouter", model: `google/${actualModel}` },
       { provider: "nvidia", model: "stepfun-ai/step-3.7-flash" }
     ];
-  } else if (isOpenRouter) {
-    possibleChain = [
-      { provider: "openrouter", model: requestedModel },
-      { provider: "gemini", model: "gemini-2.5-flash" }
-    ];
   } else if (isNvidia) {
     const actualModel = requestedModel === "nvidia/minimax-m2.7" || requestedModel === "minimaxai/minimax-m2.7"
       ? "minimaxai/minimax-m2.7"
@@ -421,6 +419,11 @@ const getFallbackChain = (requestedModel, customApiKey) => {
     possibleChain = [
       { provider: "nvidia", model: actualModel },
       { provider: "gemini", model: "gemini-2.5-flash" },
+    ];
+  } else if (isOpenRouter) {
+    possibleChain = [
+      { provider: "openrouter", model: requestedModel },
+      { provider: "gemini", model: "gemini-2.5-flash" }
     ];
   } else {
     const actualModel = requestedModel.startsWith("google/") ? requestedModel.replace("google/", "") : requestedModel;
@@ -621,7 +624,7 @@ class AIGateway {
         }
 
         const maxTokens = customMaxTokens !== undefined ? customMaxTokens : (provider === "nvidia" ? 8192 : 32768);
-        
+
         const startTime = Date.now();
         let fullText = "";
 
@@ -757,7 +760,7 @@ class AIGateway {
       const limitMsg = isAnonymous
         ? "You have exceeded your anonymous free allowance ($0.50). Please sign in to get a $5.00 free allowance."
         : "You have exceeded your free allowance ($5.00). Allowance resets every 2 days.";
-      
+
       if (stream) {
         if (!res.headersSent) {
           res.setHeader("Content-Type", "text/event-stream");

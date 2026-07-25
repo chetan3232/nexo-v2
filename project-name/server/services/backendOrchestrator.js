@@ -17,6 +17,7 @@ function makeStreamParser(job) {
         inContentString: false,
         escapeNext: false,
         contentBuffer: "",
+        isNexoProtocol: false,
         onActionStart: (action) => {
             if (action.type === 'create' || action.type === 'edit') {
                 jobEvents.emit(job.id, { type: 'create_file', path: action.path });
@@ -44,6 +45,40 @@ function makeStreamParser(job) {
     };
 
     return (text) => {
+        if (!state.isNexoProtocol && text.includes("---FILE:")) {
+            state.isNexoProtocol = true;
+        }
+
+        if (state.isNexoProtocol) {
+            const fileBlockRegex = /---FILE:\s*([^\n\r]+?)\s*---\s*\n([\s\S]*?)(?:---END FILE---|$)/gi;
+            let match;
+            fileBlockRegex.lastIndex = 0;
+            while ((match = fileBlockRegex.exec(text)) !== null) {
+                const fpath = match[1].trim().replace(/`/g, "");
+                const content = match[2];
+                
+                let action = state.actions.find(a => a.path === fpath);
+                if (!action) {
+                    action = { type: 'create', path: fpath, content: '' };
+                    state.actions.push(action);
+                    state.onActionStart(action);
+                }
+                
+                if (action.content !== content) {
+                    const chunk = content.substring(action.content.length);
+                    action.content = content;
+                    state.currentAction = action; // set current action context for chunk emitter
+                    state.onActionChunk(chunk);
+                }
+
+                if (match[0].includes("---END FILE---") && !action.ended) {
+                    action.ended = true;
+                    state.onActionEnd(action);
+                }
+            }
+            return state.actions;
+        }
+
         while (state.index < text.length) {
             if (!state.currentAction) {
                 const remaining = text.substring(state.index);
@@ -160,6 +195,19 @@ function extractFilesFromJsonActions(text) {
             } catch(unescapeErr) {}
             files[path] = content;
         }
+
+        if (Object.keys(files).length === 0) {
+            console.log("No JSON actions found. Falling back to extractCodeFromText.");
+            const parsedResult = extractCodeFromText(text);
+            if (parsedResult && parsedResult.website && parsedResult.website.files) {
+                return {
+                    files: parsedResult.website.files,
+                    mainFile: parsedResult.website.mainFile || 'index.html',
+                    explanation: parsedResult.cleanText || ""
+                };
+            }
+        }
+        
         return { files, mainFile: 'index.html', explanation: "" };
     }
 }

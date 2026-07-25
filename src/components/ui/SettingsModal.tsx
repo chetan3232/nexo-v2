@@ -48,23 +48,16 @@ interface SettingsModalProps {
 const PROVIDER_MODELS: Record<string, { id: string; name: string }[]> = {
   "Google AI": [
     { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
-    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" }
+    { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash" }
   ],
   "OpenRouter": [
-    { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B" },
-    { id: "openrouter/owl-alpha", name: "Owl Alpha" }
+    { id: "poolside/laguna-xs-2.1:free", name: "poolside" },
+    { id: "nvidia/nemotron-3-ultra-550b-a55b:free", name: "nemotron-3-ultra-550b" }
   ],
   "NVIDIA NIM": [
-    { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B" },
-    { id: "z-ai/glm-5.1", name: "GLM 5.1" },
+    { id: "z-ai/glm-5.2", name: "GLM 5.2" },
     { id: "moonshotai/kimi-k2.6", name: "Kimi K2.6" },
     { id: "stepfun-ai/step-3.7-flash", name: "Step 3.7 Flash" }
-  ],
-  "Anthropic": [
-    { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet" }
-  ],
-  "OpenAI": [
-    { id: "openai/gpt-4o", name: "GPT-4o" }
   ]
 };
 
@@ -271,10 +264,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
       toast.loading("Provisioning repository commits...");
       await new Promise(r => setTimeout(r, 3000));
-      
+
       const owner = repoData.owner.login;
       const repoName = repoData.name;
-      
+
       const refRes = await fetch(
         `https://api.github.com/repos/${owner}/${repoName}/git/refs/heads/main`,
         { headers },
@@ -402,7 +395,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         const data = await res.json();
         setPrList(data);
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   React.useEffect(() => {
@@ -564,24 +557,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
                   {
-                    id: "nvidia/nemotron-3-super-120b-a12b:free",
-                    name: "Nemotron 3 Super 120B",
+                    id: "poolside/laguna-xs-2.1:free",
+                    name: "poolside",
                     provider: "OpenRouter",
-                    desc: "Free OpenRouter high quality reasoning",
+                    desc: "Free OpenRouter poolside coding model",
                     badge: "Free Engine",
                     badgeColor: "bg-emerald-50 text-emerald-750 border-emerald-100",
                     speed: "Fast (90 t/s)",
-                    cost: "$0.00 / Free"
+                    cost: "$0.05 / 1M input"
                   },
                   {
-                    id: "openrouter/owl-alpha",
-                    name: "Owl Alpha",
+                    id: "nvidia/nemotron-3-ultra-550b-a55b:free",
+                    name: "nemotron-3-ultra-550b",
                     provider: "OpenRouter",
-                    desc: "OpenRouter's state-of-the-art owl reasoning model",
-                    badge: "Owl Alpha",
+                    desc: "Free OpenRouter high-quality reasoning model",
+                    badge: "Free Engine",
                     badgeColor: "bg-emerald-50 text-emerald-750 border-emerald-100",
-                    speed: "Moderate (45 t/s)",
-                    cost: "$0.00 / Free"
+                    speed: "Fast (90 t/s)",
+                    cost: "$0.08 / 1M input"
                   },
                   {
                     id: "gemini-2.5-flash",
@@ -594,34 +587,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     cost: "$0.075 / 1M input"
                   },
                   {
-                    id: "gemini-2.5-pro",
-                    name: "Gemini 2.5 Pro",
+                    id: "gemini-3.5-flash",
+                    name: "Gemini 3.5 Flash",
                     provider: "Google AI",
-                    desc: "Best quality, deep multi-step reasoning",
+                    desc: "Latest state-of-the-art flash model",
                     badge: "Pro Engine",
                     badgeColor: "bg-indigo-50 text-indigo-700 border-indigo-100",
                     speed: "Balanced (50 t/s)",
-                    cost: "$1.25 / 1M input"
+                    cost: "$1.00 / 1M input"
                   },
                   {
-                    id: "qwen/qwen3-coder-480b-a35b-instruct",
-                    name: "Qwen 3 Coder 480B",
+                    id: "z-ai/glm-5.2",
+                    name: "GLM 5.2",
                     provider: "NVIDIA NIM",
-                    desc: "State-of-the-art coding and complex planning",
-                    badge: "NVIDIA NIM",
-                    badgeColor: "bg-purple-50 text-purple-700 border-purple-100",
-                    speed: "Moderate (30 t/s)",
-                    cost: "$0.30 / 1M input"
-                  },
-                  {
-                    id: "z-ai/glm-5.1",
-                    name: "GLM 5.1",
-                    provider: "NVIDIA NIM",
-                    desc: "State-of-the-art multilingual reasoning",
+                    desc: "State-of-the-art multilingual reasoning v2",
                     badge: "NVIDIA NIM",
                     badgeColor: "bg-purple-50 text-purple-700 border-purple-100",
                     speed: "Fast (70 t/s)",
-                    cost: "$0.00 / NVIDIA"
+                    cost: "$1.00 / 1M input"
                   },
                   {
                     id: "moonshotai/kimi-k2.6",
@@ -631,7 +614,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     badge: "NVIDIA NIM",
                     badgeColor: "bg-purple-50 text-purple-700 border-purple-100",
                     speed: "Balanced (50 t/s)",
-                    cost: "$0.00 / NVIDIA"
+                    cost: "$0.09 / 1M input"
                   },
                   {
                     id: "stepfun-ai/step-3.7-flash",
@@ -641,17 +624,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     badge: "NVIDIA NIM",
                     badgeColor: "bg-purple-50 text-purple-700 border-purple-100",
                     speed: "Ultra Fast (120+ t/s)",
-                    cost: "$0.00 / NVIDIA"
+                    cost: "$0.07 / 1M input"
                   }
                 ].map((m) => (
                   <div
                     key={m.id}
                     onClick={() => setSelectedModel(m.id)}
-                    className={`p-5 rounded-2xl border text-left cursor-pointer transition-all duration-300 relative group flex flex-col justify-between h-48 hover:shadow-md ${
-                      selectedModel === m.id
-                        ? "bg-stone-900 border-stone-900 text-white shadow-lg"
-                        : "bg-white border-stone-200 text-stone-800 hover:border-stone-400"
-                    }`}
+                    className={`p-5 rounded-2xl border text-left cursor-pointer transition-all duration-300 relative group flex flex-col justify-between h-48 hover:shadow-md ${selectedModel === m.id
+                      ? "bg-stone-900 border-stone-900 text-white shadow-lg"
+                      : "bg-white border-stone-200 text-stone-800 hover:border-stone-400"
+                      }`}
                   >
                     <div>
                       <div className="flex items-start justify-between gap-2 mb-2">
@@ -789,11 +771,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <button
                           key={preset.label}
                           onClick={() => setTemperature(preset.value)}
-                          className={`py-1 rounded-md transition-all ${
-                            Math.abs(temperature - preset.value) < 0.1
-                              ? "bg-white text-stone-900 shadow-sm"
-                              : "hover:text-stone-800"
-                          }`}
+                          className={`py-1 rounded-md transition-all ${Math.abs(temperature - preset.value) < 0.1
+                            ? "bg-white text-stone-900 shadow-sm"
+                            : "hover:text-stone-800"
+                            }`}
                         >
                           {preset.label}
                         </button>
@@ -949,14 +930,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             </div>
                             <button
                               onClick={() => toggleTool(t.id)}
-                              className={`w-8 h-4.5 rounded-full p-0.5 transition-colors shrink-0 outline-none ${
-                                enabled ? "bg-stone-900" : "bg-stone-200"
-                              }`}
+                              className={`w-8 h-4.5 rounded-full p-0.5 transition-colors shrink-0 outline-none ${enabled ? "bg-stone-900" : "bg-stone-200"
+                                }`}
                             >
                               <div
-                                className={`bg-white w-3.5 h-3.5 rounded-full shadow transition-transform ${
-                                  enabled ? "translate-x-3.5" : "translate-x-0"
-                                }`}
+                                className={`bg-white w-3.5 h-3.5 rounded-full shadow transition-transform ${enabled ? "translate-x-3.5" : "translate-x-0"
+                                  }`}
                               />
                             </button>
                           </div>
@@ -1085,7 +1064,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               {/* Pull Request generator */}
               <div className="space-y-4 bg-stone-50/50 p-6 rounded-2xl border border-stone-200">
                 <h3 className="text-sm font-bold text-stone-800 uppercase tracking-wider">Generate Pull Request (PR)</h3>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="block text-xs font-semibold text-stone-600">Source (Compare)</label>
@@ -1218,15 +1197,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <button
                           type="button"
                           onClick={() => setPermission("read")}
-                          className={`flex items-center gap-2 p-3 rounded-xl border text-left transition-all ${
-                            permission === "read"
-                              ? "border-indigo-600 bg-indigo-50/40 text-indigo-950 font-medium"
-                              : "border-stone-200 hover:border-stone-300 text-stone-600"
-                          }`}
+                          className={`flex items-center gap-2 p-3 rounded-xl border text-left transition-all ${permission === "read"
+                            ? "border-indigo-600 bg-indigo-50/40 text-indigo-950 font-medium"
+                            : "border-stone-200 hover:border-stone-300 text-stone-600"
+                            }`}
                         >
-                          <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
-                            permission === "read" ? "border-indigo-600" : "border-stone-300"
-                          }`}>
+                          <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${permission === "read" ? "border-indigo-600" : "border-stone-300"
+                            }`}>
                             {permission === "read" && <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full" />}
                           </div>
                           <div>
@@ -1237,15 +1214,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <button
                           type="button"
                           onClick={() => setPermission("write")}
-                          className={`flex items-center gap-2 p-3 rounded-xl border text-left transition-all ${
-                            permission === "write"
-                              ? "border-indigo-600 bg-indigo-50/40 text-indigo-950 font-medium"
-                              : "border-stone-200 hover:border-stone-300 text-stone-600"
-                          }`}
+                          className={`flex items-center gap-2 p-3 rounded-xl border text-left transition-all ${permission === "write"
+                            ? "border-indigo-600 bg-indigo-50/40 text-indigo-950 font-medium"
+                            : "border-stone-200 hover:border-stone-300 text-stone-600"
+                            }`}
                         >
-                          <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
-                            permission === "write" ? "border-indigo-600" : "border-stone-300"
-                          }`}>
+                          <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${permission === "write" ? "border-indigo-600" : "border-stone-300"
+                            }`}>
                             {permission === "write" && <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full" />}
                           </div>
                           <div>

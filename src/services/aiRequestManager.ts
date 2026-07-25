@@ -28,7 +28,7 @@ export class AIRequestManager {
 
   // Configurations
   private maxConcurrency = 3;
-  private defaultTimeoutMs = 60000;
+  private defaultTimeoutMs = 180000;
   private maxRetries = 4;
   private baseDelayMs = 1000;
   private maxDelayMs = 15000;

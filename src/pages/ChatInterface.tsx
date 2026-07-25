@@ -1147,7 +1147,9 @@ const ChatInterface: React.FC = () => {
                 </Panel>
 
                 {/* Resize handle */}
-                <PanelResizeHandle className="w-1.5 bg-transparent hover:bg-[#0ea5e9]/20 transition-colors cursor-col-resize" />
+                <PanelResizeHandle className="w-2 relative flex items-center justify-center hover:bg-[#0ea5e9]/10 transition-colors cursor-col-resize group">
+                  <div className="absolute inset-y-0 w-0.5 bg-stone-200/80 group-hover:bg-[#0ea5e9] transition-colors" />
+                </PanelResizeHandle>
               </>
             )}
 

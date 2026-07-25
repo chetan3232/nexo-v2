@@ -164,12 +164,12 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
     e.stopPropagation();
     setOpenMenuId(null);
     handleLoadChat(chat);
-    
+
     const pStore = useProjectStore.getState();
     pStore.setShowDeployModal(true);
     pStore.setDeployStatus("deploying");
     pStore.setDeployUrl("");
-    
+
     try {
       const url = await DeploymentService.getInstance().deployProject();
       pStore.setDeployUrl(url);
@@ -283,7 +283,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
 
       const uploadData = await uploadRes.json();
       setDriveStatus((prev) => ({ ...prev, [chat.id]: "done" }));
-      
+
       const fileUrl = `https://drive.google.com/file/d/${uploadData.id}/view`;
       toast.success((t) => (
         <span className="flex flex-col gap-1 text-[11px] font-bold">
@@ -440,7 +440,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
 
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
-      
+
       const updateVolume = () => {
         if (mediaRecorder.state === "inactive") return;
         analyser.getByteFrequencyData(dataArray);
@@ -462,7 +462,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
-        
+
         // Auto fallback user's browser language if not en-US
         recognition.lang = navigator.language || "en-US";
         recognitionRef.current = recognition;
@@ -478,7 +478,7 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
             }
           }
           setLiveTranscript(interim || final || "Listening...");
-          
+
           // Append text in real-time to the text area
           const textToAdd = (final + " " + interim).trim();
           if (textToAdd) {
@@ -506,16 +506,16 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
 
   const models = [
     {
-      id: "nvidia/nemotron-3-super-120b-a12b:free",
-      name: "Nemotron 3 Super 120B",
+      id: "poolside/laguna-xs-2.1:free",
+      name: "poolside",
       provider: "OpenRouter",
-      desc: "Free OpenRouter high quality reasoning",
+      desc: "Free OpenRouter poolside coding model",
     },
     {
-      id: "openrouter/owl-alpha",
-      name: "Owl Alpha",
+      id: "nvidia/nemotron-3-ultra-550b-a55b:free",
+      name: "nemotron-3-ultra-550b",
       provider: "OpenRouter",
-      desc: "OpenRouter's state-of-the-art owl reasoning model",
+      desc: "Free OpenRouter high-quality reasoning model",
     },
     {
       id: "gemini-2.5-flash",
@@ -524,22 +524,16 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
       desc: "Fast reasoning, high free-tier quota (Recommended)",
     },
     {
-      id: "gemini-2.5-pro",
-      name: "Gemini 2.5 Pro",
+      id: "gemini-3.5-flash",
+      name: "Gemini 3.5 Flash",
       provider: "Google",
-      desc: "Best quality, deep reasoning",
+      desc: "Latest state-of-the-art flash model",
     },
     {
-      id: "qwen/qwen3-coder-480b-a35b-instruct",
-      name: "Qwen 3 Coder 480B",
+      id: "z-ai/glm-5.2",
+      name: "GLM 5.2",
       provider: "NVIDIA NIM",
-      desc: "State-of-the-art coding and reasoning assistant",
-    },
-    {
-      id: "z-ai/glm-5.1",
-      name: "GLM 5.1",
-      provider: "NVIDIA NIM",
-      desc: "State-of-the-art multilingual reasoning",
+      desc: "State-of-the-art multilingual reasoning v2",
     },
     {
       id: "moonshotai/kimi-k2.6",
@@ -854,7 +848,11 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
           transition={{ duration: 0.5, ease: "easeOut" }}
           className="w-full max-w-4xl space-y-10 my-auto py-8 lg:py-12"
         >
-          <div className="space-y-4 text-center">
+          <div className="space-y-4 text-center flex flex-col items-center">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0ea5e9]/10 border border-[#0ea5e9]/20 text-[#0ea5e9] text-[10px] font-black uppercase tracking-wider select-none mb-2 shadow-sm shadow-[#0ea5e9]/5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#0ea5e9] animate-pulse" />
+              Now available: GLM 5.2 or Gemini 3.5 Flash
+            </div>
             <h2 className="text-4xl md:text-6xl font-black text-studio-text tracking-tighter leading-none">
               Build your next{" "}
               <span className="bg-gradient-to-r from-studio-accent via-sky-400 to-studio-secondary bg-clip-text text-transparent">
@@ -925,13 +923,12 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
                 type="button"
                 onClick={toggleVoice}
                 disabled={isTranscribing}
-                className={`p-2.5 md:p-3.5 rounded-xl md:rounded-2xl font-bold transition-all flex items-center gap-2 relative ${
-                  isTranscribing
+                className={`p-2.5 md:p-3.5 rounded-xl md:rounded-2xl font-bold transition-all flex items-center gap-2 relative ${isTranscribing
                     ? "bg-sky-500 text-white shadow-xl shadow-sky-200 scale-105 animate-pulse"
                     : isListening
                       ? "bg-red-500 text-white shadow-xl shadow-red-200 scale-105"
                       : "bg-stone-100 text-stone-500 hover:bg-stone-200 hover:scale-105"
-                }`}
+                  }`}
                 title={isTranscribing ? "Transcribing..." : isListening ? "Stop recording" : "Voice-to-App: Speak your idea"}
               >
                 {isTranscribing ? (
