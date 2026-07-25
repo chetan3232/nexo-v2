@@ -47,7 +47,7 @@ const SharedProjectPage: React.FC = () => {
       useChatStore.getState().setMessages(project.messages || []);
       useProjectStore.getState().setCurrentContent(project.content);
       toast.success("Project remixed! Opening workspace…");
-      setTimeout(() => navigate("/demo"), 800);
+      setTimeout(() => navigate(`/nexostudio/${newChatId}`), 800);
     } catch {
       toast.error("Failed to remix. Try again.");
     } finally {
@@ -63,9 +63,10 @@ const SharedProjectPage: React.FC = () => {
     }
     const user = auth.currentUser;
     if (!user) { toast.error("Sign in to edit."); return; }
+    useChatStore.getState().setCurrentChatId(project.chatId);
     useChatStore.getState().setMessages(project.messages || []);
     useProjectStore.getState().setCurrentContent(project.content);
-    navigate("/demo");
+    navigate(`/nexostudio/${project.chatId}`);
   };
 
   const handleCopyLink = () => {

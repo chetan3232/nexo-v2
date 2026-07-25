@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Panel,
@@ -11,7 +11,14 @@ import toast, { Toaster } from "react-hot-toast";
 import logoV2 from "../assets/NEXO-V2.png";
 import { ChatPanel } from "../components/chat/ChatPanel";
 import { InitialOverlay } from "../components/chat/InitialOverlay";
-import { auth, saveChatToFirebase, signInWithGoogle, logout, onAuthStateChanged } from "../services/firebase";
+import {
+  auth,
+  saveChatToFirebase,
+  signInWithGoogle,
+  logout,
+  onAuthStateChanged,
+  loadSingleChatFromFirebaseOrLocal,
+} from "../services/firebase";
 import { User as FirebaseUser } from "firebase/auth";
 
 // Lazy load heavy components
@@ -38,6 +45,10 @@ import { useChatStore } from "../stores/chatStore";
 import { useAgentStore } from "../stores/agentStore";
 import { useDesignStore } from "../stores/designStore";
 import { useRuntimeStore } from "../stores/runtimeStore";
+import { useGenerationWorkflowStore } from "../stores/generationWorkflowStore";
+import { DesignSelectionPanel } from "../components/design/DesignSelectionPanel";
+import { ImplementationPlanPanel } from "../components/planning/ImplementationPlanPanel";
+import { FeatureTimelinePanel } from "../components/planning/FeatureTimelinePanel";
 import { saveCurrentProject } from "../services/saveService";
 import { Orchestrator } from "../agents/Orchestrator";
 import { Message } from "../types";
@@ -67,16 +78,16 @@ import {
   MessageSquare,
   MoreVertical,
   Menu,
+  Code,
 } from "lucide-react";
 import { StudioControls } from "../components/ui/StudioControls";
-import { AgentWorkflowOverlay } from "../components/chat/AgentWorkflowOverlay";
-import { QualityReviewOverlay } from "../components/chat/QualityReviewOverlay";
-import { PreviewTransferOverlay } from "../components/chat/PreviewTransferOverlay";
 import JSZip from "jszip";
 
 const ChatInterface: React.FC = () => {
   const navigate = useNavigate();
   const chatStore = useChatStore();
+  const { chatId } = useParams<{ chatId?: string }>();
+  const [loadingChat, setLoadingChat] = useState(false);
   
   // Optimize store subscriptions using selectors to avoid re-rendering on tasks/logs/reasoning streaming
   const currentContent = useProjectStore((s) => s.currentContent);
@@ -91,6 +102,8 @@ const ChatInterface: React.FC = () => {
   const setShowDeployModal = useProjectStore((s) => s.setShowDeployModal);
   const setDeployStatus = useProjectStore((s) => s.setDeployStatus);
   const setDeployUrl = useProjectStore((s) => s.setDeployUrl);
+  const incrementPreviewKey = useProjectStore((s) => s.incrementPreviewKey);
+  const currentPhase = useGenerationWorkflowStore((s) => s.currentPhase);
 
   const projectStore = {
     currentContent,
@@ -105,12 +118,14 @@ const ChatInterface: React.FC = () => {
     setShowDeployModal,
     setDeployStatus,
     setDeployUrl,
+    incrementPreviewKey,
   };
 
   const { setSelectedElement } = useDesignStore();
   const isBooted = useRuntimeStore((state) => state.isBooted);
   const {
     selectedModel,
+    setSelectedModel,
     temperature,
     setTemperature,
     topP,
@@ -118,6 +133,7 @@ const ChatInterface: React.FC = () => {
     showStudioPanel,
     setShowStudioPanel,
     projectMode,
+    setProjectMode,
   } = useAgentStore();
 
   const [workspaceTab, setWorkspaceTab] = useState<"preview" | "code">(
@@ -192,6 +208,20 @@ const ChatInterface: React.FC = () => {
     }
   }, [projectStore.buildPhase, isMobile]);
 
+  // Auto-switch to Preview tab when design selection, plan approval, or timeline is active
+  useEffect(() => {
+    if (
+      currentPhase === "AWAITING_DESIGN_SELECTION" ||
+      currentPhase === "AWAITING_PLAN_APPROVAL" ||
+      currentPhase === "FEATURE_TIMELINE"
+    ) {
+      setWorkspaceTab("preview");
+      if (isMobile) {
+        setActiveMobileTab("preview");
+      }
+    }
+  }, [currentPhase, isMobile]);
+
 
   const [projectTitle, setProjectTitle] = useState("Untitled");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -200,38 +230,17 @@ const ChatInterface: React.FC = () => {
   const [showLanding, setShowLanding] = useState(chatStore.messages.length === 0);
   const prevBuildPhase = useRef(projectStore.buildPhase);
   
-  const [showQualityReview, setShowQualityReview] = useState(false);
-  const [showPreviewTransfer, setShowPreviewTransfer] = useState(false);
-
-  // Reset overlay workflow states when a new build planning starts
   useEffect(() => {
-    if (projectStore.buildPhase === "planning") {
-      setShowQualityReview(false);
-      setShowPreviewTransfer(false);
-    }
-  }, [projectStore.buildPhase]);
-
-  useEffect(() => {
-    if (prevBuildPhase.current !== "idle" && prevBuildPhase.current !== "done" && projectStore.buildPhase === "done") {
-      setShowQualityReview(true);
+    if (prevBuildPhase.current !== "idle" && prevBuildPhase.current !== "completed" && projectStore.buildPhase === "completed") {
+      if (projectMode === "frontend") {
+        setWorkspaceTab("preview");
+        if (isMobile) {
+          setActiveMobileTab("preview");
+        }
+      }
     }
     prevBuildPhase.current = projectStore.buildPhase;
   }, [projectStore.buildPhase]);
-
-  const handleQualityReviewComplete = () => {
-    setShowQualityReview(false);
-    setShowPreviewTransfer(true);
-  };
-
-  const handlePreviewTransferComplete = () => {
-    setShowPreviewTransfer(false);
-    if (projectMode === "frontend") {
-      setWorkspaceTab("preview");
-      if (isMobile) {
-        setActiveMobileTab("preview");
-      }
-    }
-  };
 
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window !== "undefined") {
@@ -252,17 +261,66 @@ const ChatInterface: React.FC = () => {
     }
   };
 
+  // Load chat on mount or when chatId parameter changes
+  useEffect(() => {
+    const loadChat = async () => {
+      if (chatId) {
+        if (chatStore.currentChatId !== chatId) {
+          setLoadingChat(true);
+          const currentUser = auth.currentUser;
+          const uid = currentUser ? currentUser.uid : "mock-local-user-id";
+          try {
+            const chatData = await loadSingleChatFromFirebaseOrLocal(uid, chatId);
+            if (chatData) {
+              chatStore.setMessages(chatData.messages || []);
+              projectStore.setCurrentContent(chatData.content || null);
+              chatStore.setCurrentChatId(chatData.id);
+              if (chatData.model) setSelectedModel(chatData.model);
+              if (chatData.projectMode) setProjectMode(chatData.projectMode as "frontend" | "fullstack");
+              if (chatData.messages?.length > 0) {
+                chatStore.setHasStarted(true);
+              }
+              setShowLanding(false);
+            } else {
+              toast.error("Project not found or failed to load");
+              navigate("/chat");
+            }
+          } catch (err) {
+            console.error("Error loading chat:", err);
+            toast.error("Failed to load project");
+            navigate("/chat");
+          } finally {
+            setLoadingChat(false);
+          }
+        } else {
+          setShowLanding(false);
+        }
+      } else {
+        if (chatStore.currentChatId) {
+          chatStore.resetChat();
+          projectStore.setCurrentContent(null);
+          useRuntimeStore.getState().setIsBooted(false);
+          useRuntimeStore.getState().setUrl(null);
+        }
+        setShowLanding(true);
+      }
+    };
+
+    loadChat();
+  }, [chatId]);
+
+  // Keep URL in sync with currentChatId state
   useEffect(() => {
     if (chatStore.currentChatId) {
-      setShowLanding(false);
+      if (chatId !== chatStore.currentChatId) {
+        navigate(`/nexostudio/${chatStore.currentChatId}`);
+      }
+    } else {
+      if (chatId) {
+        navigate("/chat");
+      }
     }
-  }, [chatStore.currentChatId]);
-
-  useEffect(() => {
-    if (chatStore.messages.length === 0) {
-      setShowLanding(true);
-    }
-  }, [chatStore.messages.length]);
+  }, [chatStore.currentChatId, chatId, navigate]);
 
   useEffect(() => {
     if (selectedFileName) setWorkspaceTab("code");
@@ -370,10 +428,17 @@ const ChatInterface: React.FC = () => {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, []);
 
+  // Refresh preview when switching to the Preview tab
+  useEffect(() => {
+    if (workspaceTab === "preview" || activeMobileTab === "preview") {
+      projectStore.incrementPreviewKey();
+    }
+  }, [workspaceTab, activeMobileTab]);
+
   // Boot runtime automatically if currentContent exists but runtime is not booted
   const bootAttempted = useRef(false);
   useEffect(() => {
-    if (projectStore.currentContent && !isBooted && !bootAttempted.current && (projectStore.buildPhase === "idle" || projectStore.buildPhase === "done")) {
+    if (projectStore.currentContent && !isBooted && !bootAttempted.current && (projectStore.buildPhase === "idle" || projectStore.buildPhase === "completed")) {
       bootAttempted.current = true;
       console.log("[ChatInterface] Code exists but runtime is not booted. Auto-booting virtual environment...");
       Orchestrator.getInstance().bootRuntime().catch(err => {
@@ -404,9 +469,32 @@ const ChatInterface: React.FC = () => {
     }
     setShowLanding(false);
     
-    // Step into design selection phase
-    projectStore.setPendingPrompt(prompt);
-    projectStore.setBuildPhase("design_selection");
+    const isNexoStudio = prompt.includes("=== NEXO STUDIO DESIGN CONSTRAINTS ===");
+
+    if (isNexoStudio) {
+      projectStore.setBuildPhase("planning");
+      setWorkspaceTab("preview");
+      if (isMobile) {
+        setActiveMobileTab("preview");
+      }
+
+      const userMsg: Message = {
+        role: "user",
+        text: prompt,
+        timestamp: Date.now(),
+        model: selectedModel,
+      };
+      chatStore.setMessages((prev: Message[]) => [...prev, userMsg]);
+
+      try {
+        await Orchestrator.getInstance().executeFullFlow(prompt);
+      } catch (error) {
+        toast.error("Generation failed.");
+      }
+      return;
+    }
+
+    projectStore.setBuildPhase("planning");
     setWorkspaceTab("preview");
     if (isMobile) {
       setActiveMobileTab("preview");
@@ -429,14 +517,9 @@ const ChatInterface: React.FC = () => {
       ];
     }
     chatStore.setMessages((prev: Message[]) => [...prev, userMsg]);
-  };
 
-  const handleDesignSelect = async (designName: string) => {
-    const prompt = projectStore.pendingPrompt || "Build a website";
-    projectStore.setBuildPhase("planning");
-    
     try {
-      await Orchestrator.getInstance().executeFullFlow(prompt + "\n\nDesign Style Requirement: " + designName);
+      await Orchestrator.getInstance().executeFullFlow(prompt);
     } catch (error) {
       toast.error("Generation failed.");
     }
@@ -573,24 +656,25 @@ const ChatInterface: React.FC = () => {
     }
   };
 
+  if (loadingChat) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-studio-bg text-studio-text gap-4 select-none">
+        <div className="relative flex items-center justify-center">
+          <div className="w-12 h-12 border-2 border-studio-accent/20 border-t-studio-accent rounded-full animate-spin" />
+          <div className="absolute w-8 h-8 border border-studio-secondary/10 border-t-studio-secondary rounded-full animate-spin animate-reverse" style={{ animationDuration: "1.5s" }} />
+        </div>
+        <span className="text-[10px] font-bold tracking-[0.25em] text-studio-muted animate-pulse uppercase">
+          Loading Project Workspace...
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full w-full flex flex-col overflow-hidden font-sans bg-[#f7f7f7]">
       <AnimatePresence>
         {showLanding && (
-          <InitialOverlay onStart={handleSend} onResume={() => setShowLanding(false)} />
-        )}
-
-        {/* Cinematic 12-Phase Generation Experience Overlays */}
-        {projectStore.buildPhase !== "idle" && projectStore.buildPhase !== "done" && (
-          <AgentWorkflowOverlay />
-        )}
-
-        {showQualityReview && (
-          <QualityReviewOverlay onComplete={handleQualityReviewComplete} />
-        )}
-
-        {showPreviewTransfer && (
-          <PreviewTransferOverlay onComplete={handlePreviewTransferComplete} />
+          <InitialOverlay onStart={handleSend} onResume={chatStore.currentChatId ? () => navigate(`/nexostudio/${chatStore.currentChatId}`) : undefined} />
         )}
       </AnimatePresence>
 
@@ -845,6 +929,17 @@ const ChatInterface: React.FC = () => {
                 <Sparkles className="w-3.5 h-3.5 text-[#0ea5e9]" />
                 Remix
               </button>
+              <button 
+                onClick={() => {
+                  toast.success("Triggering AI Project Enhancer... ✨");
+                  Orchestrator.getInstance().enhanceProject();
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#555] hover:text-amber-600 hover:bg-amber-50 border border-[#e8e8e8] hover:border-amber-200 transition-all"
+                title="Enhance Project UI/UX/Performance/SEO"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                Enhance Project
+              </button>
               <button
                 onClick={handleDeploy}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 transition-all shadow-md shadow-emerald-700/10 active:scale-95"
@@ -1009,11 +1104,18 @@ const ChatInterface: React.FC = () => {
                       </div>
                     }
                   >
-                    <PreviewPanel
-                      isVisualMode={isVisualMode}
-                      setIsVisualMode={setIsVisualMode}
-                      onDesignSelect={handleDesignSelect}
-                    />
+                    {currentPhase === "AWAITING_DESIGN_SELECTION" ? (
+                      <DesignSelectionPanel />
+                    ) : currentPhase === "AWAITING_PLAN_APPROVAL" ? (
+                      <ImplementationPlanPanel />
+                    ) : currentPhase === "FEATURE_TIMELINE" ? (
+                      <FeatureTimelinePanel />
+                    ) : (
+                      <PreviewPanel
+                        isVisualMode={isVisualMode}
+                        setIsVisualMode={setIsVisualMode}
+                      />
+                    )}
                   </React.Suspense>
                 </div>
               </div>
@@ -1045,7 +1147,9 @@ const ChatInterface: React.FC = () => {
                 </Panel>
 
                 {/* Resize handle */}
-                <PanelResizeHandle className="w-1.5 bg-transparent hover:bg-[#0ea5e9]/20 transition-colors cursor-col-resize" />
+                <PanelResizeHandle className="w-2 relative flex items-center justify-center hover:bg-[#0ea5e9]/10 transition-colors cursor-col-resize group">
+                  <div className="absolute inset-y-0 w-0.5 bg-stone-200/80 group-hover:bg-[#0ea5e9] transition-colors" />
+                </PanelResizeHandle>
               </>
             )}
 
@@ -1120,11 +1224,18 @@ const ChatInterface: React.FC = () => {
                   }
                 >
                   <div className={workspaceTab === "preview" ? "h-full w-full block" : "h-full w-full hidden"}>
-                    <PreviewPanel
-                      isVisualMode={isVisualMode}
-                      setIsVisualMode={setIsVisualMode}
-                      onDesignSelect={handleDesignSelect}
-                    />
+                    {currentPhase === "AWAITING_DESIGN_SELECTION" ? (
+                      <DesignSelectionPanel />
+                    ) : currentPhase === "AWAITING_PLAN_APPROVAL" ? (
+                      <ImplementationPlanPanel />
+                    ) : currentPhase === "FEATURE_TIMELINE" ? (
+                      <FeatureTimelinePanel />
+                    ) : (
+                      <PreviewPanel
+                        isVisualMode={isVisualMode}
+                        setIsVisualMode={setIsVisualMode}
+                      />
+                    )}
                   </div>
                   <div className={workspaceTab === "code" ? "h-full w-full block" : "h-full w-full hidden"}>
                     <EditorPanel

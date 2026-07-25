@@ -9,13 +9,13 @@ import {
 } from "lucide-react";
 
 const AVAILABLE_MODELS = [
-  { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B" },
-  { id: "openrouter/owl-alpha", name: "Owl Alpha" },
+  { id: "poolside/laguna-xs-2.1:free", name: "poolside" },
+  { id: "nvidia/nemotron-3-ultra-550b-a55b:free", name: "nemotron-3-ultra-550b" },
   { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
-  { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" },
-  { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B" },
-  { id: "stepfun-ai/step-3.5-flash", name: "Step 3.5 Flash" },
-  { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Groq)" },
+  { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash" },
+  { id: "z-ai/glm-5.2", name: "GLM 5.2" },
+  { id: "moonshotai/kimi-k2.6", name: "Kimi K2.6" },
+  { id: "stepfun-ai/step-3.7-flash", name: "Step 3.7 Flash" },
 ];
 
 interface LandingHeroProps {

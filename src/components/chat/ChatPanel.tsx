@@ -19,11 +19,15 @@ import {
   Zap,
   Lock,
   Smartphone,
-  Rocket
+  Rocket,
+  Check,
+  Download,
+  FileCode
 } from "lucide-react";
 import { useChatStore } from "../../stores/chatStore";
 import { useProjectStore } from "../../stores/projectStore";
 import { useAgentStore } from "../../stores/agentStore";
+import { useAgentEventStore } from "../../stores/agentEventStore";
 import toast from "react-hot-toast";
 
 import { DesignExploration } from "./DesignExploration";
@@ -42,15 +46,13 @@ interface ChatPanelProps {
 
 // All supported models
 const ALL_MODELS = [
-  { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B", badge: "Free" },
-  { id: "openrouter/owl-alpha", name: "Owl Alpha", badge: "New" },
+  { id: "poolside/laguna-xs-2.1:free", name: "poolside", badge: "Free" },
+  { id: "nvidia/nemotron-3-ultra-550b-a55b:free", name: "nemotron-3-ultra-550b", badge: "Free" },
   { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", badge: "Default" },
-  { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", badge: "Pro" },
-  { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet", badge: "Premium" },
-  { id: "openai/gpt-4o", name: "GPT-4o", badge: "Premium" },
-  { id: "qwen/qwen3-coder-480b-a35b-instruct", name: "Qwen 3 Coder 480B", badge: "Nvidia" },
-  { id: "stepfun-ai/step-3.5-flash", name: "Step 3.5 Flash", badge: "Nvidia" },
-  { id: "groq/llama-3.3-70b-versatile", name: "Llama 3.3 70B (Groq)", badge: "Groq" },
+  { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash", badge: "Pro" },
+  { id: "z-ai/glm-5.2", name: "GLM 5.2", badge: "Nvidia" },
+  { id: "moonshotai/kimi-k2.6", name: "Kimi K2.6", badge: "Nvidia" },
+  { id: "stepfun-ai/step-3.7-flash", name: "Step 3.7 Flash", badge: "Nvidia" },
 ];
 
 const CollapsibleMessageContent: React.FC<{ text: string; role: string }> = ({ text, role }) => {
@@ -78,9 +80,8 @@ const CollapsibleMessageContent: React.FC<{ text: string; role: string }> = ({ t
       </div>
       <button
         onClick={() => setExpanded(!expanded)}
-        className={`mt-1.5 text-[9px] font-bold uppercase tracking-wider hover:underline flex items-center gap-1 select-none ${
-          role === "user" ? "text-sky-300" : "text-[#0ea5e9]"
-        }`}
+        className={`mt-1.5 text-[9px] font-bold uppercase tracking-wider hover:underline flex items-center gap-1 select-none ${role === "user" ? "text-sky-300" : "text-[#0ea5e9]"
+          }`}
       >
         {expanded ? "Show Less" : "Read More"}
       </button>
@@ -112,8 +113,10 @@ const SkeletonLoader: React.FC = () => {
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
   const { messages, input, setInput } = useChatStore();
-  const { buildPhase, subStatus, tasks, buildingFiles } = useProjectStore();
-  const { selectedModel, setSelectedModel } = useAgentStore();
+  const { buildPhase, subStatus, tasks } = useProjectStore();
+  const [viewMode, setViewMode] = useState<"chat" | "kanban">("chat");
+  const { selectedModel, setSelectedModel, projectMode } = useAgentStore();
+  const { fileBuffers, activeFiles, createdFiles } = useAgentEventStore();
 
   const getLoaderTheme = () => {
     switch (buildPhase) {
@@ -199,7 +202,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
-      
+
       const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
       mediaRecorderRef.current = mediaRecorder;
 
@@ -229,7 +232,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
           reader.readAsDataURL(audioBlob);
           reader.onloadend = async () => {
             const base64Data = (reader.result as string).split(",")[1];
-            
+
             try {
               const res = await fetch("/api/ai/transcribe", {
                 method: "POST",
@@ -281,7 +284,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
 
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
-      
+
       const updateVolume = () => {
         if (mediaRecorder.state === "inactive") return;
         analyser.getByteFrequencyData(dataArray);
@@ -304,7 +307,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
-        
+
         // Auto fallback user's browser language if not en-US
         recognition.lang = navigator.language || "en-US";
         recognitionRef.current = recognition;
@@ -320,7 +323,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
             }
           }
           setLiveTranscript(interim || final || "Listening...");
-          
+
           // Append text in real-time to the text area
           const textToAdd = (final + " " + interim).trim();
           if (textToAdd) {
@@ -364,9 +367,22 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
       finalText = finalText ? `${finalText}${attachText}` : attachText.trim();
     }
 
-    // Intercept generation flow and start design exploration
-    setExploringPrompt(finalText);
-    
+    // NexoStudio routing logic:
+    // - Trigger only on FIRST message in a fresh session (no prior messages)
+    // - Bypass for post-build edits (buildPhase === 'done') — send directly
+    // - Bypass if already has messages (follow-up / iterative edits)
+    const isFirstMessage = messages.length === 0;
+    const isPostBuild = buildPhase === "completed";
+    const isFullstack = projectMode === "fullstack";
+
+    if (isFirstMessage && !isPostBuild && isFullstack) {
+      // New project in fullstack mode → go through NexoStudio design exploration
+      setExploringPrompt(finalText);
+    } else {
+      // Follow-up edit, post-build, or frontend-only mode → send directly to build engine
+      onSend(finalText, attachments.length > 0 ? attachments : undefined);
+    }
+
     // Add user message to chat UI immediately
     const userMsg = {
       role: "user",
@@ -375,19 +391,22 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
       model: selectedModel,
     };
     useChatStore.getState().setMessages((prev: any) => [...prev, userMsg]);
-    
+
     setInput("");
     setAttachments([]);
   };
 
   const handleExplorationConfirm = (enrichedPrompt: string) => {
     setExploringPrompt(null);
-    onSend(enrichedPrompt); // Now it passes the enriched prompt back to ChatInterface's handleSend
+    onSend(enrichedPrompt); // passes enriched prompt (with design tokens + blueprint) to ChatInterface
   };
 
   const handleExplorationCancel = () => {
     setExploringPrompt(null);
+    // Remove the last user message that was added optimistically
+    useChatStore.getState().setMessages((prev: any) => prev.slice(0, -1));
   };
+
 
   // Handle file/image upload
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -445,23 +464,207 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
       <div className="h-[52px] border-b border-[#e8e8e8] flex items-center justify-between px-4 shrink-0 select-none bg-white relative z-20">
         <div className="flex items-center gap-2">
           <Sparkles className="w-3.5 h-3.5 text-[#0ea5e9]" />
-          <span className="text-sm font-semibold text-[#111]">Nexo</span>
+          <span className="text-sm font-semibold text-[#111] mr-3">Nexo</span>
+          <div className="flex bg-[#f3f3f3] p-0.5 rounded-lg border border-[#e8e8e8]">
+            <button
+              onClick={() => setViewMode("chat")}
+              className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all ${viewMode === "chat" ? "bg-white text-[#111] shadow-sm" : "text-[#aaa] hover:text-[#555]"
+                }`}
+            >
+              Chat
+            </button>
+            <button
+              onClick={() => setViewMode("kanban")}
+              className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all ${viewMode === "kanban" ? "bg-white text-[#111] shadow-sm" : "text-[#aaa] hover:text-[#555]"
+                }`}
+            >
+              Tasks
+            </button>
+          </div>
         </div>
-        <button
-          onClick={() => {
-            useChatStore.getState().resetChat();
-            useProjectStore.getState().setCurrentContent(null);
-          }}
-          className="p-1.5 hover:bg-[#f3f3f3] rounded-lg text-[#aaa] hover:text-[#111] transition-colors"
-          title="New Chat"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          {messages.length > 0 && (
+            <button
+              onClick={() => {
+                const log = messages
+                  .map(m => {
+                    const roleName = m.role === "user" ? "User" : "Nexo";
+                    return `[${roleName}]:\n${m.text}\n`;
+                  })
+                  .join("\n----------------------------------------\n\n");
+
+                const blob = new Blob([log], { type: "text/plain;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `chat-history-${Date.now()}.txt`;
+                a.click();
+                URL.revokeObjectURL(url);
+                toast.success("Chat log downloaded! 📝");
+              }}
+              className="p-1.5 hover:bg-[#f3f3f3] rounded-lg text-[#aaa] hover:text-[#111] transition-colors"
+              title="Download Chat Log (.txt)"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={() => {
+              useChatStore.getState().resetChat();
+              useProjectStore.getState().setCurrentContent(null);
+            }}
+            className="p-1.5 hover:bg-[#f3f3f3] rounded-lg text-[#aaa] hover:text-[#111] transition-colors"
+            title="New Chat"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* ── Messages ── */}
       <div className="flex-grow overflow-y-auto p-4 space-y-3 pb-[160px] scrollbar-hide relative z-10">
-        {messages.length === 0 ? (
+        {viewMode === "kanban" ? (
+          <div className="flex flex-col gap-5 h-full">
+            {[
+              {
+                title: "Todo",
+                color: "border-stone-200 bg-stone-50/40 text-stone-500",
+                tasks: [
+                  { id: "task1", label: "Create Responsive Navbar", desc: "Build Navbar with logo and link animations." },
+                  { id: "task2", label: "Implement Router", desc: "Define React Router endpoints and guard subpages." }
+                ]
+              },
+              {
+                title: "In Progress",
+                color: "border-indigo-200 bg-indigo-50/10 text-indigo-500",
+                tasks: [
+                  { id: "task3", label: "Animate Hero Block", desc: "Build Hero component with keyframe transitions." }
+                ]
+              },
+              {
+                title: "Done",
+                color: "border-emerald-200 bg-emerald-50/10 text-emerald-500",
+                tasks: [
+                  { id: "task4", label: "Initialize Project Framework", desc: "Compile core file layouts and build package settings." },
+                  { id: "task5", label: "Generate Design Tokens", desc: "Define typography, colors and radius style variables." }
+                ]
+              }
+            ].map((col, idx) => (
+              <div key={idx} className="space-y-2.5">
+                <div className="flex items-center justify-between px-1">
+                  <span className={`text-[10px] font-black uppercase tracking-wider ${col.color.split(" ").pop()}`}>
+                    {col.title} ({col.tasks.length})
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {col.tasks.map((task) => (
+                    <div key={task.id} className={`p-4 rounded-2xl border bg-white shadow-sm flex flex-col gap-2 transition-all hover:shadow-md ${col.color.split(" ")[0]}`}>
+                      <h4 className="text-xs font-bold text-stone-900">{task.label}</h4>
+                      <p className="text-[10px] text-stone-500 leading-normal">{task.desc}</p>
+                      {col.title !== "Done" && (
+                        <button
+                          onClick={() => {
+                            setViewMode("chat");
+                            onSend(`Resume task: ${task.label}`);
+                          }}
+                          className="mt-1 px-3 py-1.5 rounded-lg bg-stone-900 hover:bg-black text-white text-[9px] font-black uppercase tracking-wider transition-all self-start"
+                        >
+                          {col.title === "In Progress" ? "Continue" : "Resume Task"}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (buildPhase !== "idle" && buildPhase !== "completed") ? (
+          <div className="h-full flex flex-col justify-start px-4 py-6 space-y-6 select-none bg-stone-50/20 rounded-2xl">
+            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-[#e8e8e8]">
+              <Cpu className="w-4 h-4 text-[#0ea5e9] animate-pulse" />
+              <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-[#0ea5e9]">
+                Active Build Timeline
+              </h3>
+            </div>
+
+            <div className="space-y-4">
+              {tasks.length > 0 ? (
+                tasks.map((task, idx) => {
+                  const isRunning = task.status === "running";
+                  const isDone = task.status === "done";
+                  const isError = task.status === "error";
+
+                  return (
+                    <motion.div
+                      key={task.id}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.03 }}
+                      className="flex items-center gap-3 text-xs"
+                    >
+                      <div className="w-5 h-5 flex items-center justify-center">
+                        {isDone ? (
+                          <span className="text-emerald-500 font-bold text-sm">✓</span>
+                        ) : isRunning ? (
+                          <Loader2 className="w-3.5 h-3.5 text-sky-500 animate-spin" />
+                        ) : isError ? (
+                          <span className="text-red-500 font-bold">✗</span>
+                        ) : (
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#ddd]" />
+                        )}
+                      </div>
+                      <span className={`font-semibold tracking-wide ${isDone ? "text-stone-400 line-through decoration-emerald-500/25" :
+                          isRunning ? "text-sky-500 font-bold animate-pulse" :
+                            isError ? "text-red-500 font-bold" :
+                              "text-[#bbb]"
+                        }`}>
+                        {task.label}
+                      </span>
+                    </motion.div>
+                  );
+                })
+              ) : (
+                <div className="text-stone-400 text-xs italic">Initializing workspace timeline...</div>
+              )}
+            </div>
+
+            {/* File Generation Progress */}
+            {createdFiles.length > 0 && (
+              <div className="mt-5 pt-4 border-t border-[#e8e8e8] space-y-3">
+                <div className="flex items-center gap-1.5 px-1">
+                  <FileCode className="w-3.5 h-3.5 text-[#0ea5e9]" />
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[#555]">
+                    File Operations ({createdFiles.length})
+                  </span>
+                </div>
+                <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1 no-scrollbar">
+                  {createdFiles.map((file) => {
+                    const isActive = activeFiles.has(file);
+                    return (
+                      <div key={file} className="flex items-center justify-between text-xs py-0.5 px-1">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {isActive ? (
+                            <Loader2 className="w-3.5 h-3.5 text-sky-500 animate-spin shrink-0" />
+                          ) : (
+                            <div className="w-3.5 h-3.5 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+                              <Check className="w-2.5 h-2.5 text-emerald-500" />
+                            </div>
+                          )}
+                          <span className={`font-semibold truncate ${isActive ? "text-sky-500 animate-pulse" : "text-stone-400"}`}>
+                            {file}
+                          </span>
+                        </div>
+                        <span className={`text-[9px] font-bold uppercase tracking-wider select-none shrink-0 ${isActive ? "text-sky-500" : "text-emerald-500"}`}>
+                          {isActive ? "Writing" : "Complete"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center px-6 space-y-4">
             <div className="w-12 h-12 rounded-2xl bg-[#f3f3f3] border border-[#e8e8e8] flex items-center justify-center">
               <Sparkles className="w-6 h-6 text-[#0ea5e9]" />
@@ -485,13 +688,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                   className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`px-4 py-3 rounded-2xl text-xs leading-relaxed max-w-[88%] ${
-                      msg.role === "user"
-                        ? "bg-[#111] text-white rounded-br-sm"
+                    className={`px-4 py-3 rounded-2xl text-xs leading-relaxed max-w-[88%] chat-msg-bubble ${msg.role === "user"
+                        ? "bg-[#111] text-white rounded-br-sm chat-msg-user"
                         : msg.isError
-                        ? "bg-red-50 border border-red-200 text-red-700 rounded-bl-sm flex gap-2"
-                        : "bg-[#f3f3f3] border border-[#e8e8e8] text-[#111] rounded-bl-sm"
-                    }`}
+                          ? "bg-red-50 border border-red-200 text-red-700 rounded-bl-sm flex gap-2 chat-msg-error"
+                          : "bg-[#f3f3f3] border border-[#e8e8e8] text-[#111] rounded-bl-sm chat-msg-assistant"
+                      }`}
                   >
                     {msg.role !== "user" && !msg.isError && (
                       <div className="flex items-center gap-1.5 mb-2 select-none">
@@ -508,128 +710,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                   </div>
                 </motion.div>
               ))}
-
-              {/* Skeleton loading bubble */}
-              {buildPhase === "planning" && messages.length > 0 && messages[messages.length - 1].role === "user" && (
-                <SkeletonLoader />
-              )}
-
-              {/* Multi-Agent Build Progress */}
-              {(buildPhase !== "idle" && buildPhase !== "done") && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex flex-col gap-2.5 max-w-[92%]"
-                >
-                  {/* Phase Header */}
-                  <div className={`border rounded-2xl px-4 py-3 flex items-center gap-3 w-fit select-none transition-all duration-500 ${loaderTheme.bg}`}>
-                    <Loader2 className={`w-3.5 h-3.5 animate-spin shrink-0 ${loaderTheme.loader}`} />
-                    <div>
-                      <div className="text-[8px] font-black uppercase tracking-[0.2em] opacity-60 mb-0.5">
-                        {buildPhase === "planning" && "🧠 Planner Agent"}
-                        {buildPhase === "generating" && "⚡ Code Agent"}
-                        {buildPhase === "fixing" && "🔧 Fix Agent"}
-                        {buildPhase === "deploying" && "🚀 Deploy Agent"}
-                        {buildPhase === "building" && "🤖 AI Engine"}
-                      </div>
-                      <div className="text-[11px] font-semibold">{subStatus || "Processing…"}</div>
-                    </div>
-                  </div>
-
-                  {/* Agent Task Pipeline */}
-                  {tasks.length > 0 && (
-                    <div className="flex flex-col gap-1.5 border-l-2 border-[#e8e8e8] ml-3 pl-4 py-1 select-none">
-                      {tasks.map((task, idx) => {
-                        const isRunning = task.status === "running";
-                        const isDone = task.status === "done";
-                        const isError = task.status === "error";
-                        return (
-                          <motion.div
-                            key={task.id}
-                            initial={{ opacity: 0, x: -4 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: idx * 0.05 }}
-                            className="flex items-center gap-2"
-                          >
-                            <div className={`w-2 h-2 rounded-full shrink-0 transition-all duration-300 ${
-                              isDone ? "bg-emerald-500 shadow-sm shadow-emerald-300"
-                              : isRunning ? "bg-[#0ea5e9] animate-pulse shadow-sm shadow-sky-300"
-                              : isError ? "bg-red-400"
-                              : "bg-[#ddd]"
-                            }`} />
-                            <span className={`text-[10px] font-medium flex-1 leading-tight transition-all ${
-                              isDone ? "text-[#aaa] line-through"
-                              : isRunning ? "text-[#0ea5e9] font-semibold"
-                              : isError ? "text-red-500"
-                              : "text-[#ccc]"
-                            }`}>
-                              {task.label}
-                            </span>
-                            {isDone && (
-                              <span className="text-[7px] font-black text-emerald-600 uppercase tracking-wider bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200 shrink-0">
-                                ✓
-                              </span>
-                            )}
-                            {isRunning && (
-                              <span className="flex gap-0.5 shrink-0">
-                                {[0,1,2].map(i => (
-                                  <span key={i} className="w-1 h-1 bg-[#0ea5e9] rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
-                                ))}
-                              </span>
-                            )}
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* File Generation Progress */}
-                  {buildingFiles && Object.keys(buildingFiles).length > 0 && (
-                    <div className="flex flex-col gap-1.5 border-l-2 border-[#e8e8e8] ml-3 pl-4 py-1.5 select-none max-h-48 overflow-y-auto scrollbar-hide">
-                      <div className="text-[8px] font-black uppercase tracking-[0.15em] text-[#888] mb-1">
-                        📁 File Operations
-                      </div>
-                      {Object.entries(buildingFiles).map(([fpath, progress]) => {
-                        const isWriting = progress.status === "writing";
-                        const isDone = progress.status === "done";
-                        return (
-                          <motion.div
-                            key={fpath}
-                            initial={{ opacity: 0, x: -4 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className="flex items-center justify-between gap-2 text-[10px]"
-                          >
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              {isWriting ? (
-                                <Loader2 className="w-2.5 h-2.5 animate-spin text-[#0ea5e9] shrink-0" />
-                              ) : (
-                                <span className="text-emerald-500 font-bold text-[10px] shrink-0 select-none">✓</span>
-                              )}
-                              <span className={`font-mono truncate leading-tight ${
-                                isDone ? "text-[#aaa]" : "text-[#111] font-medium"
-                              }`}>
-                                {fpath}
-                              </span>
-                            </div>
-                            {isWriting && progress.charCount > 0 && (
-                              <span className="text-[8px] text-[#aaa] font-semibold shrink-0">
-                                {progress.charCount} chars
-                              </span>
-                            )}
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </motion.div>
-              )}
-              
               {/* Intent & Design Exploration UI */}
               {exploringPrompt && (
-                <DesignExploration 
-                  prompt={exploringPrompt} 
-                  onConfirm={handleExplorationConfirm} 
-                  onCancel={handleExplorationCancel} 
+                <DesignExploration
+                  prompt={exploringPrompt}
+                  onConfirm={handleExplorationConfirm}
+                  onCancel={handleExplorationCancel}
                 />
               )}
             </AnimatePresence>
@@ -639,7 +725,14 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
       </div>
 
       {/* ── Floating Input ── */}
-      <div className="absolute bottom-0 left-0 right-0 px-3 pb-3 pt-8 bg-gradient-to-t from-white via-white/90 to-transparent z-20">
+      <div className="absolute bottom-0 left-0 right-0 px-3 pb-3 pt-8 bg-gradient-to-t from-white via-white/90 to-transparent dark:from-[#09090b] dark:via-[#09090b]/90 z-20">
+        <div className="flex items-center justify-between mb-1.5 px-1">
+          <div />
+          <div className="text-[9px] font-black uppercase tracking-wider text-[#0ea5e9] select-none bg-sky-50 dark:bg-sky-950/30 px-2 py-0.5 rounded-md border border-sky-100 dark:border-sky-900/50 flex items-center gap-1 shadow-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#0ea5e9] animate-pulse" />
+            Now available: GLM 5.2 or Gemini 3.5 Flash
+          </div>
+        </div>
         <div className="border border-[#e8e8e8] bg-white rounded-2xl shadow-sm focus-within:border-[#0ea5e9]/40 focus-within:shadow-[0_0_0_3px_rgba(14,165,233,0.08)] transition-all">
 
           {/* Attachment previews */}
@@ -668,7 +761,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
           )}
 
           {/* Post Build AI Quick Actions */}
-          {buildPhase === "done" && (
+          {buildPhase === "completed" && (
             <div className="flex flex-wrap gap-2 px-3 mt-3 mb-1">
               {[
                 { label: "Improve UI", icon: <Sparkles className="w-3 h-3 text-purple-500" /> },
@@ -686,8 +779,26 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                   {action.label}
                 </button>
               ))}
+              {/* Explicit NexoStudio trigger for new project in existing chat */}
+              {projectMode === "fullstack" && (
+                <button
+                  onClick={() => {
+                    if (input.trim()) {
+                      setExploringPrompt(input.trim());
+                      setInput("");
+                    } else {
+                      toast("Type a prompt first, then click Build with NexoStudio", { icon: "💡" });
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold transition-colors whitespace-nowrap shadow-sm"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  Build with NexoStudio
+                </button>
+              )}
             </div>
           )}
+
 
           {/* Live transcript overlay */}
           <AnimatePresence>
@@ -736,10 +847,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
               }
             }}
             placeholder={
-              isTranscribing 
-                ? "🤖 Transcribing voice..." 
-                : isListening 
-                  ? "🎙️ Listening... speak your idea" 
+              isTranscribing
+                ? "🤖 Transcribing voice..."
+                : isListening
+                  ? "🎙️ Listening... speak your idea"
                   : "Make changes, add new features, ask for anything"
             }
             disabled={isTranscribing}
@@ -755,7 +866,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                 <button
                   type="button"
                   onClick={() => setIsModelMenuOpen((v) => !v)}
-                  className="flex items-center gap-1 px-2 py-1 bg-[#f3f3f3] hover:bg-[#ebebeb] border border-[#e8e8e8] rounded-lg text-[10px] font-semibold text-[#555] hover:text-[#111] transition-all select-none max-w-[130px]"
+                  className="flex items-center gap-1 px-2 py-1 bg-[#f3f3f3] hover:bg-[#f3f3f3] border border-[#e8e8e8] rounded-lg text-[10px] font-semibold text-[#555] hover:text-[#111] transition-all select-none max-w-[130px]"
                 >
                   <Cpu className="w-3 h-3 text-[#0ea5e9] shrink-0" />
                   <span className="truncate">{selectedModelName}</span>
@@ -775,20 +886,18 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                           setSelectedModel(m.id);
                           setIsModelMenuOpen(false);
                         }}
-                        className={`w-full text-left px-3 py-2 rounded-lg transition-all flex items-center justify-between gap-2 ${
-                          selectedModel === m.id
+                        className={`w-full text-left px-3 py-2 rounded-lg transition-all flex items-center justify-between gap-2 ${selectedModel === m.id
                             ? "bg-[#0ea5e9] text-white"
                             : "hover:bg-[#f3f3f3] text-[#333]"
-                        }`}
+                          }`}
                       >
                         <span className="text-[11px] font-medium">{m.name}</span>
                         {m.badge && (
                           <span
-                            className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide shrink-0 ${
-                              selectedModel === m.id
+                            className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide shrink-0 ${selectedModel === m.id
                                 ? "bg-white/20 text-white"
                                 : "bg-[#e8e8e8] text-[#666]"
-                            }`}
+                              }`}
                           >
                             {m.badge}
                           </span>
@@ -824,13 +933,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ onSend }) => {
                 type="button"
                 onClick={toggleVoice}
                 disabled={isTranscribing}
-                className={`relative p-1.5 rounded-lg transition-all ${
-                  isTranscribing
+                className={`relative p-1.5 rounded-lg transition-all ${isTranscribing
                     ? "text-[#0ea5e9] bg-sky-50 hover:bg-sky-100 ring-2 ring-sky-300"
                     : isListening
                       ? "text-red-500 bg-red-50 hover:bg-red-100 ring-2 ring-red-300"
                       : "text-[#aaa] hover:text-[#555] hover:bg-[#f3f3f3]"
-                }`}
+                  }`}
                 title={isTranscribing ? "Transcribing..." : isListening ? "Stop voice input" : "Voice-to-App: Speak your idea"}
               >
                 {isTranscribing ? (

@@ -13,9 +13,17 @@ export default async function(request: Request): Promise<Response> {
     });
   }
 
+  const anonKey = Deno.env.get('INSFORGE_ANON_KEY') || Deno.env.get('ANON_KEY');
+  if (!anonKey) {
+    return new Response("<div style='font-family:sans-serif; padding:40px; text-align:center;'><h1>Configuration Error</h1><p>Database credentials are missing.</p></div>", { 
+        status: 500,
+        headers: { "Content-Type": "text/html" }
+    });
+  }
+
   const client = createClient({ 
     baseUrl: Deno.env.get('INSFORGE_BASE_URL') || 'https://g7nugnui.ap-southeast.insforge.app', 
-    anonKey: Deno.env.get('ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3OC0xMjM0LTU2NzgtOTBhYi1jZGVmMTIzNDU2NzgiLCJlbWFpbCI6ImFub25AaW5zZm9yZ2UuY29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxMjI4OTh9.M-ENCUD91CkhHdFKT03HoalGjfqRkI9uhiOLO1FC1o8'
+    anonKey: anonKey
   });
 
   const { data, error } = await client.database.from("user_deployments").select("html").eq("id", id).maybeSingle();

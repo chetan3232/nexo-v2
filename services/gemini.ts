@@ -145,7 +145,7 @@ Keep responses concise for voice interaction, unless generating code.`,
 
       // Send tool response back to model to get final natural language confirmation
       if (functionResponses.length > 0) {
-         const finalResult = await chat.sendToolResponse({ functionResponses });
+         const finalResult = await (chat as any).sendToolResponse({ functionResponses });
          return finalResult.text;
       }
     }

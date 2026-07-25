@@ -6,7 +6,8 @@ We actively provide security updates for the following versions of NEXO V2:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 2.3.x   | ✅ Yes              |
+| 2.5.x   | ✅ Yes              |
+| 2.3.x   | ❌ No               |
 | 2.2.x   | ❌ No               |
 | 2.1.x   | ❌ No               |
 | 1.x.x   | ❌ No               |
@@ -18,7 +19,7 @@ We take the security of NEXO V2 and its users seriously. If you believe you have
 **Please do not report security vulnerabilities through public GitHub issues.**
 
 Instead, please follow this process:
-1. Email your findings to **gamerchetan323@gmail,com**.
+1. Email your findings to **gamerchetan323@gmail.com**.
 2. Include a detailed description of the vulnerability, steps to reproduce it, and any potential impact.
 3. Our team will acknowledge your report within 48 hours and provide a timeline for resolution.
 

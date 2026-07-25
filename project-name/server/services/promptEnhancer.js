@@ -66,7 +66,8 @@ Write an enhanced, detailed prompt for this project:`;
                 top_p: 1.0,
                 projectMode,
                 techStack,
-                customApiKey
+                customApiKey,
+                maxTokens: 250
             });
 
             const cleanedEnhanced = enhanced

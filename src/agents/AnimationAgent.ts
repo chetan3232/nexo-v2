@@ -1,6 +1,8 @@
 import { BaseAgent } from "./BaseAgent";
 import { Message } from "../types";
 import { ANIMATION_PROMPT_INJECTION } from "../utils/animations";
+import { useGenerationWorkflowStore } from "../stores/generationWorkflowStore";
+import { DesignLockService } from "../services/designLockService";
 
 export class AnimationAgent extends BaseAgent {
   async animate(
@@ -22,10 +24,14 @@ Ensure the UI feels "alive" and extremely premium.
 Output the full files with integrated animations using ---FILE: path--- blocks.
         `.trim();
 
+    const snapshot = useGenerationWorkflowStore.getState().selectedDesignSnapshot;
+    const finalSystemPrompt = DesignLockService.getInstance().injectDesignLockPrompt(systemPrompt, snapshot);
+
     return this.streamResponse({
       model: options.model,
-      messages: this.formatMessages(history, prompt, systemPrompt),
+      messages: this.formatMessages(history, prompt, finalSystemPrompt),
       temperature: 0.7,
+      priority: "CRITICAL",
     });
   }
 }

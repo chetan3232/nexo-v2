@@ -83,11 +83,7 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Messages array is required' });
         }
 
-        const apiKey = customApiKey || req.headers['x-api-key'] || process.env.GEMINI_API_KEY;
-
-        if (!apiKey) {
-            return res.status(401).json({ error: 'API Key (GEMINI_API_KEY) is missing.' });
-        }
+        // API key validation will be handled dynamically per provider below
 
         const reqTemperature = 1.0;
         const reqTopP = 1.0;
@@ -138,20 +134,36 @@ export default async function handler(req, res) {
             }))
         ];
 
-        let invokeUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-        let apiToken = apiKey;
+        let invokeUrl = "";
+        let apiToken = "";
         let modelParam = model;
 
-        if (model.startsWith('groq/')) {
-            invokeUrl = "https://api.groq.com/openai/v1/chat/completions";
-            apiToken = process.env.GROQ_API_KEY || apiKey;
-            modelParam = model.replace('groq/', '');
-        } else if (model.includes('qwen/')) {
-            invokeUrl = "https://openrouter.ai/api/v1/chat/completions";
-            apiToken = process.env.OPENROUTER_API_KEY || "";
-            modelParam = model;
-        } else {
+        if (model.startsWith('gemini-') || model.startsWith('google/')) {
+            invokeUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+            apiToken = customApiKey || req.headers['x-api-key'] || process.env.GEMINI_API_KEY;
             modelParam = model.startsWith('google/') ? model.replace('google/', '') : model;
+            if (!apiToken) {
+                return res.status(401).json({ error: 'Gemini API Key (GEMINI_API_KEY) is missing.' });
+            }
+        } else if (
+            model.startsWith('z-ai/') || 
+            model.startsWith('moonshotai/') || 
+            model.startsWith('stepfun-ai/') || 
+            model === 'qwen/qwen3-coder-480b-a35b-instruct'
+        ) {
+            invokeUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
+            apiToken = process.env.NVIDIA_API_KEY || customApiKey || req.headers['x-api-key'];
+            modelParam = model;
+            if (!apiToken) {
+                return res.status(401).json({ error: 'Nvidia API Key (NVIDIA_API_KEY) is missing.' });
+            }
+        } else {
+            invokeUrl = "https://openrouter.ai/api/v1/chat/completions";
+            apiToken = process.env.OPENROUTER_API_KEY || customApiKey || req.headers['x-api-key'];
+            modelParam = model;
+            if (!apiToken) {
+                return res.status(401).json({ error: 'OpenRouter API Key (OPENROUTER_API_KEY) is missing.' });
+            }
         }
 
         const payload = {

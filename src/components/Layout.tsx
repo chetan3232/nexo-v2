@@ -10,7 +10,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const location = useLocation();
-  const isDemo = location.pathname === "/demo";
+  const isDemo = location.pathname === "/demo" || location.pathname === "/chat" || location.pathname.startsWith("/nexostudio/");
   const [user, setUser] = useState<FirebaseUser | null>(null);
 
   const [theme, setTheme] = useState<"light" | "dark">(() => {
@@ -40,7 +40,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const isActive = (path: string) =>
-    location.pathname === path
+    location.pathname === path || (path === "/chat" && (location.pathname.startsWith("/nexostudio/") || location.pathname === "/demo"))
       ? "text-[#111] font-semibold bg-white shadow-sm"
       : "text-[#666] hover:text-[#111]";
 
@@ -74,8 +74,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({
                 Home
               </Link>
               <Link
-                to="/demo"
-                className={`px-4 py-1.5 rounded-full text-sm transition-all ${isActive("/demo")}`}
+                to="/chat"
+                className={`px-4 py-1.5 rounded-full text-sm transition-all ${isActive("/chat")}`}
               >
                 Workspace
               </Link>
@@ -139,7 +139,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({
 
               {!isDemo && (
                 <Link
-                  to="/demo"
+                  to="/chat"
                   className="flex items-center gap-1.5 px-4 py-1.5 bg-[#111] text-white rounded-full text-sm font-semibold hover:bg-[#333] transition-all shadow-sm hover:-translate-y-px"
                 >
                   Launch
@@ -181,7 +181,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({
               <h4 className="font-bold mb-6 text-[#111]">Project</h4>
               <ul className="space-y-3 text-sm text-[#888] font-medium">
                 <li>
-                  <Link to="/demo" className="hover:text-[#111] transition-colors">
+                  <Link to="/chat" className="hover:text-[#111] transition-colors">
                     Web Demo
                   </Link>
                 </li>

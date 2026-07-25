@@ -3,35 +3,249 @@ const { extractCodeFromText } = require('../utils/parser');
 const { jobEvents } = require('./queueManager');
 const PromptEnhancer = require('./promptEnhancer');
 const ProjectMemory = require('./projectMemory');
+const NexoSecurityValidator = require('./nexoValidator');
+const NexoOrchestrator = require('./nexoOrchestrator');
+
+// ─────────────────────────────────────────────────
+// JSON Actions Streaming Parser and Extractor
+// ─────────────────────────────────────────────────
+function makeStreamParser(job) {
+    const state = {
+        index: 0,
+        actions: [],
+        currentAction: null,
+        inContentString: false,
+        escapeNext: false,
+        contentBuffer: "",
+        isNexoProtocol: false,
+        onActionStart: (action) => {
+            if (action.type === 'create' || action.type === 'edit') {
+                jobEvents.emit(job.id, { type: 'create_file', path: action.path });
+            }
+        },
+        onActionChunk: (chunk) => {
+            if (state.currentAction && (state.currentAction.type === 'create' || state.currentAction.type === 'edit')) {
+                jobEvents.emit(job.id, {
+                    type: 'write_code',
+                    path: state.currentAction.path,
+                    chunk: chunk
+                });
+            }
+        },
+        onActionEnd: (action) => {
+            if (action.type === 'create' || action.type === 'edit') {
+                jobEvents.emit(job.id, {
+                    type: 'update_file',
+                    path: action.path,
+                    content: action.content
+                });
+                job.updateFiles({ [action.path]: action.content });
+            }
+        }
+    };
+
+    return (text) => {
+        if (!state.isNexoProtocol && text.includes("---FILE:")) {
+            state.isNexoProtocol = true;
+        }
+
+        if (state.isNexoProtocol) {
+            const fileBlockRegex = /---FILE:\s*([^\n\r]+?)\s*---\s*\n([\s\S]*?)(?:---END FILE---|$)/gi;
+            let match;
+            fileBlockRegex.lastIndex = 0;
+            while ((match = fileBlockRegex.exec(text)) !== null) {
+                const fpath = match[1].trim().replace(/`/g, "");
+                const content = match[2];
+                
+                let action = state.actions.find(a => a.path === fpath);
+                if (!action) {
+                    action = { type: 'create', path: fpath, content: '' };
+                    state.actions.push(action);
+                    state.onActionStart(action);
+                }
+                
+                if (action.content !== content) {
+                    const chunk = content.substring(action.content.length);
+                    action.content = content;
+                    state.currentAction = action; // set current action context for chunk emitter
+                    state.onActionChunk(chunk);
+                }
+
+                if (match[0].includes("---END FILE---") && !action.ended) {
+                    action.ended = true;
+                    state.onActionEnd(action);
+                }
+            }
+            return state.actions;
+        }
+
+        while (state.index < text.length) {
+            if (!state.currentAction) {
+                const remaining = text.substring(state.index);
+                const match = remaining.match(/^\s*\{\s*"type"\s*:\s*"([^"]+)"\s*,\s*"path"\s*:\s*"([^"]+)"/);
+                if (match) {
+                    state.currentAction = {
+                        type: match[1],
+                        path: match[2],
+                        content: ""
+                    };
+                    state.index += match[0].length;
+                    state.onActionStart(state.currentAction);
+
+                    const nextRemaining = text.substring(state.index);
+                    const contentStartMatch = nextRemaining.match(/^\s*,\s*"content"\s*:\s*"/);
+                    if (contentStartMatch) {
+                        state.inContentString = true;
+                        state.escapeNext = false;
+                        state.contentBuffer = "";
+                        state.index += contentStartMatch[0].length;
+                    } else {
+                        const closeMatch = nextRemaining.match(/^\s*\}/);
+                        if (closeMatch) {
+                            state.index += closeMatch[0].length;
+                            state.onActionEnd(state.currentAction);
+                            state.actions.push(state.currentAction);
+                            state.currentAction = null;
+                        }
+                    }
+                } else {
+                    state.index++;
+                }
+            } else if (state.inContentString) {
+                const char = text[state.index];
+                if (state.escapeNext) {
+                    let decodedChar = char;
+                    if (char === 'n') decodedChar = '\n';
+                    else if (char === 'r') decodedChar = '\r';
+                    else if (char === 't') decodedChar = '\t';
+                    else if (char === 'b') decodedChar = '\b';
+                    else if (char === 'f') decodedChar = '\f';
+                    
+                    state.contentBuffer += decodedChar;
+                    state.onActionChunk(decodedChar);
+                    state.escapeNext = false;
+                    state.index++;
+                } else if (char === '\\') {
+                    state.escapeNext = true;
+                    state.index++;
+                } else if (char === '"') {
+                    state.inContentString = false;
+                    state.currentAction.content = state.contentBuffer;
+                    state.index++;
+
+                    const remaining = text.substring(state.index);
+                    const closeMatch = remaining.match(/^\s*\}/);
+                    if (closeMatch) {
+                        state.index += closeMatch[0].length;
+                    }
+                    state.onActionEnd(state.currentAction);
+                    state.actions.push(state.currentAction);
+                    state.currentAction = null;
+                } else {
+                    state.contentBuffer += char;
+                    state.onActionChunk(char);
+                    state.index++;
+                }
+            } else {
+                const remaining = text.substring(state.index);
+                const closeMatch = remaining.match(/^\s*\}/);
+                if (closeMatch) {
+                    state.index += closeMatch[0].length;
+                    state.onActionEnd(state.currentAction);
+                    state.actions.push(state.currentAction);
+                    state.currentAction = null;
+                } else {
+                    state.index++;
+                }
+            }
+        }
+        return state.actions;
+    };
+}
+
+function extractFilesFromJsonActions(text) {
+    try {
+        const cleanJson = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(cleanJson);
+        const files = {};
+        let mainFile = 'index.html';
+        
+        if (parsed.actions && Array.isArray(parsed.actions)) {
+            parsed.actions.forEach(act => {
+                if (act.type === 'create' || act.type === 'edit') {
+                    files[act.path] = act.content;
+                }
+            });
+        }
+        if (parsed.preview_entry) {
+            mainFile = parsed.preview_entry;
+        }
+        
+        return { files, mainFile, explanation: parsed.explanation || "" };
+    } catch (e) {
+        console.error("JSON parse failed at the end of stream. Falling back to regex action extractor.", e);
+        const files = {};
+        const actionRegex = /\{\s*"type"\s*:\s*"(create|edit)"\s*,\s*"path"\s*:\s*"([^"]+)"\s*,\s*"content"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
+        let match;
+        while ((match = actionRegex.exec(text)) !== null) {
+            const path = match[2];
+            let content = match[3];
+            try {
+                content = JSON.parse(`"${content}"`);
+            } catch(unescapeErr) {}
+            files[path] = content;
+        }
+
+        if (Object.keys(files).length === 0) {
+            console.log("No JSON actions found. Falling back to extractCodeFromText.");
+            const parsedResult = extractCodeFromText(text);
+            if (parsedResult && parsedResult.website && parsedResult.website.files) {
+                return {
+                    files: parsedResult.website.files,
+                    mainFile: parsedResult.website.mainFile || 'index.html',
+                    explanation: parsedResult.cleanText || ""
+                };
+            }
+        }
+        
+        return { files, mainFile: 'index.html', explanation: "" };
+    }
+}
 
 // ─────────────────────────────────────────────────
 // Smart Model Router — picks best model per task
 // ─────────────────────────────────────────────────
 function routeModel(taskType, requestedModel) {
-    const FAST_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'groq/llama-3.3-70b-versatile'];
-    const DEEP_MODELS = ['gemini-2.5-pro', 'qwen/qwen3-coder-480b-a35b-instruct', 'stepfun-ai/step-3.5-flash'];
-
     switch (taskType) {
         case 'planning':
-            // Always use a fast model for planning — speed matters here
-            return FAST_MODELS.includes(requestedModel) ? requestedModel : 'gemini-2.5-flash';
+        case 'analyzing':
+            // Planning / Analyzing -> Gemini Flash
+            return 'gemini-2.5-flash';
+
+        case 'ui_design':
+        case 'design':
+            // UI Design -> Stitch (fallback to gemini-2.5-flash for speed or gemini-2.5-pro if available)
+            return 'gemini-2.5-flash';
+
+        case 'architecture':
+            // Architecture -> Claude / GPT
+            return 'anthropic/claude-3-5-sonnet';
 
         case 'ui_generation':
-            // Use user's selected model for deep UI generation
-            return requestedModel || 'gemini-2.5-flash';
+        case 'generation':
+        case 'frontend_generation':
+        case 'backend_generation':
+            // Code Generation -> DeepSeek / NVIDIA Qwen
+            return 'qwen/qwen3-coder-480b-a35b-instruct';
 
         case 'debug':
         case 'fix':
-            // Fastest available for quick fixes
+            // Debugging / Self-Healing -> DeepSeek / Qwen
+            return 'qwen/qwen3-coder-480b-a35b-instruct';
+
+        case 'summary':
+            // Summary -> Gemini Flash
             return 'gemini-2.5-flash';
-
-        case 'refactor':
-            // Deep model for careful refactoring
-            return DEEP_MODELS.includes(requestedModel) ? requestedModel : 'gemini-2.5-pro';
-
-        case 'vision':
-            // Vision-capable model for design-to-code
-            return 'gemini-2.5-flash'; // Gemini supports vision
 
         default:
             return requestedModel || 'gemini-2.5-flash';
@@ -70,33 +284,46 @@ class BackendOrchestrator {
         const memory = ProjectMemory.load(chatId);
         const memoryContext = ProjectMemory.getContextString(chatId);
         
-        job.updateStatus('planning');
+        job.updateStatus('analyzing');
         job.updateProgress(5);
-        job.log('Initializing Nexo V2 Dual Engine...');
+        job.log('Initializing Nexo V2 Master Workflow Engine...');
 
         // Notify if memory loaded
         if (memory.buildHistory?.length > 0) {
             job.addReasoningStep(`🧠 Memory loaded: ${memory.buildHistory.length} previous build(s) found for this project.`);
         }
 
-        // Aligned with Multi-Agent Pipeline
+        // Aligned with workflow-based development execution timeline
         const tasks = [
-            { id: "planner", label: "Planner Agent (Strategy & Architecture)", status: "pending" },
-            { id: "ui_code", label: "UI & Code Agent (Generation & Implementation)", status: "pending" },
-            { id: "build_fix", label: "Build & Fixer Agent (Auto-Healing Checks)", status: "pending" },
-            { id: "preview", label: "Preview Agent (Sandbox Deployment)", status: "pending" }
+            { id: "understanding", label: "🧠 Understanding your idea", status: "pending" },
+            { id: "requirements", label: "✓ Requirements analyzed", status: "pending" },
+            { id: "plan", label: "📋 Creating execution plan", status: "pending" },
+            { id: "architecture", label: "✓ Project architecture ready", status: "pending" },
+            { id: "designing", label: "🎨 Designing interface", status: "pending" },
+            { id: "design_completed", label: "✓ Design completed", status: "pending" },
+            { id: "files", label: "📁 Creating project files", status: "pending" },
+            { id: "writing", label: "⚡ Writing code", status: "pending" },
+            { id: "packages", label: "📦 Installing packages", status: "pending" },
+            { id: "building", label: "🔧 Running build", status: "pending" },
+            { id: "fixing", label: "🛠 Fixing build errors", status: "pending" },
+            { id: "preview", label: "🚀 Launching preview", status: "pending" },
+            { id: "completed", label: "✅ Application completed", status: "pending" }
         ];
         job.updateTasks(tasks);
 
         try {
             // ==========================================
-            // 0. PROMPT ENHANCEMENT (Pre-Planning)
+            // 0. REQUIREMENT ANALYZER (analyzing)
             // ==========================================
+            tasks[0].status = 'running';
+            job.updateTasks(tasks);
+            job.updateProgress(8);
+
             let finalPrompt = prompt;
             let wasEnhanced = false;
 
             if (!isRefactor && !hasImage) {
-                job.addReasoningStep('✨ Prompt Enhancement Engine: Analyzing and enriching your request...');
+                job.addReasoningStep('✨ Requirement Analyzer: Structuring functional boundaries...');
                 
                 const enhancement = await PromptEnhancer.enhance(
                     prompt,
@@ -109,8 +336,7 @@ class BackendOrchestrator {
                 wasEnhanced = enhancement.wasEnhanced;
 
                 if (wasEnhanced) {
-                    job.addReasoningStep(`✨ Prompt enhanced: Expanded from ${prompt.length} to ${finalPrompt.length} characters for better results.`);
-                    // Notify UI about enhancement
+                    job.addReasoningStep(`✨ Requirement Analyzer complete: Extracted comprehensive app specifications.`);
                     jobEvents.emit(job.id, {
                         type: 'prompt_enhanced',
                         original: prompt,
@@ -119,14 +345,18 @@ class BackendOrchestrator {
                 }
             }
 
-            // ==========================================
-            // 1. FAST PLANNER AGENT (FAST THINKER - Phase 1)
-            // ==========================================
-            job.addReasoningStep('🧠 Strategic planning: Analyzing requirements and generating UI architecture...');
-            tasks[0].status = 'running';
+            tasks[0].status = 'done';
+            tasks[1].status = 'done'; // Requirements analyzed
+            tasks[2].status = 'running'; // Creating execution plan
+            job.updateStatus('planning');
             job.updateTasks(tasks);
-            job.updateProgress(10);
+            job.updateProgress(15);
 
+            // ==========================================
+            // 1. FAST PLANNER & ARCHITECTURE AGENT (planning)
+            // ==========================================
+            job.addReasoningStep('🧠 Project Architecture Agent: Planning layout and stack files...');
+            
             // Smart Model Router for planning
             const plannerModel = routeModel('planning', options.model);
 
@@ -183,7 +413,8 @@ Example output:
                 systemPrompt: options.systemPrompt,
                 enabledTools: options.enabledTools,
                 customApiKey: options.customApiKey,
-                userId
+                userId,
+                maxTokens: 400
             });
 
             let planData = { plan: [], files: [] };
@@ -250,9 +481,7 @@ Example output:
 We have planned the following frontend files to implement the user request "${finalPrompt}":
 ${frontendFiles.map(f => `- ${f}`).join('\n')}
 
-Follow the Nexo Protocol: write complete files enclosed in ---FILE: path--- and ---END FILE--- markers.
-CRITICAL: If you need any backend API endpoints (like custom REST routes, database actions, etc.), state them clearly in your code comments or response text as:
-"BACKEND_REQUEST: Create /api/[route] endpoint for [reason]"
+We require you to output valid JSON for the file actions.
 Ensure the frontend is fully responsive and modern.`;
 
                 const frontendMessages = [
@@ -261,9 +490,7 @@ Ensure the frontend is fully responsive and modern.`;
                 ];
 
                 let streamedText = "";
-                let scanIndex = 0;
-                let currentFile = null;
-                let currentFileContent = "";
+                const parseStream = makeStreamParser(job);
 
                 const frontendOutput = await AIGateway.streamCompletion({
                     messages: frontendMessages,
@@ -279,75 +506,11 @@ Ensure the frontend is fully responsive and modern.`;
                 }, (chunk) => {
                     streamedText += chunk;
                     job.log(chunk);
-
-                    while (scanIndex < streamedText.length) {
-                        const remaining = streamedText.substring(scanIndex);
-
-                        if (!currentFile) {
-                            const fileStartMatch = remaining.match(/^[\s\S]*?---FILE:\s*([^\s\n\-]+?)\s*---/i);
-                            if (fileStartMatch) {
-                                const matchStr = fileStartMatch[0];
-                                const filename = fileStartMatch[1].trim().replace(/`/g, "");
-                                
-                                scanIndex += matchStr.length;
-                                currentFile = filename;
-                                currentFileContent = "";
-                                
-                                jobEvents.emit(job.id, { type: 'create_file', path: filename });
-                                continue;
-                            } else {
-                                break;
-                            }
-                        }
-
-                        if (currentFile) {
-                            const fileEndIdx = remaining.indexOf("---END FILE---");
-                            if (fileEndIdx !== -1) {
-                                const codeChunk = remaining.substring(0, fileEndIdx);
-                                currentFileContent += codeChunk;
-                                
-                                if (codeChunk.length > 0) {
-                                    jobEvents.emit(job.id, { 
-                                        type: 'write_code', 
-                                        path: currentFile, 
-                                        chunk: codeChunk 
-                                    });
-                                }
-
-                                const updatedFiles = { [currentFile]: currentFileContent };
-                                job.updateFiles(updatedFiles);
-                                jobEvents.emit(job.id, { 
-                                    type: 'update_file', 
-                                    path: currentFile, 
-                                    content: currentFileContent 
-                                });
-
-                                scanIndex += fileEndIdx + "---END FILE---".length;
-                                currentFile = null;
-                                currentFileContent = "";
-                                continue;
-                            } else {
-                                const safetyMargin = Math.max(0, remaining.length - 20);
-                                if (safetyMargin > 0) {
-                                    const codeChunk = remaining.substring(0, safetyMargin);
-                                    currentFileContent += codeChunk;
-                                    
-                                    jobEvents.emit(job.id, { 
-                                        type: 'write_code', 
-                                        path: currentFile, 
-                                        chunk: codeChunk 
-                                    });
-                                    
-                                    scanIndex += safetyMargin;
-                                }
-                                break;
-                            }
-                        }
-                    }
+                    parseStream(streamedText);
                 });
 
-                const parsedFrontend = extractCodeFromText(frontendOutput);
-                const finalFrontendFiles = parsedFrontend.website ? parsedFrontend.website.files : {};
+                const parsedFrontend = extractFilesFromJsonActions(frontendOutput);
+                const finalFrontendFiles = parsedFrontend.files;
                 if (Object.keys(finalFrontendFiles).length > 0) {
                     job.updateFiles(finalFrontendFiles);
                 }
@@ -387,9 +550,7 @@ Implement these files completely, ensuring they fulfill the requests made by the
                 ];
 
                 streamedText = "";
-                scanIndex = 0;
-                currentFile = null;
-                currentFileContent = "";
+                const parseBackendStream = makeStreamParser(job);
 
                 const backendOutput = await AIGateway.streamCompletion({
                     messages: backendMessages,
@@ -405,75 +566,11 @@ Implement these files completely, ensuring they fulfill the requests made by the
                 }, (chunk) => {
                     streamedText += chunk;
                     job.log(chunk);
-
-                    while (scanIndex < streamedText.length) {
-                        const remaining = streamedText.substring(scanIndex);
-
-                        if (!currentFile) {
-                            const fileStartMatch = remaining.match(/^[\s\S]*?---FILE:\s*([^\s\n\-]+?)\s*---/i);
-                            if (fileStartMatch) {
-                                const matchStr = fileStartMatch[0];
-                                const filename = fileStartMatch[1].trim().replace(/`/g, "");
-                                
-                                scanIndex += matchStr.length;
-                                currentFile = filename;
-                                currentFileContent = "";
-                                
-                                jobEvents.emit(job.id, { type: 'create_file', path: filename });
-                                continue;
-                            } else {
-                                break;
-                            }
-                        }
-
-                        if (currentFile) {
-                            const fileEndIdx = remaining.indexOf("---END FILE---");
-                            if (fileEndIdx !== -1) {
-                                const codeChunk = remaining.substring(0, fileEndIdx);
-                                currentFileContent += codeChunk;
-                                
-                                if (codeChunk.length > 0) {
-                                    jobEvents.emit(job.id, { 
-                                        type: 'write_code', 
-                                        path: currentFile, 
-                                        chunk: codeChunk 
-                                    });
-                                }
-
-                                const updatedFiles = { [currentFile]: currentFileContent };
-                                job.updateFiles(updatedFiles);
-                                jobEvents.emit(job.id, { 
-                                    type: 'update_file', 
-                                    path: currentFile, 
-                                    content: currentFileContent 
-                                });
-
-                                scanIndex += fileEndIdx + "---END FILE---".length;
-                                currentFile = null;
-                                currentFileContent = "";
-                                continue;
-                            } else {
-                                const safetyMargin = Math.max(0, remaining.length - 20);
-                                if (safetyMargin > 0) {
-                                    const codeChunk = remaining.substring(0, safetyMargin);
-                                    currentFileContent += codeChunk;
-                                    
-                                    jobEvents.emit(job.id, { 
-                                        type: 'write_code', 
-                                        path: currentFile, 
-                                        chunk: codeChunk 
-                                    });
-                                    
-                                    scanIndex += safetyMargin;
-                                }
-                                break;
-                            }
-                        }
-                    }
+                    parseBackendStream(streamedText);
                 });
 
-                const parsedBackend = extractCodeFromText(backendOutput);
-                const finalBackendFiles = parsedBackend.website ? parsedBackend.website.files : {};
+                const parsedBackend = extractFilesFromJsonActions(backendOutput);
+                const finalBackendFiles = parsedBackend.files;
                 if (Object.keys(finalBackendFiles).length > 0) {
                     job.updateFiles(finalBackendFiles);
                 }
@@ -539,9 +636,7 @@ Do not truncate or omit any files. Ensure package.json has all necessary depende
                 ];
 
                 let streamedText = "";
-                let scanIndex = 0;
-                let currentFile = null;
-                let currentFileContent = "";
+                const parseImplStream = makeStreamParser(job);
 
                 const implementationOutput = await AIGateway.streamCompletion({
                     messages: implementationMessages,
@@ -557,115 +652,140 @@ Do not truncate or omit any files. Ensure package.json has all necessary depende
                 }, (chunk) => {
                     streamedText += chunk;
                     job.log(chunk);
-
-                    // Live event-based stream parsing
-                    while (scanIndex < streamedText.length) {
-                        const remaining = streamedText.substring(scanIndex);
-
-                        // A. Look for FILE start marker
-                        if (!currentFile) {
-                            const fileStartMatch = remaining.match(/^[\s\S]*?---FILE:\s*([^\s\n\-]+?)\s*---/i);
-                            if (fileStartMatch) {
-                                const matchStr = fileStartMatch[0];
-                                const filename = fileStartMatch[1].trim().replace(/`/g, "");
-                                
-                                scanIndex += matchStr.length;
-                                currentFile = filename;
-                                currentFileContent = "";
-                                
-                                jobEvents.emit(job.id, { type: 'create_file', path: filename });
-                                continue;
-                            } else {
-                                break;
-                            }
-                        }
-
-                        // B. Look for FILE end marker
-                        if (currentFile) {
-                            const fileEndIdx = remaining.indexOf("---END FILE---");
-                            if (fileEndIdx !== -1) {
-                                const codeChunk = remaining.substring(0, fileEndIdx);
-                                currentFileContent += codeChunk;
-                                
-                                if (codeChunk.length > 0) {
-                                    jobEvents.emit(job.id, { 
-                                        type: 'write_code', 
-                                        path: currentFile, 
-                                        chunk: codeChunk 
-                                    });
-                                }
-
-                                const updatedFiles = { [currentFile]: currentFileContent };
-                                job.updateFiles(updatedFiles);
-                                jobEvents.emit(job.id, { 
-                                    type: 'update_file', 
-                                    path: currentFile, 
-                                    content: currentFileContent 
-                                });
-
-                                scanIndex += fileEndIdx + "---END FILE---".length;
-                                currentFile = null;
-                                currentFileContent = "";
-                                continue;
-                            } else {
-                                const safetyMargin = Math.max(0, remaining.length - 20);
-                                if (safetyMargin > 0) {
-                                    const codeChunk = remaining.substring(0, safetyMargin);
-                                    currentFileContent += codeChunk;
-                                    
-                                    jobEvents.emit(job.id, { 
-                                        type: 'write_code', 
-                                        path: currentFile, 
-                                        chunk: codeChunk 
-                                    });
-                                    
-                                    scanIndex += safetyMargin;
-                                }
-                                break;
-                            }
-                        }
-                    }
+                    parseImplStream(streamedText);
                 });
 
                 // Final parse sanity check
-                const finalParsed = extractCodeFromText(streamedText);
-                finalFiles = finalParsed.website ? finalParsed.website.files : {};
+                const finalParsed = extractFilesFromJsonActions(streamedText);
+                finalFiles = finalParsed.files;
                 if (Object.keys(finalFiles).length > 0) {
                     job.updateFiles(finalFiles);
                 }
 
                 job.addReasoningStep('Application layer generated successfully.');
-                tasks[1].status = 'done';
+                tasks[7].status = 'done';
                 job.updateTasks(tasks);
                 job.updateProgress(75);
             }
 
             // ==========================================
-            // 3. BUILD & FIXER AGENT (VERIFICATION PHASE)
+            // 3. TESTING & VALIDATION PHASE (testing)
             // ==========================================
-            job.updateStatus('fixing');
-            job.addReasoningStep('🔧 Running automated unit testing and security compliance audits...');
-            tasks[2].status = 'running';
-            job.updateTasks(tasks);
-            job.updateProgress(85);
+            job.updateStatus('testing');
+            job.addReasoningStep('🔧 Running security compliance audits with Nexo Security Validator...');
+            job.updateProgress(80);
 
-            await new Promise(r => setTimeout(r, 1500));
-            job.addReasoningStep('✅ QA code checks passed. No high-severity security vulnerabilities found.');
-            tasks[2].status = 'done';
+            let currentFiles = { ...existingFiles, ...finalFiles };
+            let validationResult = await NexoSecurityValidator.validate(
+                options.projectMode || 'frontend',
+                currentFiles,
+                null,
+                options.customApiKey
+            );
+
+            const validationAttemptHistory = [];
+            
+            while (validationResult.deployment_decision === 'blocked') {
+                const criticalHighFindings = validationResult.findings.filter(f => f.severity === 'CRITICAL' || f.severity === 'HIGH');
+                const findingsSummary = criticalHighFindings.map(f => `${f.category} in ${f.file}: ${f.issue}`).join('; ');
+                
+                job.addReasoningStep(`⚠️ Security Validation Blocked: Detected ${criticalHighFindings.length} critical/high vulnerability(ies).`);
+                
+                validationAttemptHistory.push({
+                    attempt: validationAttemptHistory.length + 1,
+                    failure_type: 'CONTENT_FAILURE',
+                    error_message: findingsSummary
+                });
+
+                const decision = NexoOrchestrator.decide(
+                    options.model || 'gemini-2.5-flash',
+                    options.projectMode || 'frontend',
+                    'validation',
+                    validationAttemptHistory,
+                    { findings: validationResult.findings }
+                );
+
+                if (decision.decision === 'retry') {
+                    job.updateStatus('fixing');
+                    tasks[10].status = 'running'; // Fixing build errors
+                    job.updateTasks(tasks);
+                    job.addReasoningStep(`🔧 Auto-healing: Nexo Security Validator is attempting to fix the security issues. (Attempt ${validationAttemptHistory.length})`);
+                    
+                    const remediationPrompt = `You are a deep AI security remediation engineer.
+The project codebase has failed security validation. You MUST fix the identified security vulnerabilities.
+ 
+Codebase files:
+${Object.entries(currentFiles).map(([path, content]) => `---FILE: ${path}---\n${content}\n---END FILE---`).join('\n\n')}
+
+Vulnerability findings to fix:
+${criticalHighFindings.map((f, i) => `
+Finding #${i+1}:
+- Severity: ${f.severity}
+- Category: ${f.category}
+- File: ${f.file}
+- Context: ${f.line_context}
+- Issue: ${f.issue}
+- Fix Recommendation: ${f.fix_recommendation}
+`).join('\n')}
+
+Please output the corrected files using the Nexo Protocol: write complete files enclosed in ---FILE: path--- and ---END FILE--- markers.
+Only output the files that need changes to address these security issues. Keep all other parts of the application intact.`;
+
+                    let streamedText = "";
+                    const parseFixStream = makeStreamParser(job);
+                    const codeModel = routeModel('fix', options.model);
+
+                    const fixOutput = await AIGateway.streamCompletion({
+                        messages: [{ role: 'user', content: remediationPrompt }],
+                        model: codeModel,
+                        temperature: 0.2,
+                        top_p: 1.0,
+                        projectMode: options.projectMode,
+                        systemPrompt: "You are a professional AI security patching expert. Output code using Nexo Protocol ---FILE: path---",
+                        customApiKey: options.customApiKey,
+                        userId
+                    }, (chunk) => {
+                        streamedText += chunk;
+                        job.log(chunk);
+                        parseFixStream(streamedText);
+                    });
+
+                    const parsedFix = extractFilesFromJsonActions(streamedText);
+                    if (Object.keys(parsedFix.files).length > 0) {
+                        finalFiles = { ...finalFiles, ...parsedFix.files };
+                        currentFiles = { ...currentFiles, ...parsedFix.files };
+                        job.updateFiles(parsedFix.files);
+                    }
+
+                    // Re-validate after fixing
+                    validationResult = await NexoSecurityValidator.validate(
+                        options.projectMode || 'frontend',
+                        currentFiles,
+                        null,
+                        options.customApiKey
+                    );
+                } else {
+                    // Escalation case
+                    job.addReasoningStep(`❌ Security Auto-Healing failed: ${decision.escalation_message}`);
+                    tasks[10].status = 'error';
+                    job.updateTasks(tasks);
+                    throw new Error(decision.escalation_message || 'Security validation blocked deployment');
+                }
+            }
+
+            job.addReasoningStep('✅ Security checks passed. No high-severity security vulnerabilities remain.');
+            if (tasks[10].status === 'running') {
+                tasks[10].status = 'done';
+            }
             job.updateTasks(tasks);
             job.updateProgress(90);
 
             // ==========================================
             // 4. PREVIEW AGENT (RUNTIME DEPLOY PHASE)
             // ==========================================
-            job.updateStatus('deploying');
-            job.addReasoningStep('🚀 Runtime boot: Readying preview environment deployment...');
-            tasks[3].status = 'running';
-            job.updateTasks(tasks);
+            job.updateStatus('previewing');
+            job.addReasoningStep('🚀 Runtime boot: Preparing WebContainer sandbox environment...');
             job.updateProgress(95);
-
-            tasks[3].status = 'done';
-            job.updateTasks(tasks);
 
             // ==========================================
             // 5. SAVE TO PROJECT MEMORY
@@ -693,8 +813,8 @@ Do not truncate or omit any files. Ensure package.json has all necessary depende
                 `${modeLabel} ${fileCount} files successfully. Ready to build runtime preview!`,
                 fileCount,
                 {
-                    mainFile: finalParsed.website ? finalParsed.website.mainFile : 'index.html',
-                    template: finalParsed.website ? finalParsed.website.template : 'web',
+                    mainFile: finalParsed.mainFile || 'index.html',
+                    template: 'web',
                     wasEnhanced,
                     isRefactor,
                     hasImage,

@@ -21,6 +21,12 @@ export const VisualDesignPanel: React.FC = () => {
     useDesignStore();
   const { currentContent } = useProjectStore();
 
+  const [color, setColor] = React.useState("indigo-600");
+  const [radius, setRadius] = React.useState("md");
+  const [font, setFont] = React.useState("sans-serif");
+  const [layout, setLayout] = React.useState("flex-col");
+  const [animation, setAnimation] = React.useState("fade");
+
   if (!selectedElement) return null;
 
   const handleRegenerateSelection = async (instruction: string) => {
@@ -33,18 +39,23 @@ export const VisualDesignPanel: React.FC = () => {
     );
   };
 
+  const handleApplyAdjustments = () => {
+    const instruction = `Apply custom design tweak: Color theme to ${color}, radius style to ${radius}, font to ${font}, display layout to ${layout}, animations to ${animation}`;
+    handleRegenerateSelection(instruction);
+  };
+
   return (
-    <div className="absolute right-6 top-6 w-80 bg-white/90 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_30px_100px_rgba(0,0,0,0.1)] border border-white/20 p-8 z-50 animate-in slide-in-from-right-10 duration-500 selection:bg-indigo-100">
-      <div className="flex items-center justify-between mb-8">
+    <div className="absolute right-6 top-6 w-80 bg-white/95 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_30px_100px_rgba(0,0,0,0.15)] border border-stone-200 p-8 z-50 animate-in slide-in-from-right-10 duration-500 text-stone-900 select-none">
+      <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+          <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
             <Type className="w-5 h-5" />
           </div>
           <div>
             <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-stone-400">
-              Element
+              Visual Editor
             </span>
-            <span className="block text-sm font-black text-stone-900 tracking-tighter">
+            <span className="block text-sm font-black text-stone-950 tracking-tighter">
               {selectedElement.tagName}
             </span>
           </div>
@@ -57,62 +68,93 @@ export const VisualDesignPanel: React.FC = () => {
         </button>
       </div>
 
-      <div className="space-y-8">
-        {/* Visual Presets */}
-        <div className="space-y-3">
-          <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest flex items-center gap-2">
-            <Palette className="w-3.5 h-3.5" /> Visual Presets
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() =>
-                handleRegenerateSelection(
-                  "Make it glassmorphism with blur and subtle borders",
-                )
-              }
-              className="p-3 bg-stone-50 border border-stone-100 rounded-2xl text-[10px] font-bold text-stone-600 hover:border-indigo-500 hover:text-indigo-600 transition-all flex items-center gap-2"
+      <div className="space-y-6">
+        {/* Style Tweaks Form */}
+        <div className="space-y-3.5 bg-stone-50/50 p-4 rounded-3xl border border-stone-100">
+          {/* Color Selector */}
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold text-stone-500">Color Palette</span>
+            <select
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+              className="bg-white border border-stone-200 rounded-xl px-2.5 py-1.5 font-semibold text-stone-800 outline-none focus:border-indigo-500"
             >
-              <Sparkles className="w-3 h-3" /> Glassmorphism
-            </button>
-            <button
-              onClick={() =>
-                handleRegenerateSelection("Add a premium dark theme gradient")
-              }
-              className="p-3 bg-stone-900 border border-stone-800 rounded-2xl text-[10px] font-bold text-stone-300 hover:scale-105 transition-all flex items-center gap-2"
-            >
-              <Palette className="w-3 h-3" /> Dark Premium
-            </button>
+              <option value="indigo-600">Indigo (Premium)</option>
+              <option value="rose-500">Rose (Warm)</option>
+              <option value="emerald-500">Emerald (Clean)</option>
+              <option value="amber-500">Amber (Vibrant)</option>
+              <option value="stone-950">Midnight Dark</option>
+            </select>
           </div>
-        </div>
 
-        {/* Sizing Controls */}
-        <div className="space-y-3">
-          <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest flex items-center gap-2">
-            <Maximize className="w-3.5 h-3.5" /> Layout & Sizing
-          </label>
-          <div className="flex items-center justify-between p-4 bg-stone-50 rounded-2xl border border-stone-100">
-            <div className="flex gap-4">
-              <div className="space-y-1">
-                <span className="block text-[8px] font-bold text-stone-400 uppercase">
-                  Width
-                </span>
-                <span className="block text-xs font-bold text-stone-900">
-                  Auto
-                </span>
-              </div>
-              <div className="space-y-1">
-                <span className="block text-[8px] font-bold text-stone-400 uppercase">
-                  Height
-                </span>
-                <span className="block text-xs font-bold text-stone-900">
-                  Auto
-                </span>
-              </div>
-            </div>
-            <button className="p-2 bg-white rounded-xl border border-stone-200 shadow-sm hover:border-indigo-500 transition-all">
-              <Maximize className="w-3.5 h-3.5 text-stone-600" />
-            </button>
+          {/* Radius Selector */}
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold text-stone-500">Corner Radius</span>
+            <select
+              value={radius}
+              onChange={(e) => setRadius(e.target.value)}
+              className="bg-white border border-stone-200 rounded-xl px-2.5 py-1.5 font-semibold text-stone-800 outline-none focus:border-indigo-500"
+            >
+              <option value="none">None (Sharp)</option>
+              <option value="sm">Small (Compact)</option>
+              <option value="md">Medium (Default)</option>
+              <option value="lg">Large (Rounded)</option>
+              <option value="full">Full (Pill)</option>
+            </select>
           </div>
+
+          {/* Font Selector */}
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold text-stone-500">Typography Font</span>
+            <select
+              value={font}
+              onChange={(e) => setFont(e.target.value)}
+              className="bg-white border border-stone-200 rounded-xl px-2.5 py-1.5 font-semibold text-stone-800 outline-none focus:border-indigo-500"
+            >
+              <option value="sans-serif">Sans-serif (Modern)</option>
+              <option value="serif">Serif (Elegant)</option>
+              <option value="monospace">Monospace (Code)</option>
+              <option value="Outfit, Inter">Outfit / Inter</option>
+            </select>
+          </div>
+
+          {/* Layout Selector */}
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold text-stone-500">Layout Display</span>
+            <select
+              value={layout}
+              onChange={(e) => setLayout(e.target.value)}
+              className="bg-white border border-stone-200 rounded-xl px-2.5 py-1.5 font-semibold text-stone-800 outline-none focus:border-indigo-500"
+            >
+              <option value="flex-row">Flex Row</option>
+              <option value="flex-col">Flex Column</option>
+              <option value="grid">Grid Layout</option>
+              <option value="block">Block Stream</option>
+            </select>
+          </div>
+
+          {/* Animation Selector */}
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold text-stone-500">Micro-Animation</span>
+            <select
+              value={animation}
+              onChange={(e) => setAnimation(e.target.value)}
+              className="bg-white border border-stone-200 rounded-xl px-2.5 py-1.5 font-semibold text-stone-800 outline-none focus:border-indigo-500"
+            >
+              <option value="fade">Fade In</option>
+              <option value="slide">Slide Transitions</option>
+              <option value="bounce">Bounce Micro</option>
+              <option value="pulse">Glowing Pulse</option>
+            </select>
+          </div>
+
+          <button
+            onClick={handleApplyAdjustments}
+            className="w-full mt-2.5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-indigo-100 flex items-center justify-center gap-1.5"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            Apply Styles
+          </button>
         </div>
 
         {/* AI Prompting */}

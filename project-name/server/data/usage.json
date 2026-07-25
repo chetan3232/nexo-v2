@@ -380,10 +380,700 @@
       "cost": 0.000118,
       "speed": 4,
       "durationMs": 16510
+    },
+    {
+      "timestamp": "2026-06-22T09:28:15.151Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1486,
+      "outputTokens": 146,
+      "tokens": 1632,
+      "cost": 0.000155,
+      "speed": 29,
+      "durationMs": 5079
+    },
+    {
+      "timestamp": "2026-06-22T09:36:13.429Z",
+      "model": "nvidia/nemotron-3-super-120b-a12b:free",
+      "inputTokens": 1363,
+      "outputTokens": 1650,
+      "tokens": 3013,
+      "cost": 0,
+      "speed": 3,
+      "durationMs": 478013
+    },
+    {
+      "timestamp": "2026-06-22T09:37:06.751Z",
+      "model": "nvidia/nemotron-3-super-120b-a12b:free",
+      "inputTokens": 1434,
+      "outputTokens": 352,
+      "tokens": 1786,
+      "cost": 0,
+      "speed": 7,
+      "durationMs": 53281
+    },
+    {
+      "timestamp": "2026-06-22T09:51:48.034Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1486,
+      "outputTokens": 219,
+      "tokens": 1705,
+      "cost": 0.000177,
+      "speed": 31,
+      "durationMs": 7096
+    },
+    {
+      "timestamp": "2026-06-22T09:54:53.906Z",
+      "model": "nvidia/nemotron-3-super-120b-a12b:free",
+      "inputTokens": 1363,
+      "outputTokens": 1881,
+      "tokens": 3244,
+      "cost": 0,
+      "speed": 10,
+      "durationMs": 185866
+    },
+    {
+      "timestamp": "2026-06-22T09:59:27.653Z",
+      "model": "nvidia/nemotron-3-super-120b-a12b:free",
+      "inputTokens": 1434,
+      "outputTokens": 2810,
+      "tokens": 4244,
+      "cost": 0,
+      "speed": 10,
+      "durationMs": 273729
+    },
+    {
+      "timestamp": "2026-06-25T11:08:49.070Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1760,
+      "outputTokens": 236,
+      "tokens": 1996,
+      "cost": 0.000203,
+      "speed": 50,
+      "durationMs": 4755
+    },
+    {
+      "timestamp": "2026-06-25T11:08:53.319Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1902,
+      "outputTokens": 156,
+      "tokens": 2058,
+      "cost": 0.000189,
+      "speed": 39,
+      "durationMs": 3957
+    },
+    {
+      "timestamp": "2026-06-25T11:11:24.859Z",
+      "model": "openrouter/owl-alpha",
+      "inputTokens": 1823,
+      "outputTokens": 5454,
+      "tokens": 7277,
+      "cost": 0.001819,
+      "speed": 36,
+      "durationMs": 151381
+    },
+    {
+      "timestamp": "2026-06-25T11:11:30.792Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 6738,
+      "outputTokens": 51,
+      "tokens": 6789,
+      "cost": 0.000521,
+      "speed": 9,
+      "durationMs": 5919
+    },
+    {
+      "timestamp": "2026-06-25T11:35:52.476Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1752,
+      "outputTokens": 190,
+      "tokens": 1942,
+      "cost": 0.000188,
+      "speed": 18,
+      "durationMs": 10555
+    },
+    {
+      "timestamp": "2026-06-25T11:37:54.937Z",
+      "model": "openrouter/owl-alpha",
+      "inputTokens": 1712,
+      "outputTokens": 4187,
+      "tokens": 5899,
+      "cost": 0.001427,
+      "speed": 34,
+      "durationMs": 122421
+    },
+    {
+      "timestamp": "2026-06-25T11:38:06.097Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 4924,
+      "outputTokens": 51,
+      "tokens": 4975,
+      "cost": 0.000385,
+      "speed": 5,
+      "durationMs": 11115
+    },
+    {
+      "timestamp": "2026-06-25T12:09:49.227Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1787,
+      "outputTokens": 128,
+      "tokens": 1915,
+      "cost": 0.000172,
+      "speed": 38,
+      "durationMs": 3356
+    },
+    {
+      "timestamp": "2026-06-25T12:15:12.382Z",
+      "model": "openrouter/owl-alpha",
+      "inputTokens": 1663,
+      "outputTokens": 12944,
+      "tokens": 14607,
+      "cost": 0.00405,
+      "speed": 40,
+      "durationMs": 323139
+    },
+    {
+      "timestamp": "2026-06-25T12:23:19.824Z",
+      "model": "openrouter/owl-alpha",
+      "inputTokens": 1735,
+      "outputTokens": 16248,
+      "tokens": 17983,
+      "cost": 0.005048,
+      "speed": 33,
+      "durationMs": 487415
+    },
+    {
+      "timestamp": "2026-06-25T12:23:47.458Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 19430,
+      "outputTokens": 1273,
+      "tokens": 20703,
+      "cost": 0.001839,
+      "speed": 46,
+      "durationMs": 27602
+    },
+    {
+      "timestamp": "2026-06-25T12:26:02.611Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 19163,
+      "outputTokens": 23494,
+      "tokens": 42657,
+      "cost": 0.008485,
+      "speed": 174,
+      "durationMs": 135132
+    },
+    {
+      "timestamp": "2026-06-25T12:26:54.014Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 39967,
+      "outputTokens": 1238,
+      "tokens": 41205,
+      "cost": 0.003369,
+      "speed": 24,
+      "durationMs": 51375
+    },
+    {
+      "timestamp": "2026-06-26T04:11:24.335Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1775,
+      "outputTokens": 125,
+      "tokens": 1900,
+      "cost": 0.000171,
+      "speed": 30,
+      "durationMs": 4226
+    },
+    {
+      "timestamp": "2026-06-26T04:18:58.380Z",
+      "model": "openrouter/owl-alpha",
+      "inputTokens": 1652,
+      "outputTokens": 15377,
+      "tokens": 17029,
+      "cost": 0.004778,
+      "speed": 34,
+      "durationMs": 454005
+    },
+    {
+      "timestamp": "2026-07-17T17:02:56.899Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1750,
+      "outputTokens": 417,
+      "tokens": 2167,
+      "cost": 0.000256,
+      "speed": 82,
+      "durationMs": 5087
+    },
+    {
+      "timestamp": "2026-07-17T17:04:55.950Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 2709,
+      "outputTokens": 14973,
+      "tokens": 17682,
+      "cost": 0.004695,
+      "speed": 128,
+      "durationMs": 116955
+    },
+    {
+      "timestamp": "2026-07-17T18:09:15.517Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1750,
+      "outputTokens": 388,
+      "tokens": 2138,
+      "cost": 0.000248,
+      "speed": 66,
+      "durationMs": 5854
+    },
+    {
+      "timestamp": "2026-07-17T18:10:19.236Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 2682,
+      "outputTokens": 9524,
+      "tokens": 12206,
+      "cost": 0.003058,
+      "speed": 155,
+      "durationMs": 61516
+    },
+    {
+      "timestamp": "2026-07-17T18:11:06.119Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 2682,
+      "outputTokens": 7107,
+      "tokens": 9789,
+      "cost": 0.002333,
+      "speed": 146,
+      "durationMs": 48625
+    },
+    {
+      "timestamp": "2026-07-17T18:11:36.238Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 5632,
+      "outputTokens": 1893,
+      "tokens": 7525,
+      "cost": 0.00099,
+      "speed": 98,
+      "durationMs": 19229
+    },
+    {
+      "timestamp": "2026-07-17T18:12:49.454Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 3749,
+      "outputTokens": 4404,
+      "tokens": 8153,
+      "cost": 0.001602,
+      "speed": 114,
+      "durationMs": 38663
+    },
+    {
+      "timestamp": "2026-07-17T18:12:56.813Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 3734,
+      "outputTokens": 771,
+      "tokens": 4505,
+      "cost": 0.000511,
+      "speed": 109,
+      "durationMs": 7101
+    },
+    {
+      "timestamp": "2026-07-17T18:13:33.890Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 2136,
+      "outputTokens": 4393,
+      "tokens": 6529,
+      "cost": 0.001478,
+      "speed": 120,
+      "durationMs": 36572
+    },
+    {
+      "timestamp": "2026-07-17T18:13:53.474Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 2706,
+      "outputTokens": 3600,
+      "tokens": 6306,
+      "cost": 0.001283,
+      "speed": 187,
+      "durationMs": 19289
+    },
+    {
+      "timestamp": "2026-07-18T11:51:08.952Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1776,
+      "outputTokens": 524,
+      "tokens": 2300,
+      "cost": 0.00029,
+      "speed": 64,
+      "durationMs": 8193
+    },
+    {
+      "timestamp": "2026-07-18T11:51:26.392Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 2700,
+      "outputTokens": 1742,
+      "tokens": 4442,
+      "cost": 0.000725,
+      "speed": 103,
+      "durationMs": 16939
+    },
+    {
+      "timestamp": "2026-07-18T11:54:58.821Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 3532,
+      "outputTokens": 5086,
+      "tokens": 8618,
+      "cost": 0.001791,
+      "speed": 77,
+      "durationMs": 65864
+    },
+    {
+      "timestamp": "2026-07-18T11:55:20.597Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 3532,
+      "outputTokens": 3351,
+      "tokens": 6883,
+      "cost": 0.00127,
+      "speed": 125,
+      "durationMs": 26856
+    },
+    {
+      "timestamp": "2026-07-18T11:55:35.771Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 3517,
+      "outputTokens": 1170,
+      "tokens": 4687,
+      "cost": 0.000615,
+      "speed": 93,
+      "durationMs": 12600
+    },
+    {
+      "timestamp": "2026-07-18T11:57:45.077Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1949,
+      "outputTokens": 11420,
+      "tokens": 13369,
+      "cost": 0.003572,
+      "speed": 89,
+      "durationMs": 128208
+    },
+    {
+      "timestamp": "2026-07-18T13:12:35.748Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1734,
+      "outputTokens": 445,
+      "tokens": 2179,
+      "cost": 0.000264,
+      "speed": 30,
+      "durationMs": 14748
+    },
+    {
+      "timestamp": "2026-07-18T13:13:04.909Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 2629,
+      "outputTokens": 2883,
+      "tokens": 5512,
+      "cost": 0.001062,
+      "speed": 123,
+      "durationMs": 23511
+    },
+    {
+      "timestamp": "2026-07-18T13:15:52.701Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 4197,
+      "outputTokens": 895,
+      "tokens": 5092,
+      "cost": 0.000583,
+      "speed": 39,
+      "durationMs": 23240
+    },
+    {
+      "timestamp": "2026-07-18T13:17:16.593Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 4191,
+      "outputTokens": 3265,
+      "tokens": 7456,
+      "cost": 0.001294,
+      "speed": 63,
+      "durationMs": 51896
+    },
+    {
+      "timestamp": "2026-07-18T13:17:37.768Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 4191,
+      "outputTokens": 2027,
+      "tokens": 6218,
+      "cost": 0.000922,
+      "speed": 71,
+      "durationMs": 28588
+    },
+    {
+      "timestamp": "2026-07-18T13:19:50.489Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 4210,
+      "outputTokens": 1770,
+      "tokens": 5980,
+      "cost": 0.000847,
+      "speed": 29,
+      "durationMs": 60934
+    },
+    {
+      "timestamp": "2026-07-18T13:19:54.984Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 4210,
+      "outputTokens": 2297,
+      "tokens": 6507,
+      "cost": 0.001005,
+      "speed": 69,
+      "durationMs": 33153
+    },
+    {
+      "timestamp": "2026-07-18T13:20:23.579Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 4210,
+      "outputTokens": 2620,
+      "tokens": 6830,
+      "cost": 0.001102,
+      "speed": 93,
+      "durationMs": 28208
+    },
+    {
+      "timestamp": "2026-07-18T13:21:38.349Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1947,
+      "outputTokens": 3905,
+      "tokens": 5852,
+      "cost": 0.001318,
+      "speed": 57,
+      "durationMs": 69042
+    },
+    {
+      "timestamp": "2026-07-18T13:27:15.841Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1667,
+      "outputTokens": 1282,
+      "tokens": 2949,
+      "cost": 0.00051,
+      "speed": 132,
+      "durationMs": 9724
+    },
+    {
+      "timestamp": "2026-07-18T13:27:59.485Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1734,
+      "outputTokens": 352,
+      "tokens": 2086,
+      "cost": 0.000236,
+      "speed": 42,
+      "durationMs": 8287
+    },
+    {
+      "timestamp": "2026-07-18T13:29:03.510Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 2492,
+      "outputTokens": 3183,
+      "tokens": 5675,
+      "cost": 0.001142,
+      "speed": 56,
+      "durationMs": 56480
+    },
+    {
+      "timestamp": "2026-07-18T13:58:40.400Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1362,
+      "outputTokens": 7,
+      "tokens": 1369,
+      "cost": 0.000104,
+      "speed": 1,
+      "durationMs": 4729
+    },
+    {
+      "timestamp": "2026-07-18T13:58:59.626Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1362,
+      "outputTokens": 7,
+      "tokens": 1369,
+      "cost": 0.000104,
+      "speed": 1,
+      "durationMs": 8392
+    },
+    {
+      "timestamp": "2026-07-19T05:00:54.813Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1362,
+      "outputTokens": 7,
+      "tokens": 1369,
+      "cost": 0.000104,
+      "speed": 3,
+      "durationMs": 2122
+    },
+    {
+      "timestamp": "2026-07-19T05:01:17.143Z",
+      "model": "stepfun-ai/step-3.7-flash",
+      "inputTokens": 1362,
+      "outputTokens": 7,
+      "tokens": 1369,
+      "cost": 0,
+      "speed": 1,
+      "durationMs": 7831
+    },
+    {
+      "timestamp": "2026-07-19T06:09:00.997Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1362,
+      "outputTokens": 7,
+      "tokens": 1369,
+      "cost": 0.000104,
+      "speed": 3,
+      "durationMs": 2313
+    },
+    {
+      "timestamp": "2026-07-19T06:09:05.061Z",
+      "model": "gemini-2.5-flash",
+      "inputTokens": 1362,
+      "outputTokens": 7,
+      "tokens": 1369,
+      "cost": 0.000104,
+      "speed": 2,
+      "durationMs": 3555
+    },
+    {
+      "timestamp": "2026-07-19T06:09:11.233Z",
+      "model": "stepfun-ai/step-3.7-flash",
+      "inputTokens": 1362,
+      "outputTokens": 7,
+      "tokens": 1369,
+      "cost": 0,
+      "speed": 1,
+      "durationMs": 6158
+    },
+    {
+      "timestamp": "2026-07-19T06:11:29.820Z",
+      "model": "stepfun-ai/step-3.7-flash",
+      "inputTokens": 1362,
+      "outputTokens": 7,
+      "tokens": 1369,
+      "cost": 0,
+      "speed": 2,
+      "durationMs": 3493
+    },
+    {
+      "timestamp": "2026-07-19T06:13:02.982Z",
+      "model": "stepfun-ai/step-3.7-flash",
+      "inputTokens": 1362,
+      "outputTokens": 7,
+      "tokens": 1369,
+      "cost": 0,
+      "speed": 0,
+      "durationMs": 14501
+    },
+    {
+      "timestamp": "2026-07-19T06:19:31.000Z",
+      "model": "stepfun-ai/step-3.7-flash",
+      "inputTokens": 1362,
+      "outputTokens": 6,
+      "tokens": 1368,
+      "cost": 0,
+      "speed": 1,
+      "durationMs": 4297
+    },
+    {
+      "timestamp": "2026-07-19T06:30:35.062Z",
+      "model": "stepfun-ai/step-3.7-flash",
+      "inputTokens": 1362,
+      "outputTokens": 7,
+      "tokens": 1369,
+      "cost": 0,
+      "speed": 3,
+      "durationMs": 2457
+    },
+    {
+      "timestamp": "2026-07-19T08:23:29.794Z",
+      "model": "gemini-3.5-flash",
+      "inputTokens": 1730,
+      "outputTokens": 951,
+      "tokens": 2681,
+      "cost": 0.002681,
+      "speed": 46,
+      "durationMs": 20871
+    },
+    {
+      "timestamp": "2026-07-19T08:23:47.597Z",
+      "model": "gemini-3.5-flash",
+      "inputTokens": 3180,
+      "outputTokens": 1036,
+      "tokens": 4216,
+      "cost": 0.004216,
+      "speed": 58,
+      "durationMs": 17749
+    },
+    {
+      "timestamp": "2026-07-19T08:25:19.244Z",
+      "model": "gemini-3.5-flash",
+      "inputTokens": 3407,
+      "outputTokens": 2116,
+      "tokens": 5523,
+      "cost": 0.005523,
+      "speed": 76,
+      "durationMs": 27947
+    },
+    {
+      "timestamp": "2026-07-19T08:25:42.239Z",
+      "model": "gemini-3.5-flash",
+      "inputTokens": 3407,
+      "outputTokens": 2241,
+      "tokens": 5648,
+      "cost": 0.005648,
+      "speed": 102,
+      "durationMs": 21974
+    },
+    {
+      "timestamp": "2026-07-19T08:26:04.283Z",
+      "model": "gemini-3.5-flash",
+      "inputTokens": 3407,
+      "outputTokens": 2560,
+      "tokens": 5967,
+      "cost": 0.005967,
+      "speed": 122,
+      "durationMs": 21028
+    },
+    {
+      "timestamp": "2026-07-19T08:26:32.413Z",
+      "model": "gemini-3.5-flash",
+      "inputTokens": 3414,
+      "outputTokens": 5605,
+      "tokens": 9019,
+      "cost": 0.009019,
+      "speed": 202,
+      "durationMs": 27804
+    },
+    {
+      "timestamp": "2026-07-19T08:27:22.976Z",
+      "model": "gemini-3.5-flash",
+      "inputTokens": 3456,
+      "outputTokens": 10957,
+      "tokens": 14413,
+      "cost": 0.014413,
+      "speed": 219,
+      "durationMs": 49939
+    },
+    {
+      "timestamp": "2026-07-19T08:28:30.687Z",
+      "model": "gemini-3.5-flash",
+      "inputTokens": 1969,
+      "outputTokens": 12668,
+      "tokens": 14637,
+      "cost": 0.014637,
+      "speed": 189,
+      "durationMs": 66936
+    },
+    {
+      "timestamp": "2026-07-19T08:42:55.901Z",
+      "model": "gemini-3.5-flash",
+      "inputTokens": 24210,
+      "outputTokens": 8273,
+      "tokens": 32483,
+      "cost": 0.032483,
+      "speed": 84,
+      "durationMs": 98794
     }
   ],
-  "totalTokens": 209782,
-  "totalInputTokens": 49475,
-  "totalOutputTokens": 86171,
-  "totalCost": 0.024118
+  "totalTokens": 703621,
+  "totalInputTokens": 312934,
+  "totalOutputTokens": 316551,
+  "totalCost": 0.187203
 }

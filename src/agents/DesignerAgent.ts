@@ -1,5 +1,7 @@
 import { invokeAI } from "../services/geminiService";
 import { Message, AIModelOptions } from "../types";
+import { useGenerationWorkflowStore } from "../stores/generationWorkflowStore";
+import { DesignLockService } from "../services/designLockService";
 
 export class DesignerAgent {
   async generateDesignTokens(
@@ -16,8 +18,11 @@ Output a JSON design system:
 
 Output Format: JSON code block.
 `;
+    const snapshot = useGenerationWorkflowStore.getState().selectedDesignSnapshot;
+    const finalSystemPrompt = DesignLockService.getInstance().injectDesignLockPrompt(systemPrompt, snapshot);
+
     const messages = [
-      { role: "system", content: systemPrompt },
+      { role: "system", content: finalSystemPrompt },
       { role: "user", content: prompt },
     ];
     return await invokeAI(messages, options.model, 0.1, 1, false);

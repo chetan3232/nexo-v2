@@ -30,7 +30,7 @@ const Build: React.FC = () => {
     <div className="max-w-5xl mx-auto space-y-12 pb-24 text-stone-900 dark:text-stone-100">
       {/* Header */}
       <div className="text-center space-y-4 pt-8">
-        <h1 className="text-4xl md:text-5xl font-bold text-stone-900 dark:text-white">
+        <h1 className="text-4xl md:text-5xl font-bold text-stone-900 dark:text-white"><br></br>
           Build Your Own Nexo
         </h1>
         <p className="text-xl text-stone-500 dark:text-stone-400 max-w-2xl mx-auto">

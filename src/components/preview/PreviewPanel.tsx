@@ -3,12 +3,11 @@ import { Monitor, Loader2, Zap, Code2 } from "lucide-react";
 import { useRuntimeStore } from "../../stores/runtimeStore";
 import { useProjectStore } from "../../stores/projectStore";
 import { VisualDesignPanel } from "../editor/VisualDesignPanel";
-import { DesignSelector } from "./DesignSelector";
 
 interface PreviewPanelProps {
   isVisualMode: boolean;
   setIsVisualMode?: (val: boolean) => void;
-  onDesignSelect?: (designName: string) => void;
+  onDesignSelect?: (id: string) => void;
 }
 
 /**
@@ -23,21 +22,23 @@ function buildSrcdocFromFiles(
 
   const indexHtml = files["index.html"] || files["/index.html"];
 
-  // ── Case 1: React project (has src/App.tsx or src/App.jsx) ──
-  const appTsx = files["src/App.tsx"] || files["src/App.jsx"];
-  const appCss = files["src/App.css"] || files["src/index.css"] || "";
+  // ── Case 1: React project (has src/App.tsx, src/App.jsx, App.tsx, App.jsx, index.tsx, index.jsx) ──
+  const appTsx = files["src/App.tsx"] || files["src/App.jsx"] || files["App.tsx"] || files["App.jsx"] ||
+                 files["src/index.tsx"] || files["src/index.jsx"] || files["index.tsx"] || files["index.jsx"];
+  
+  const cssBundle = Object.entries(files)
+    .filter(([path]) => path.endsWith(".css"))
+    .map(([, content]) => content)
+    .join("\n");
 
   if (appTsx) {
-    // Collect all component files for injection
-    const componentImports: string[] = [];
-    const componentDefinitions: string[] = [];
-
-    // Process App component - strip imports/exports for inline execution
-    let appCode = appTsx
-      .replace(/^import\s+.*$/gm, "") // strip imports
-      .replace(/^export\s+default\s+/gm, "const App = ") // convert export default
-      .replace(/^export\s+/gm, "const ") // convert named exports
-      .trim();
+    // Generate window.defineModule calls for all JS/TS/JSX/TSX files
+    const allModulesDefinitions = Object.entries(files)
+      .filter(([path]) => path.endsWith(".tsx") || path.endsWith(".ts") || path.endsWith(".jsx") || path.endsWith(".js"))
+      .map(([path, content]) => {
+        return `window.defineModule(${JSON.stringify(path)}, ${JSON.stringify(content)});`;
+      })
+      .join("\n");
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -50,15 +51,29 @@ function buildSrcdocFromFiles(
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Inter', sans-serif; }
-    ${appCss}
+    ${cssBundle}
   </style>
+  <script>
+    window.modules = {};
+    window.defineModule = (name, code) => {
+      window.modules[name] = {
+        exports: {},
+        code,
+        factory: null,
+        loaded: false
+      };
+    };
+  </script>
 </head>
 <body>
   <div id="root"></div>
   <script src="https://esm.sh/react@19?bundle"><\/script>
   <script src="https://esm.sh/react-dom@19/client?bundle"><\/script>
   <script src="https://esm.sh/@babel/standalone"><\/script>
-  <script type="text/babel" data-type="module">
+  <script>
+    ${allModulesDefinitions}
+  </script>
+  <script type="text/babel">
     const { useState, useEffect, useRef, useCallback, useMemo, useReducer, useContext, createContext, Fragment } = React;
 
     // ── Inline lucide-react stubs ──
@@ -89,8 +104,56 @@ function buildSrcdocFromFiles(
     });
     const AnimatePresence = ({ children }) => React.createElement(Fragment, null, children);
 
+    const require = (name) => {
+      const cleanName = name.replace(/^react-dom\/client$/, 'react-dom').replace(/^\.\//, "").replace(/^\.\.\//, "");
+      
+      if (cleanName === 'react') return React;
+      if (cleanName === 'react-dom') return { ...ReactDOM, createRoot: ReactDOM.createRoot || (ReactDOM.client && ReactDOM.client.createRoot) };
+      if (cleanName === 'lucide-react') return lucideProxy;
+      if (cleanName === 'framer-motion') return { motion, AnimatePresence };
+
+      const foundKey = Object.keys(window.modules).find(k => {
+        const cleanK = k.replace(/^\.\//, "").replace(/^\.\.\//, "");
+        return cleanK.endsWith(cleanName) || cleanName.endsWith(cleanK) || cleanK.includes(cleanName) || cleanName.includes(cleanK);
+      });
+
+      if (!foundKey) {
+        console.warn("Module not found:", name);
+        return {};
+      }
+
+      const mod = window.modules[foundKey];
+      if (!mod.loaded) {
+        mod.loaded = true;
+        try {
+          // Transpile with Babel Standalone
+          const transpiled = Babel.transform(mod.code, {
+            presets: ['react', ['env', { modules: 'commonjs' }]]
+          }).code;
+          
+          mod.factory = new Function("require", "exports", "module", transpiled);
+        } catch (err) {
+          console.error("Transpilation error in " + foundKey + ":", err);
+          throw err;
+        }
+        mod.factory(require, mod.exports, mod);
+      }
+      return mod.exports;
+    };
+
     try {
-      ${appCode}
+      // Find entrypoint: App.tsx or App.jsx or index.tsx or main.tsx
+      const entryKey = Object.keys(window.modules).find(k => 
+        k.endsWith("App.tsx") || k.endsWith("App.jsx") || k.endsWith("App.js") || k.endsWith("App.ts") ||
+        k.endsWith("index.tsx") || k.endsWith("index.jsx") || k.endsWith("main.tsx")
+      );
+      
+      if (!entryKey) {
+        throw new Error("Could not find React entrypoint (App.tsx or index.tsx)");
+      }
+
+      const entry = require(entryKey);
+      const App = entry.default || entry.App || entry;
 
       const root = ReactDOM.createRoot(document.getElementById('root'));
       root.render(React.createElement(App));
@@ -151,7 +214,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
   setIsVisualMode,
   onDesignSelect,
 }) => {
-  const { url, isBooted } = useRuntimeStore();
+  const { url, isBooted, previewPhase } = useRuntimeStore();
   const { previewKey, currentContent, buildPhase } = useProjectStore();
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -159,6 +222,8 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
 
   // Keep track of the last stable srcdoc to avoid constantly reloading the iframe during generation
   const [srcdocHtml, setSrcdocHtml] = React.useState<string | null>(null);
+  const [srcdocVersion, setSrcdocVersion] = React.useState<number>(0);
+  const [previewMethod, setPreviewMethod] = React.useState<"html" | "sandbox">("html");
 
   useEffect(() => {
     // Only update the srcdoc when we are not actively generating/planning/building/fixing
@@ -168,6 +233,12 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
       setSrcdocHtml(html);
     }
   }, [currentContent?.files, buildPhase, previewKey]);
+
+  useEffect(() => {
+    if (srcdocHtml) {
+      setSrcdocVersion((v) => v + 1);
+    }
+  }, [srcdocHtml]);
 
   // Sync visual mode state to iframe
   useEffect(() => {
@@ -180,13 +251,39 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
   }, [isVisualMode, previewKey]);
 
   // Determine what to show
-  const hasWebContainerPreview = isBooted && url;
-  const hasFallbackPreview = !hasWebContainerPreview && srcdocHtml;
-  const isLoading = isBooted && !url;
-  const isEmpty = !isBooted && !srcdocHtml;
+  const hasFallbackPreview = previewMethod === "html" && !!srcdocHtml;
+  const hasWebContainerPreview = previewMethod === "sandbox" && isBooted && url;
+  const isLoading = previewMethod === "sandbox" && isBooted && !url;
+  const isEmpty = (previewMethod === "html" && !srcdocHtml) || (previewMethod === "sandbox" && !isBooted && !srcdocHtml);
 
   return (
     <div className="h-full w-full relative overflow-hidden bg-white">
+      {/* Preview Method Toggle */}
+      {srcdocHtml && (
+        <div className="absolute top-3 right-3 bg-white/95 dark:bg-stone-900/95 border border-stone-200/50 dark:border-stone-800/80 p-0.5 rounded-xl shadow-md flex items-center gap-0.5 z-20 select-none">
+          <button
+            onClick={() => setPreviewMethod("html")}
+            className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+              previewMethod === "html"
+                ? "bg-stone-900 text-white dark:bg-white dark:text-stone-900 shadow-sm"
+                : "text-stone-500 hover:text-stone-800"
+            }`}
+          >
+            HTML Preview
+          </button>
+          <button
+            onClick={() => setPreviewMethod("sandbox")}
+            className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+              previewMethod === "sandbox"
+                ? "bg-stone-900 text-white dark:bg-white dark:text-stone-900 shadow-sm"
+                : "text-stone-500 hover:text-stone-800"
+            }`}
+          >
+            Full Sandbox
+          </button>
+        </div>
+      )}
+
       {/* Premium Glassmorphic Overlay during code updates */}
       {["planning", "generating", "building", "fixing"].includes(buildPhase) && srcdocHtml && (
         <div className="absolute inset-0 bg-white/40 dark:bg-stone-950/40 backdrop-blur-[2px] flex flex-col items-center justify-center gap-3 z-30 select-none animate-in fade-in duration-300">
@@ -198,15 +295,10 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
           </div>
         </div>
       )}
-      {/* Design Selection Phase */}
-      {buildPhase === "design_selection" && onDesignSelect && (
-        <div className="absolute inset-0 z-50 bg-white">
-          <DesignSelector onSelect={onDesignSelect} />
-        </div>
-      )}
+      {/* Design Selection Phase removed */}
 
       {/* Priority 1: WebContainer live iframe */}
-      {hasWebContainerPreview && buildPhase !== "design_selection" && (
+      {hasWebContainerPreview && (
         <>
           <iframe
             key={`wc-${previewKey}`}
@@ -224,10 +316,10 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
       )}
 
       {/* Priority 2: Fallback srcdoc preview from generated code */}
-      {hasFallbackPreview && buildPhase !== "design_selection" && (
+      {hasFallbackPreview && (
         <>
           <iframe
-            key={`srcdoc-${previewKey}`}
+            key={`srcdoc-${previewKey}-${srcdocVersion}`}
             ref={iframeRef}
             srcDoc={srcdocHtml!}
             className="w-full h-full border-none bg-white"
@@ -249,18 +341,72 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
         </>
       )}
 
-      {/* Loading: WebContainer booted but dev server URL not ready yet */}
-      {isLoading && !hasFallbackPreview && buildPhase !== "design_selection" && (
-        <div className="h-full w-full flex flex-col items-center justify-center gap-4 bg-white">
-          <Loader2 className="w-8 h-8 text-[#0ea5e9] animate-spin" />
-          <span className="text-[10px] font-bold text-[#bbb] uppercase tracking-[0.25em]">
-            Starting Dev Server...
-          </span>
+      {/* Loading Timeline: WebContainer boot and dev server progress */}
+      {(isLoading || (previewPhase !== "idle" && previewPhase !== "ready" && previewPhase !== "error")) && !hasFallbackPreview && (
+        <div className="h-full w-full flex flex-col items-center justify-center bg-white p-6 select-none animate-in fade-in duration-300">
+          <div className="w-full max-w-xs space-y-6">
+            <div className="flex flex-col items-center gap-2 mb-4 text-center">
+              <Loader2 className="w-6 h-6 text-[#0ea5e9] animate-spin" />
+              <span className="text-[10px] font-bold text-sky-500 uppercase tracking-[0.25em]">
+                Initializing Sandbox
+              </span>
+            </div>
+
+            <div className="space-y-4">
+              {[
+                { key: "preparing", label: "Preparing sandbox..." },
+                { key: "installing", label: "Installing packages..." },
+                { key: "building", label: "Building application..." },
+                { key: "starting", label: "Starting development server..." },
+                { key: "launching", label: "Launching preview..." },
+                { key: "ready", label: "Preview Ready" },
+              ].map((step, idx) => {
+                const statusOrder = ["preparing", "installing", "building", "starting", "launching", "ready"];
+                const currentIdx = statusOrder.indexOf(previewPhase === "idle" ? "preparing" : previewPhase === "error" ? "ready" : previewPhase);
+                const stepIdx = statusOrder.indexOf(step.key);
+
+                const stepStatus = previewPhase === "error" && stepIdx === currentIdx 
+                  ? "error" 
+                  : previewPhase === "ready" || stepIdx < currentIdx 
+                    ? "done" 
+                    : step.key === previewPhase 
+                      ? "running" 
+                      : "pending";
+
+                return (
+                  <div key={step.key} className="flex items-center gap-3 text-xs">
+                    <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                      {stepStatus === "done" ? (
+                        <span className="text-emerald-500 font-bold">✓</span>
+                      ) : stepStatus === "running" ? (
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
+                        </span>
+                      ) : stepStatus === "error" ? (
+                        <span className="text-red-500 font-bold">✗</span>
+                      ) : (
+                        <div className="w-1.5 h-1.5 rounded-full bg-stone-200" />
+                      )}
+                    </div>
+                    <span className={`font-semibold tracking-wide ${
+                      stepStatus === "done" ? "text-stone-400 line-through decoration-emerald-500/25" :
+                      stepStatus === "running" ? "text-sky-500 font-bold animate-pulse" :
+                      stepStatus === "error" ? "text-red-500 font-bold" :
+                      "text-stone-300"
+                    }`}>
+                      {step.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 
       {/* Empty: Nothing to show at all */}
-      {isEmpty && buildPhase !== "design_selection" && (
+      {isEmpty && (
         <div className="h-full w-full flex flex-col items-center justify-center gap-5 bg-white">
           <div className="relative">
             <div className="absolute inset-0 bg-sky-100 rounded-2xl blur-xl opacity-40" />
@@ -279,7 +425,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
         </div>
       )}
 
-      {isVisualMode && buildPhase !== "design_selection" && <VisualDesignPanel />}
+      {isVisualMode && <VisualDesignPanel />}
     </div>
   );
 };

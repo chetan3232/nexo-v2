@@ -5,6 +5,8 @@ interface RuntimeStore {
   setIsBooted: (val: boolean) => void;
   url: string | null;
   setUrl: (url: string | null) => void;
+  previewPhase: "idle" | "preparing" | "installing" | "building" | "starting" | "ready" | "error";
+  setPreviewPhase: (phase: "idle" | "preparing" | "installing" | "building" | "starting" | "ready" | "error") => void;
   terminalLogs: string[];
   addLog: (log: string) => void;
   addTerminalLog: (log: string) => void;
@@ -22,6 +24,8 @@ export const useRuntimeStore = create<RuntimeStore>((set) => ({
   setIsBooted: (isBooted) => set({ isBooted }),
   url: null,
   setUrl: (url) => set({ url }),
+  previewPhase: "idle",
+  setPreviewPhase: (previewPhase) => set({ previewPhase }),
   terminalLogs: [],
   addLog: (log) =>
     set((state) => ({
