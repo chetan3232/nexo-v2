@@ -8,7 +8,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Production--Ready-emerald?style=for-the-badge&logo=rocket" alt="Status" />
-  <img src="https://img.shields.io/badge/Version-2.3.0-indigo?style=for-the-badge&logo=git" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-2.5.0-indigo?style=for-the-badge&logo=git" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-orange?style=for-the-badge" alt="License" />
   <img src="https://img.shields.io/badge/Built%20With-Gemini%203.5-blue?style=for-the-badge&logo=google-gemini" alt="Built With Gemini" />
 </p>
@@ -32,6 +32,14 @@ We optimize intermediate agent steps (such as layout planning and prompt enhance
 - **PM/Planner Agent**: Outlines milestones, determines layouts, and maps out targeted files.
 - **UI & Code Agent**: Generates production-ready frontend and backend components concurrently.
 - **Build & Fixer Agent (Self-Healing)**: Intercepts compiler exceptions in the virtual container and issues self-healing code edits to fix bugs automatically.
+
+### 🎬 Cinematic Build Timeline & File progress animations
+
+Real-time file generation tracking with active writing spinners and completion ticks/checkmarks directly inside the chat workspace timeline.
+
+### 🔄 Instant Tab-Switch & Blur Preview Sync
+
+No reload lag or stale previews when toggling between Code and Live Preview panels. Monaco edits are immediately flushed to the store and sandbox filesystem on editor blur.
 
 ### 💻 Local-First & Cloud-Sync Architecture
 
