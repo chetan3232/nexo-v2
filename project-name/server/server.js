@@ -8,6 +8,7 @@ const chatRoutes = require('./routes/chats');
 const deployRoutes = require('./routes/deploy');
 const aiRoutes = require('./routes/ai');
 const scrapeRoutes = require('./routes/scrape');
+const projectRoutes = require('./routes/projects');
 
 const app = express();
 const PORT = 5000;
@@ -34,6 +35,7 @@ app.use(express.json({ limit: '50mb' }));
 // Note: AI-specific rate limiting is handled inside aiGateway.js via rate-limiter-flexible.
 
 // Routes
+app.use('/api/projects', projectRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/deploy', deployRoutes);

@@ -29,6 +29,7 @@ const App: React.FC = () => {
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/workspace/:projectId" element={<ChatInterface />} />
             <Route path="/chat" element={<ChatInterface />} />
             <Route path="/nexostudio/:chatId" element={<ChatInterface />} />
             <Route path="/demo" element={<ChatInterface />} />

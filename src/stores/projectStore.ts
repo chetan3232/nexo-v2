@@ -48,6 +48,9 @@ interface ProjectStore {
   updateTask: (id: string, updates: Partial<BuildTask>) => void;
   pendingPrompt: string | null;
   setPendingPrompt: (prompt: string | null) => void;
+  currentProjectId: string | null;
+  currentProjectRecord: any | null;
+  setCurrentProject: (project: any | null) => void;
   resetProject: () => void;
 }
 
@@ -110,6 +113,13 @@ export const useProjectStore = create<ProjectStore>((set) => ({
     })),
   pendingPrompt: null,
   setPendingPrompt: (pendingPrompt) => set({ pendingPrompt }),
+  currentProjectId: null,
+  currentProjectRecord: null,
+  setCurrentProject: (project) =>
+    set({
+      currentProjectRecord: project,
+      currentProjectId: project ? project.id : null,
+    }),
   resetProject: () =>
     set({
       currentContent: null,
@@ -127,5 +137,7 @@ export const useProjectStore = create<ProjectStore>((set) => ({
       reasoningSteps: [],
       productionChecks: [],
       pendingPrompt: null,
+      currentProjectId: null,
+      currentProjectRecord: null,
     }),
 }));

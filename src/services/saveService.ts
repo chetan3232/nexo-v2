@@ -46,23 +46,34 @@ export const saveCurrentProject = async (): Promise<any> => {
     console.error("[SaveService] Firebase/Local save error:", e);
   }
 
-  // 2. Save to local Node server database
-  try {
-    const res = await fetch(`/api/chats/save/${chatId}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(chatData),
-    });
-    if (!res.ok) {
-      console.error("[SaveService] Server save error status:", res.status);
-    } else {
-      const data = await res.json();
-      return data;
+  // 3. Save to backend persistent project storage if currentProjectId is set
+  const currentProjectId = projectStore.currentProjectId;
+  if (currentProjectId) {
+    try {
+      const { saveProjectFileApi, addChatMessageApi } = await import("./projectApi");
+      
+      // Save all files to backend persistent storage
+      const files = projectStore.currentContent?.files || {};
+      for (const [filePath, content] of Object.entries(files)) {
+        await saveProjectFileApi(currentProjectId, {
+          path: filePath,
+          content: content as string
+        }).catch((e) => console.warn(`[SaveService] Persistent file save failed for ${filePath}:`, e));
+      }
+
+      // Sync latest user prompt / assistant response to project chat
+      const lastMsg = chatStore.messages[chatStore.messages.length - 1];
+      if (lastMsg) {
+        await addChatMessageApi(currentProjectId, {
+          role: (lastMsg.role as any) || "user",
+          content: lastMsg.text || "",
+          message_type: lastMsg.role === "user" ? "user_prompt" : "code_generation",
+          metadata: { timestamp: lastMsg.timestamp }
+        }).catch((e) => console.warn("[SaveService] Persistent chat sync failed:", e));
+      }
+    } catch (err) {
+      console.error("[SaveService] Persistent backend project save error:", err);
     }
-  } catch (err) {
-    console.error("[SaveService] Local save fetch failed:", err);
   }
 
   return chatData;

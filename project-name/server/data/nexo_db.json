@@ -1,0 +1,133 @@
+{
+  "projects": {
+    "dbf9a6e8-ad3b-40ec-97cd-0adf547378c6": {
+      "id": "dbf9a6e8-ad3b-40ec-97cd-0adf547378c6",
+      "user_id": "usr_user_1_uuid_test",
+      "name": "SaaS Dashboard App",
+      "initial_prompt": "Create a modern SaaS analytics dashboard with React and Tailwind",
+      "framework": "react",
+      "status": "creating",
+      "created_at": "2026-08-12T15:36:57.242Z",
+      "updated_at": "2026-08-12T15:36:57.242Z"
+    },
+    "ab17c77c-f92f-4564-ade6-e86b12c1c464": {
+      "id": "ab17c77c-f92f-4564-ade6-e86b12c1c464",
+      "user_id": "usr_user_1_uuid_test",
+      "name": "E-commerce Store",
+      "initial_prompt": "Build an e-commerce storefront",
+      "framework": "react",
+      "status": "creating",
+      "created_at": "2026-08-12T15:36:57.244Z",
+      "updated_at": "2026-08-12T15:36:57.244Z"
+    },
+    "83eff92e-ecae-4b1a-95cc-a1c78645ed1e": {
+      "id": "83eff92e-ecae-4b1a-95cc-a1c78645ed1e",
+      "user_id": "usr_api_test_user",
+      "name": "AI Code Assistant",
+      "initial_prompt": "Build an AI code editor",
+      "framework": "react",
+      "status": "creating",
+      "created_at": "2026-08-12T15:36:57.493Z",
+      "updated_at": "2026-08-12T15:36:57.493Z"
+    },
+    "e1d3e793-98e8-427c-a3fe-1b89fb8e1227": {
+      "id": "e1d3e793-98e8-427c-a3fe-1b89fb8e1227",
+      "user_id": "usr_phase2_owner_a",
+      "name": "Persistent E-Commerce App",
+      "initial_prompt": "Create a fullstack online shop",
+      "framework": "react",
+      "status": "creating",
+      "created_at": "2026-08-12T16:16:42.798Z",
+      "updated_at": "2026-08-12T16:16:42.798Z"
+    }
+  },
+  "project_files": {
+    "e1d3e793-98e8-427c-a3fe-1b89fb8e1227": {
+      "/src/App.tsx": {
+        "id": "e23209ef-ccb7-4ad3-911f-a3cdfef2682b",
+        "project_id": "e1d3e793-98e8-427c-a3fe-1b89fb8e1227",
+        "path": "/src/App.tsx",
+        "filename": "App.tsx",
+        "content": "export default function App() { return <h1>Shop Updated</h1>; }",
+        "language": "typescript",
+        "size": 63,
+        "created_at": "2026-08-12T16:16:42.799Z",
+        "updated_at": "2026-08-12T16:16:42.800Z"
+      },
+      "/src/components/Header.tsx": {
+        "id": "c9eafa94-a989-4a68-8281-9d9a5a150637",
+        "project_id": "e1d3e793-98e8-427c-a3fe-1b89fb8e1227",
+        "path": "/src/components/Header.tsx",
+        "filename": "Header.tsx",
+        "content": "export function Header() { return <header>Header</header>; }",
+        "language": "typescript",
+        "size": 60,
+        "created_at": "2026-08-12T16:16:42.801Z",
+        "updated_at": "2026-08-12T16:16:42.801Z"
+      }
+    }
+  },
+  "project_chat_messages": {
+    "e1d3e793-98e8-427c-a3fe-1b89fb8e1227": [
+      {
+        "id": "6bc2fde7-9e90-46d2-aa53-04f43b7bcf96",
+        "project_id": "e1d3e793-98e8-427c-a3fe-1b89fb8e1227",
+        "user_id": "usr_phase2_owner_a",
+        "role": "user",
+        "content": "Add checkout page",
+        "message_type": "user_prompt",
+        "metadata": {},
+        "created_at": "2026-08-12T16:16:42.808Z"
+      },
+      {
+        "id": "af851da6-57a2-4796-bba7-7ff4323787da",
+        "project_id": "e1d3e793-98e8-427c-a3fe-1b89fb8e1227",
+        "user_id": "usr_phase2_owner_a",
+        "role": "assistant",
+        "content": "Creating Checkout component...",
+        "message_type": "code_generation",
+        "metadata": {
+          "generatedFile": "/src/Checkout.tsx"
+        },
+        "created_at": "2026-08-12T16:16:42.809Z"
+      }
+    ]
+  },
+  "project_events": {
+    "e1d3e793-98e8-427c-a3fe-1b89fb8e1227": [
+      {
+        "id": "6423b3fd-74e0-42fc-a434-cf0af02a0ae3",
+        "project_id": "e1d3e793-98e8-427c-a3fe-1b89fb8e1227",
+        "event_type": "PROJECT_INITIALIZED",
+        "payload": {
+          "framework": "react"
+        },
+        "sequence_number": 1,
+        "created_at": "2026-08-12T16:16:42.810Z"
+      },
+      {
+        "id": "94f3db29-82d7-4906-a7c9-3ab2b5392a73",
+        "project_id": "e1d3e793-98e8-427c-a3fe-1b89fb8e1227",
+        "event_type": "FILE_GENERATED",
+        "payload": {
+          "path": "/src/App.tsx"
+        },
+        "sequence_number": 2,
+        "created_at": "2026-08-12T16:16:42.810Z"
+      }
+    ]
+  },
+  "project_builds": {
+    "e1d3e793-98e8-427c-a3fe-1b89fb8e1227": {
+      "8faf9d4a-2c9f-41d0-ad73-6566f3bbd1d7": {
+        "id": "8faf9d4a-2c9f-41d0-ad73-6566f3bbd1d7",
+        "project_id": "e1d3e793-98e8-427c-a3fe-1b89fb8e1227",
+        "status": "success",
+        "logs": "Build completed successfully in 1.2s",
+        "preview_url": "https://nexo.dev/preview/demo-123",
+        "created_at": "2026-08-12T16:16:42.810Z",
+        "completed_at": "2026-08-12T16:16:42.811Z"
+      }
+    }
+  }
+}

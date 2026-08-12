@@ -86,7 +86,7 @@ import JSZip from "jszip";
 const ChatInterface: React.FC = () => {
   const navigate = useNavigate();
   const chatStore = useChatStore();
-  const { chatId } = useParams<{ chatId?: string }>();
+  const { chatId, projectId } = useParams<{ chatId?: string; projectId?: string }>();
   const [loadingChat, setLoadingChat] = useState(false);
   
   // Optimize store subscriptions using selectors to avoid re-rendering on tasks/logs/reasoning streaming
@@ -264,7 +264,31 @@ const ChatInterface: React.FC = () => {
   // Load chat on mount or when chatId parameter changes
   useEffect(() => {
     const loadChat = async () => {
-      if (chatId) {
+      if (projectId) {
+        setLoadingChat(true);
+        try {
+          const res = await getProjectApi(projectId);
+          if (res.success && res.project) {
+            useProjectStore.getState().setCurrentProject(res.project);
+            if (res.project.name) setProjectTitle(res.project.name);
+            setShowLanding(false);
+
+            // If new project workspace without messages yet, trigger initial prompt build
+            if (chatStore.messages.length === 0 && res.project.initial_prompt) {
+              handleSend(res.project.initial_prompt);
+            }
+          } else {
+            toast.error("Project not found or unauthorized");
+            navigate("/");
+          }
+        } catch (err: any) {
+          console.error("Error loading project workspace:", err);
+          toast.error(err.message || "Failed to load project workspace");
+          navigate("/");
+        } finally {
+          setLoadingChat(false);
+        }
+      } else if (chatId) {
         if (chatStore.currentChatId !== chatId) {
           setLoadingChat(true);
           const currentUser = auth.currentUser;
@@ -307,10 +331,11 @@ const ChatInterface: React.FC = () => {
     };
 
     loadChat();
-  }, [chatId]);
+  }, [chatId, projectId]);
 
-  // Keep URL in sync with currentChatId state
+  // Keep URL in sync with currentChatId state (when not in a persistent projectId workspace)
   useEffect(() => {
+    if (projectId) return;
     if (chatStore.currentChatId) {
       if (chatId !== chatStore.currentChatId) {
         navigate(`/nexostudio/${chatStore.currentChatId}`);
@@ -320,7 +345,7 @@ const ChatInterface: React.FC = () => {
         navigate("/chat");
       }
     }
-  }, [chatStore.currentChatId, chatId, navigate]);
+  }, [chatStore.currentChatId, chatId, projectId, navigate]);
 
   useEffect(() => {
     if (selectedFileName) setWorkspaceTab("code");

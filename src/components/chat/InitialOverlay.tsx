@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
+import { createProjectApi } from "../../services/projectApi";
 import {
   Sparkles,
   ArrowRight,
@@ -53,6 +55,7 @@ interface InitialOverlayProps {
 }
 
 export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResume }) => {
+  const navigate = useNavigate();
   const {
     selectedModel,
     setSelectedModel,
@@ -319,10 +322,28 @@ export const InitialOverlay: React.FC<InitialOverlayProps> = ({ onStart, onResum
     setOpenMenuId(null);
   };
 
-  const handleSubmit = (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (prompt.trim()) {
-      onStart(prompt);
+    const promptText = prompt.trim();
+    if (!promptText) return;
+
+    try {
+      const response = await createProjectApi({
+        prompt: promptText,
+        framework: projectMode === "fullstack" ? "node" : "react"
+      });
+
+      if (response.success && response.project) {
+        useProjectStore.getState().setCurrentProject(response.project);
+        navigate(`/workspace/${response.project.id}`);
+        onStart(promptText);
+      } else {
+        onStart(promptText);
+      }
+    } catch (err: any) {
+      console.error("[InitialOverlay] Backend project creation failed:", err);
+      // Fallback to start build flow
+      onStart(promptText);
     }
   };
 
