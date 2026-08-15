@@ -287,3 +287,159 @@ export const updateProjectBuildApi = async (
   if (!response.ok) throw new Error(data.error || "Failed to update project build");
   return data;
 };
+
+// ─── Workspace Hydration & Settings API ───────────────────────────────────────
+
+export const getWorkspaceStateApi = async (
+  projectId: string,
+  limit: number = 50,
+  before?: string | null
+) => {
+  const headers = await getAuthHeaders();
+  let url = `/api/projects/${encodeURIComponent(projectId)}/workspace-state?limit=${limit}`;
+  if (before) {
+    url += `&before=${encodeURIComponent(before)}`;
+  }
+  const response = await fetch(url, {
+    method: "GET",
+    headers,
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Failed to load workspace state");
+  return data;
+};
+
+export const getProjectChatPaginatedApi = async (
+  projectId: string,
+  limit: number = 50,
+  before?: string | null
+) => {
+  const headers = await getAuthHeaders();
+  let url = `/api/projects/${encodeURIComponent(projectId)}/chat?limit=${limit}`;
+  if (before) {
+    url += `&before=${encodeURIComponent(before)}`;
+  }
+  const response = await fetch(url, {
+    method: "GET",
+    headers,
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Failed to fetch paginated chat");
+  return data;
+};
+
+export const getProjectSettingsApi = async (projectId: string) => {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/settings`, {
+    method: "GET",
+    headers,
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Failed to fetch project settings");
+  return data;
+};
+
+export const updateProjectSettingsApi = async (
+  projectId: string,
+  settings: { active_file?: string; open_tabs?: string[]; preview_device?: string; theme?: string }
+) => {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/settings`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify(settings),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Failed to update project settings");
+  return data;
+};
+
+export const getActiveProjectJobApi = async (projectId: string) => {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/active-job`, {
+    method: "GET",
+    headers,
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Failed to fetch active job");
+  return data;
+};
+
+export const setActiveProjectJobApi = async (projectId: string, jobData: any | null) => {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/active-job`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ job: jobData }),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Failed to set active job");
+  return data;
+};
+
+// ─── Project-Aware AI Execution API ─────────────────────────────────────────
+
+export const executeProjectAiApi = async (projectId: string, prompt: string) => {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/ai/execute`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ prompt }),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Failed to execute AI workflow");
+  return data;
+};
+
+// ─── Persistent Background AI Jobs API ──────────────────────────────────────
+
+export const enqueueProjectJobApi = async (projectId: string, type: string, payload: any) => {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/jobs`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ type, payload }),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Failed to enqueue background job");
+  return data;
+};
+
+export const getActiveProjectJobsApi = async (projectId: string) => {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/jobs/active`, {
+    method: "GET",
+    headers,
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Failed to fetch active jobs");
+  return data;
+};
+
+export const getProjectEventsSinceApi = async (projectId: string, sinceSequence: number) => {
+  const headers = await getAuthHeaders();
+  const response = await fetch(
+    `/api/projects/${encodeURIComponent(projectId)}/events?since_sequence=${sinceSequence}`,
+    {
+      method: "GET",
+      headers,
+    }
+  );
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Failed to fetch project events");
+  return data;
+};
+
+export const cancelProjectJobApi = async (projectId: string, jobId: string) => {
+  const headers = await getAuthHeaders();
+  const response = await fetch(
+    `/api/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}/cancel`,
+    {
+      method: "POST",
+      headers,
+    }
+  );
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Failed to cancel job");
+  return data;
+};

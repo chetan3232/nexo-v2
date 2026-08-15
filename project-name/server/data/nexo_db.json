@@ -39,6 +39,96 @@
       "status": "creating",
       "created_at": "2026-08-12T16:16:42.798Z",
       "updated_at": "2026-08-12T16:16:42.798Z"
+    },
+    "a65f946e-4b4c-4512-8721-3e07664b309e": {
+      "id": "a65f946e-4b4c-4512-8721-3e07664b309e",
+      "user_id": "usr_phase3_owner_a",
+      "name": "Workspace Restoration Test",
+      "initial_prompt": "Create a fullstack chat app",
+      "framework": "react",
+      "status": "creating",
+      "created_at": "2026-08-12T16:24:06.527Z",
+      "updated_at": "2026-08-12T16:24:06.527Z"
+    },
+    "2ed7e56b-ff6c-4638-921d-c4c01ab101ea": {
+      "id": "2ed7e56b-ff6c-4638-921d-c4c01ab101ea",
+      "user_id": "usr_owner_alice_uuid",
+      "name": "Alice Secret Enterprise App",
+      "initial_prompt": "Build confidential portal",
+      "framework": "react",
+      "status": "creating",
+      "created_at": "2026-08-12T16:33:29.590Z",
+      "updated_at": "2026-08-12T16:33:29.590Z"
+    },
+    "6ff34f10-fb40-4ee4-bc63-e4c2a7a6bca0": {
+      "id": "6ff34f10-fb40-4ee4-bc63-e4c2a7a6bca0",
+      "user_id": "usr_owner_alice_uuid",
+      "name": "Alice Secret Enterprise App",
+      "initial_prompt": "Build confidential portal",
+      "framework": "react",
+      "status": "creating",
+      "created_at": "2026-08-12T16:34:54.714Z",
+      "updated_at": "2026-08-12T16:34:54.714Z"
+    },
+    "2d3ab37b-c741-458e-b63d-fddb4e003f4c": {
+      "id": "2d3ab37b-c741-458e-b63d-fddb4e003f4c",
+      "user_id": "usr_owner_alice_uuid",
+      "name": "Alice Secret Enterprise App",
+      "initial_prompt": "Build confidential portal",
+      "framework": "react",
+      "status": "creating",
+      "created_at": "2026-08-12T16:36:56.371Z",
+      "updated_at": "2026-08-12T16:36:56.371Z"
+    },
+    "8164cc5c-337b-4552-bf98-c88fa5b95ab0": {
+      "id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+      "user_id": "usr_phase5_alice",
+      "name": "AI Orchestrated SaaS App",
+      "initial_prompt": "Build a fullstack SaaS dashboard",
+      "framework": "react",
+      "status": "ready",
+      "created_at": "2026-08-12T16:45:30.066Z",
+      "updated_at": "2026-08-12T16:45:30.128Z"
+    },
+    "a2c30100-2f6d-4a93-8107-3f399708d197": {
+      "id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+      "user_id": "usr_phase6_alice",
+      "name": "Persistent Background Build App",
+      "initial_prompt": "Build a background job test suite",
+      "framework": "react",
+      "status": "ready",
+      "created_at": "2026-08-12T16:49:15.657Z",
+      "updated_at": "2026-08-12T16:49:15.994Z"
+    },
+    "1d435b33-efe5-4520-962d-99165b20bf9f": {
+      "id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+      "user_id": "usr_phase6_alice",
+      "name": "Persistent Background Build App",
+      "initial_prompt": "Build a background job test suite",
+      "framework": "react",
+      "status": "ready",
+      "created_at": "2026-08-12T16:49:41.871Z",
+      "updated_at": "2026-08-12T16:49:42.210Z"
+    },
+    "c0b25ebb-ff4a-40c5-9554-6681c0b521c7": {
+      "id": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+      "user_id": "usr_nexo_master_owner",
+      "name": "Nexo Master Platform",
+      "initial_prompt": "Build an enterprise cloud management dashboard",
+      "framework": "react",
+      "status": "ready",
+      "created_at": "2026-08-12T16:50:34.076Z",
+      "updated_at": "2026-08-12T16:50:34.134Z"
+    },
+    "ffcee42f-703d-4358-adcb-d709fb35b869": {
+      "id": "ffcee42f-703d-4358-adcb-d709fb35b869",
+      "user_id": "guest_oz73xypax_1786553871811",
+      "name": "Build a premium, high-fidelity...",
+      "initial_prompt": "Build a premium, high-fidelity 3D Product Landing page with glowing cinematic design, responsive grid, dynamic charts, and clean animations...",
+      "framework": "react",
+      "status": "creating",
+      "created_at": "2026-08-12T16:57:51.859Z",
+      "updated_at": "2026-08-12T16:57:51.859Z"
     }
   },
   "project_files": {
@@ -64,6 +154,97 @@
         "size": 60,
         "created_at": "2026-08-12T16:16:42.801Z",
         "updated_at": "2026-08-12T16:16:42.801Z"
+      }
+    },
+    "2ed7e56b-ff6c-4638-921d-c4c01ab101ea": {
+      "/src/Secret.tsx": {
+        "id": "f989ceb3-5c00-4a63-a8aa-8e06610765e5",
+        "project_id": "2ed7e56b-ff6c-4638-921d-c4c01ab101ea",
+        "path": "/src/Secret.tsx",
+        "filename": "Secret.tsx",
+        "content": "const API_SECRET = \"super_secret_key_123\";",
+        "language": "typescript",
+        "size": 42,
+        "created_at": "2026-08-12T16:33:29.591Z",
+        "updated_at": "2026-08-12T16:33:29.591Z"
+      }
+    },
+    "6ff34f10-fb40-4ee4-bc63-e4c2a7a6bca0": {
+      "/src/Secret.tsx": {
+        "id": "7c338e3e-b3c0-4217-a75c-16f9cf8d940f",
+        "project_id": "6ff34f10-fb40-4ee4-bc63-e4c2a7a6bca0",
+        "path": "/src/Secret.tsx",
+        "filename": "Secret.tsx",
+        "content": "const API_SECRET = \"super_secret_key_123\";",
+        "language": "typescript",
+        "size": 42,
+        "created_at": "2026-08-12T16:34:54.716Z",
+        "updated_at": "2026-08-12T16:34:54.716Z"
+      }
+    },
+    "2d3ab37b-c741-458e-b63d-fddb4e003f4c": {
+      "/src/Secret.tsx": {
+        "id": "28deb56f-dd81-4cbe-9662-7af4531c65f8",
+        "project_id": "2d3ab37b-c741-458e-b63d-fddb4e003f4c",
+        "path": "/src/Secret.tsx",
+        "filename": "Secret.tsx",
+        "content": "const API_SECRET = \"super_secret_key_123\";",
+        "language": "typescript",
+        "size": 42,
+        "created_at": "2026-08-12T16:36:56.373Z",
+        "updated_at": "2026-08-12T16:36:56.373Z"
+      }
+    },
+    "8164cc5c-337b-4552-bf98-c88fa5b95ab0": {
+      "/src/App.tsx": {
+        "id": "360296a0-060f-4bc8-9351-235b7b2670b0",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "path": "/src/App.tsx",
+        "filename": "App.tsx",
+        "content": "import React, { useState } from 'react';\n\nexport default function App() {\n  const [count, setCount] = useState(0);\n\n  return (\n    <div className=\"min-h-screen bg-slate-900 text-white p-8 flex flex-col items-center justify-center\">\n      <h1 className=\"text-4xl font-bold mb-4\">AI Orchestrated SaaS App</h1>\n      <p className=\"text-slate-400 mb-6\">Add chart widget</p>\n      <button \n        onClick={() => setCount(c => c + 1)}\n        className=\"px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-semibold transition-all shadow-lg\"\n      >\n        Clicked {count} times\n      </button>\n    </div>\n  );\n}",
+        "language": "typescript",
+        "size": 615,
+        "created_at": "2026-08-12T16:45:30.072Z",
+        "updated_at": "2026-08-12T16:45:30.124Z"
+      }
+    },
+    "a2c30100-2f6d-4a93-8107-3f399708d197": {
+      "/src/App.tsx": {
+        "id": "151dad48-f10b-41fd-beb2-9fb55608b3b3",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "path": "/src/App.tsx",
+        "filename": "App.tsx",
+        "content": "import React, { useState } from 'react';\n\nexport default function App() {\n  const [count, setCount] = useState(0);\n\n  return (\n    <div className=\"min-h-screen bg-slate-900 text-white p-8 flex flex-col items-center justify-center\">\n      <h1 className=\"text-4xl font-bold mb-4\">Persistent Background Build App</h1>\n      <p className=\"text-slate-400 mb-6\">Slow refactor task</p>\n      <button \n        onClick={() => setCount(c => c + 1)}\n        className=\"px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-semibold transition-all shadow-lg\"\n      >\n        Clicked {count} times\n      </button>\n    </div>\n  );\n}",
+        "language": "typescript",
+        "size": 624,
+        "created_at": "2026-08-12T16:49:15.708Z",
+        "updated_at": "2026-08-12T16:49:15.988Z"
+      }
+    },
+    "1d435b33-efe5-4520-962d-99165b20bf9f": {
+      "/src/App.tsx": {
+        "id": "34bad37c-9da5-4ba5-b943-fa1793027b6a",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "path": "/src/App.tsx",
+        "filename": "App.tsx",
+        "content": "import React, { useState } from 'react';\n\nexport default function App() {\n  const [count, setCount] = useState(0);\n\n  return (\n    <div className=\"min-h-screen bg-slate-900 text-white p-8 flex flex-col items-center justify-center\">\n      <h1 className=\"text-4xl font-bold mb-4\">Persistent Background Build App</h1>\n      <p className=\"text-slate-400 mb-6\">Slow refactor task</p>\n      <button \n        onClick={() => setCount(c => c + 1)}\n        className=\"px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-semibold transition-all shadow-lg\"\n      >\n        Clicked {count} times\n      </button>\n    </div>\n  );\n}",
+        "language": "typescript",
+        "size": 624,
+        "created_at": "2026-08-12T16:49:41.924Z",
+        "updated_at": "2026-08-12T16:49:42.205Z"
+      }
+    },
+    "c0b25ebb-ff4a-40c5-9554-6681c0b521c7": {
+      "/src/App.tsx": {
+        "id": "ab439612-9fa4-464e-bcc8-02d2e8471259",
+        "project_id": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+        "path": "/src/App.tsx",
+        "filename": "App.tsx",
+        "content": "import React, { useState } from 'react';\n\nexport default function App() {\n  const [count, setCount] = useState(0);\n\n  return (\n    <div className=\"min-h-screen bg-slate-900 text-white p-8 flex flex-col items-center justify-center\">\n      <h1 className=\"text-4xl font-bold mb-4\">Nexo Master Platform</h1>\n      <p className=\"text-slate-400 mb-6\">Generate multi-tenant analytics charts and navigation sidebar</p>\n      <button \n        onClick={() => setCount(c => c + 1)}\n        className=\"px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-semibold transition-all shadow-lg\"\n      >\n        Clicked {count} times\n      </button>\n    </div>\n  );\n}",
+        "language": "typescript",
+        "size": 656,
+        "created_at": "2026-08-12T16:50:34.127Z",
+        "updated_at": "2026-08-12T16:50:34.127Z"
       }
     }
   },
@@ -91,6 +272,774 @@
         },
         "created_at": "2026-08-12T16:16:42.809Z"
       }
+    ],
+    "a65f946e-4b4c-4512-8721-3e07664b309e": [
+      {
+        "id": "e2d6f711-57d8-494d-bbd7-bb6ddb69ab85",
+        "project_id": "a65f946e-4b4c-4512-8721-3e07664b309e",
+        "user_id": "usr_phase3_owner_a",
+        "role": "user",
+        "content": "Message content #1",
+        "message_type": "user_prompt",
+        "metadata": {},
+        "created_at": "2026-08-12T16:24:06.528Z"
+      },
+      {
+        "id": "7767b49f-5379-4b9d-b4ef-1a9b871c6210",
+        "project_id": "a65f946e-4b4c-4512-8721-3e07664b309e",
+        "user_id": "usr_phase3_owner_a",
+        "role": "assistant",
+        "content": "Message content #2",
+        "message_type": "code_generation",
+        "metadata": {},
+        "created_at": "2026-08-12T16:24:06.528Z"
+      },
+      {
+        "id": "82ad49af-d851-475f-991c-ad5e7e1c2054",
+        "project_id": "a65f946e-4b4c-4512-8721-3e07664b309e",
+        "user_id": "usr_phase3_owner_a",
+        "role": "user",
+        "content": "Message content #3",
+        "message_type": "user_prompt",
+        "metadata": {},
+        "created_at": "2026-08-12T16:24:06.529Z"
+      },
+      {
+        "id": "ecc14a40-ef08-4856-b122-3ad0f0a813da",
+        "project_id": "a65f946e-4b4c-4512-8721-3e07664b309e",
+        "user_id": "usr_phase3_owner_a",
+        "role": "assistant",
+        "content": "Message content #4",
+        "message_type": "code_generation",
+        "metadata": {},
+        "created_at": "2026-08-12T16:24:06.529Z"
+      },
+      {
+        "id": "8f913e10-c98a-4bd6-819e-cbeda5e26b24",
+        "project_id": "a65f946e-4b4c-4512-8721-3e07664b309e",
+        "user_id": "usr_phase3_owner_a",
+        "role": "user",
+        "content": "Message content #5",
+        "message_type": "user_prompt",
+        "metadata": {},
+        "created_at": "2026-08-12T16:24:06.529Z"
+      },
+      {
+        "id": "8be962b9-0678-4271-99e6-811a138725ae",
+        "project_id": "a65f946e-4b4c-4512-8721-3e07664b309e",
+        "user_id": "usr_phase3_owner_a",
+        "role": "assistant",
+        "content": "Message content #6",
+        "message_type": "code_generation",
+        "metadata": {},
+        "created_at": "2026-08-12T16:24:06.529Z"
+      },
+      {
+        "id": "68bcd807-0a71-408a-9717-53c770819c42",
+        "project_id": "a65f946e-4b4c-4512-8721-3e07664b309e",
+        "user_id": "usr_phase3_owner_a",
+        "role": "user",
+        "content": "Message content #7",
+        "message_type": "user_prompt",
+        "metadata": {},
+        "created_at": "2026-08-12T16:24:06.530Z"
+      },
+      {
+        "id": "3d3b9e3d-52d9-460e-9f6a-163a65f6898f",
+        "project_id": "a65f946e-4b4c-4512-8721-3e07664b309e",
+        "user_id": "usr_phase3_owner_a",
+        "role": "assistant",
+        "content": "Message content #8",
+        "message_type": "code_generation",
+        "metadata": {},
+        "created_at": "2026-08-12T16:24:06.530Z"
+      },
+      {
+        "id": "c385f3b4-9727-49c9-a4ec-023c91234ec2",
+        "project_id": "a65f946e-4b4c-4512-8721-3e07664b309e",
+        "user_id": "usr_phase3_owner_a",
+        "role": "user",
+        "content": "Message content #9",
+        "message_type": "user_prompt",
+        "metadata": {},
+        "created_at": "2026-08-12T16:24:06.530Z"
+      },
+      {
+        "id": "1b305fd7-c963-41ea-81f3-d584aaac7a2d",
+        "project_id": "a65f946e-4b4c-4512-8721-3e07664b309e",
+        "user_id": "usr_phase3_owner_a",
+        "role": "assistant",
+        "content": "Message content #10",
+        "message_type": "code_generation",
+        "metadata": {},
+        "created_at": "2026-08-12T16:24:06.531Z"
+      },
+      {
+        "id": "54173173-c524-4fab-ba5a-458ff7f9cc28",
+        "project_id": "a65f946e-4b4c-4512-8721-3e07664b309e",
+        "user_id": "usr_phase3_owner_a",
+        "role": "user",
+        "content": "Message content #11",
+        "message_type": "user_prompt",
+        "metadata": {},
+        "created_at": "2026-08-12T16:24:06.531Z"
+      },
+      {
+        "id": "07b7e454-1612-40e5-ade9-0f874959f390",
+        "project_id": "a65f946e-4b4c-4512-8721-3e07664b309e",
+        "user_id": "usr_phase3_owner_a",
+        "role": "assistant",
+        "content": "Message content #12",
+        "message_type": "code_generation",
+        "metadata": {},
+        "created_at": "2026-08-12T16:24:06.531Z"
+      },
+      {
+        "id": "4495c366-a945-4657-aca1-2964c08a3962",
+        "project_id": "a65f946e-4b4c-4512-8721-3e07664b309e",
+        "user_id": "usr_phase3_owner_a",
+        "role": "user",
+        "content": "Message content #13",
+        "message_type": "user_prompt",
+        "metadata": {},
+        "created_at": "2026-08-12T16:24:06.531Z"
+      },
+      {
+        "id": "de81c74a-9369-414e-ae9f-3652b860093c",
+        "project_id": "a65f946e-4b4c-4512-8721-3e07664b309e",
+        "user_id": "usr_phase3_owner_a",
+        "role": "assistant",
+        "content": "Message content #14",
+        "message_type": "code_generation",
+        "metadata": {},
+        "created_at": "2026-08-12T16:24:06.532Z"
+      },
+      {
+        "id": "22df998a-f761-48cf-9ea0-e50ba65c8a41",
+        "project_id": "a65f946e-4b4c-4512-8721-3e07664b309e",
+        "user_id": "usr_phase3_owner_a",
+        "role": "user",
+        "content": "Message content #15",
+        "message_type": "user_prompt",
+        "metadata": {},
+        "created_at": "2026-08-12T16:24:06.532Z"
+      }
+    ],
+    "2ed7e56b-ff6c-4638-921d-c4c01ab101ea": [
+      {
+        "id": "5bf9fcae-5603-4830-a5b8-3bc950d4b820",
+        "project_id": "2ed7e56b-ff6c-4638-921d-c4c01ab101ea",
+        "user_id": "usr_owner_alice_uuid",
+        "role": "user",
+        "content": "Make sure API keys are encrypted",
+        "message_type": "user_prompt",
+        "metadata": {},
+        "created_at": "2026-08-12T16:33:29.592Z"
+      }
+    ],
+    "6ff34f10-fb40-4ee4-bc63-e4c2a7a6bca0": [
+      {
+        "id": "894790d4-4073-4dd5-abd0-0c7455ff7906",
+        "project_id": "6ff34f10-fb40-4ee4-bc63-e4c2a7a6bca0",
+        "user_id": "usr_owner_alice_uuid",
+        "role": "user",
+        "content": "Make sure API keys are encrypted",
+        "message_type": "user_prompt",
+        "metadata": {},
+        "created_at": "2026-08-12T16:34:54.717Z"
+      }
+    ],
+    "2d3ab37b-c741-458e-b63d-fddb4e003f4c": [
+      {
+        "id": "8b3c9f48-3f5f-4cc3-89a4-e087989057b7",
+        "project_id": "2d3ab37b-c741-458e-b63d-fddb4e003f4c",
+        "user_id": "usr_owner_alice_uuid",
+        "role": "user",
+        "content": "Make sure API keys are encrypted",
+        "message_type": "user_prompt",
+        "metadata": {},
+        "created_at": "2026-08-12T16:36:56.373Z"
+      }
+    ],
+    "8164cc5c-337b-4552-bf98-c88fa5b95ab0": [
+      {
+        "id": "ec360c3d-a216-4f4d-a252-e8c37a8e717e",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "user_id": "usr_phase5_alice",
+        "role": "assistant",
+        "content": "Analyzing billing requirements...",
+        "message_type": "thinking",
+        "metadata": {
+          "event_id": "6aa98125-3fa8-4803-b0ee-d2399736a508",
+          "sequence_number": 1
+        },
+        "created_at": "2026-08-12T16:45:30.068Z"
+      },
+      {
+        "id": "83c4aba4-701b-451a-8ad6-d5c2d966bbe9",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "user_id": "usr_phase5_alice",
+        "role": "assistant",
+        "content": "Plan: Add BillingTable.tsx",
+        "message_type": "planning",
+        "metadata": {
+          "event_id": "ee60f049-7f77-4637-954d-79099e388ec6",
+          "sequence_number": 2
+        },
+        "created_at": "2026-08-12T16:45:30.069Z"
+      },
+      {
+        "id": "82c5bd83-ebe9-40e2-b526-c64e7efc66cd",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "user_id": "usr_phase5_alice",
+        "role": "assistant",
+        "content": "Analyzing task: \"Build modern analytics dashboard...\"",
+        "message_type": "thinking",
+        "metadata": {
+          "event_id": "1b80a92d-33a6-4337-9efb-ea928a000562",
+          "sequence_number": 3
+        },
+        "created_at": "2026-08-12T16:45:30.070Z"
+      },
+      {
+        "id": "935d66fb-e847-44d4-a799-10335029c2f3",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "user_id": "usr_phase5_alice",
+        "role": "assistant",
+        "content": "Planning implementation for react application.",
+        "message_type": "planning",
+        "metadata": {
+          "event_id": "28ae4378-f34f-4cd6-903c-3966c5fce93f",
+          "sequence_number": 4
+        },
+        "created_at": "2026-08-12T16:45:30.071Z"
+      },
+      {
+        "id": "61bb634d-6232-48e5-9fbe-1ea9585cf5d4",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "user_id": "usr_phase5_alice",
+        "role": "assistant",
+        "content": "Updated file /src/App.tsx",
+        "message_type": "file_created",
+        "metadata": {
+          "event_id": "7c1d21c2-3c16-4c86-a3ad-6949e16d173f",
+          "sequence_number": 5
+        },
+        "created_at": "2026-08-12T16:45:30.073Z"
+      },
+      {
+        "id": "b187c2fa-0ed4-451f-9525-375a2c27104b",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "user_id": "usr_phase5_alice",
+        "role": "assistant",
+        "content": "Generated App.tsx component code",
+        "message_type": "code_generation",
+        "metadata": {
+          "event_id": "9e562c43-43dd-43d3-9004-ca793f302a31",
+          "sequence_number": 6
+        },
+        "created_at": "2026-08-12T16:45:30.073Z"
+      },
+      {
+        "id": "13afdfb2-5185-492d-9c65-57d58384e9f7",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "user_id": "usr_phase5_alice",
+        "role": "assistant",
+        "content": "Build compiled successfully!",
+        "message_type": "success",
+        "metadata": {
+          "event_id": "120cdd22-2682-4060-9fc8-d733a190e430",
+          "sequence_number": 8
+        },
+        "created_at": "2026-08-12T16:45:30.076Z"
+      },
+      {
+        "id": "9470c390-b23b-46ff-add1-8520d70b5a5b",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "user_id": "usr_phase5_alice",
+        "role": "assistant",
+        "content": "Project application successfully built and preview ready!",
+        "message_type": "final",
+        "metadata": {
+          "event_id": "027f62aa-0a55-43ac-a6a9-5bc633cc77d5",
+          "sequence_number": 10
+        },
+        "created_at": "2026-08-12T16:45:30.077Z"
+      },
+      {
+        "id": "f4cc093d-3db7-4883-a3d2-1339a4b8883c",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "user_id": "usr_phase5_alice",
+        "role": "assistant",
+        "content": "Analyzing task: \"Add chart widget...\"",
+        "message_type": "thinking",
+        "metadata": {
+          "event_id": "9ca84395-1a81-4cd4-8d8b-8a78d3ea754e",
+          "sequence_number": 11
+        },
+        "created_at": "2026-08-12T16:45:30.122Z"
+      },
+      {
+        "id": "861ccdb3-17d0-4697-bac9-c2ba84d75524",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "user_id": "usr_phase5_alice",
+        "role": "assistant",
+        "content": "Planning implementation for react application.",
+        "message_type": "planning",
+        "metadata": {
+          "event_id": "e50745ec-95f5-4e89-a1ad-79b177876283",
+          "sequence_number": 12
+        },
+        "created_at": "2026-08-12T16:45:30.123Z"
+      },
+      {
+        "id": "664a789e-d63b-4028-a318-d93eea78d9bb",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "user_id": "usr_phase5_alice",
+        "role": "assistant",
+        "content": "Updated file /src/App.tsx",
+        "message_type": "file_created",
+        "metadata": {
+          "event_id": "8c62385f-32b8-4d6a-88db-316872f98ba6",
+          "sequence_number": 13
+        },
+        "created_at": "2026-08-12T16:45:30.125Z"
+      },
+      {
+        "id": "1829d52f-a810-41c5-a12a-bc4e4c5193e4",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "user_id": "usr_phase5_alice",
+        "role": "assistant",
+        "content": "Generated App.tsx component code",
+        "message_type": "code_generation",
+        "metadata": {
+          "event_id": "8abad995-eeb4-44f7-a44c-244c64dd574f",
+          "sequence_number": 14
+        },
+        "created_at": "2026-08-12T16:45:30.125Z"
+      },
+      {
+        "id": "84b66803-b7cb-4489-9f60-9cabff07151f",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "user_id": "usr_phase5_alice",
+        "role": "assistant",
+        "content": "Build compiled successfully!",
+        "message_type": "success",
+        "metadata": {
+          "event_id": "af5140b5-d8c5-41b6-8eaf-2727bcbae0de",
+          "sequence_number": 16
+        },
+        "created_at": "2026-08-12T16:45:30.127Z"
+      },
+      {
+        "id": "8c54a533-03b8-45ee-ac8e-46c8a639b86b",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "user_id": "usr_phase5_alice",
+        "role": "assistant",
+        "content": "Project application successfully built and preview ready!",
+        "message_type": "final",
+        "metadata": {
+          "event_id": "55866784-50ef-4a54-b641-b81e627b1289",
+          "sequence_number": 18
+        },
+        "created_at": "2026-08-12T16:45:30.128Z"
+      }
+    ],
+    "a2c30100-2f6d-4a93-8107-3f399708d197": [
+      {
+        "id": "a71239ea-34c3-490b-93cd-1ada3e689960",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Analyzing task: \"Build real-time notification system...\"",
+        "message_type": "thinking",
+        "metadata": {
+          "event_id": "026006ea-dcd9-43b7-9d0e-8014689ae0c8",
+          "sequence_number": 1
+        },
+        "created_at": "2026-08-12T16:49:15.707Z"
+      },
+      {
+        "id": "60963ee7-8c1b-490b-95d1-06d878b14a42",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Planning implementation for react application.",
+        "message_type": "planning",
+        "metadata": {
+          "event_id": "c87c9adc-c924-493b-aec1-9cd220e02347",
+          "sequence_number": 2
+        },
+        "created_at": "2026-08-12T16:49:15.707Z"
+      },
+      {
+        "id": "2f13a97e-8129-4e6c-bffe-7526412f0e35",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Updated file /src/App.tsx",
+        "message_type": "file_created",
+        "metadata": {
+          "event_id": "a7d870c0-5843-4bde-96dc-d55d43a23d50",
+          "sequence_number": 3
+        },
+        "created_at": "2026-08-12T16:49:15.709Z"
+      },
+      {
+        "id": "cc67e5ef-81f0-4626-ac4c-bbaf1c801533",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Generated App.tsx component code",
+        "message_type": "code_generation",
+        "metadata": {
+          "event_id": "a42c77f9-5633-4e61-b394-e9e7c575e53b",
+          "sequence_number": 4
+        },
+        "created_at": "2026-08-12T16:49:15.709Z"
+      },
+      {
+        "id": "ca8e7f60-1387-428e-a32a-b97a90eac2d4",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Build compiled successfully!",
+        "message_type": "success",
+        "metadata": {
+          "event_id": "a07cb9d4-5b94-4ec3-8497-a5dddef93926",
+          "sequence_number": 6
+        },
+        "created_at": "2026-08-12T16:49:15.712Z"
+      },
+      {
+        "id": "0f318f2c-0a92-4e04-9a1a-a72cf9e4d9da",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Project application successfully built and preview ready!",
+        "message_type": "final",
+        "metadata": {
+          "event_id": "d294a709-1850-4238-9d50-31ed444f8970",
+          "sequence_number": 8
+        },
+        "created_at": "2026-08-12T16:49:15.713Z"
+      },
+      {
+        "id": "fa95f1d8-d194-4d25-8df2-f3766bdf486a",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Analyzing task: \"Slow refactor task...\"",
+        "message_type": "thinking",
+        "metadata": {
+          "event_id": "97b40c17-d02d-439b-8368-4f8a2dad1570",
+          "sequence_number": 9
+        },
+        "created_at": "2026-08-12T16:49:15.986Z"
+      },
+      {
+        "id": "1c388c22-9af6-4119-9026-4026d9bffbd1",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Planning implementation for react application.",
+        "message_type": "planning",
+        "metadata": {
+          "event_id": "3d949cf1-6ec0-4099-86ee-926b4279f532",
+          "sequence_number": 10
+        },
+        "created_at": "2026-08-12T16:49:15.987Z"
+      },
+      {
+        "id": "c22cad4a-ff21-41f4-932f-16339fb21e01",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Updated file /src/App.tsx",
+        "message_type": "file_created",
+        "metadata": {
+          "event_id": "29c121a4-0a1b-4d32-93eb-23973a1512b6",
+          "sequence_number": 11
+        },
+        "created_at": "2026-08-12T16:49:15.989Z"
+      },
+      {
+        "id": "f631905b-e51d-41ef-b5b8-9830d104dd8f",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Generated App.tsx component code",
+        "message_type": "code_generation",
+        "metadata": {
+          "event_id": "aa1befb7-062f-4893-bf22-d0aeeac57f23",
+          "sequence_number": 12
+        },
+        "created_at": "2026-08-12T16:49:15.990Z"
+      },
+      {
+        "id": "3c0eed89-4a12-4dea-a1c5-44bc876250d6",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Build compiled successfully!",
+        "message_type": "success",
+        "metadata": {
+          "event_id": "a6f40108-6c84-4861-9cb4-69733fc0b0f2",
+          "sequence_number": 14
+        },
+        "created_at": "2026-08-12T16:49:15.992Z"
+      },
+      {
+        "id": "f0b6441e-8a9c-4f18-89b3-8a1b50f3caca",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Project application successfully built and preview ready!",
+        "message_type": "final",
+        "metadata": {
+          "event_id": "03f3902c-6c44-4919-aa3a-4acf095887db",
+          "sequence_number": 16
+        },
+        "created_at": "2026-08-12T16:49:15.994Z"
+      }
+    ],
+    "1d435b33-efe5-4520-962d-99165b20bf9f": [
+      {
+        "id": "e777cbc3-1e0e-465f-a65d-d5bf905e6bf5",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Analyzing task: \"Build real-time notification system...\"",
+        "message_type": "thinking",
+        "metadata": {
+          "event_id": "18c1055c-bdb0-4c6e-a303-30e39532e899",
+          "sequence_number": 1
+        },
+        "created_at": "2026-08-12T16:49:41.923Z"
+      },
+      {
+        "id": "ca828778-f94c-4fb8-82fb-9a24d6c60157",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Planning implementation for react application.",
+        "message_type": "planning",
+        "metadata": {
+          "event_id": "e35f2c80-1193-4df2-bd81-5dddfc7c743a",
+          "sequence_number": 2
+        },
+        "created_at": "2026-08-12T16:49:41.923Z"
+      },
+      {
+        "id": "b91a0e8b-8910-48f3-a922-5d8eb9d0c5fa",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Updated file /src/App.tsx",
+        "message_type": "file_created",
+        "metadata": {
+          "event_id": "c7748132-c4b3-4875-91a1-355158591f4e",
+          "sequence_number": 3
+        },
+        "created_at": "2026-08-12T16:49:41.925Z"
+      },
+      {
+        "id": "f96562ca-d4c5-4cb4-a0d9-2d957729705c",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Generated App.tsx component code",
+        "message_type": "code_generation",
+        "metadata": {
+          "event_id": "e0b50b7f-5232-420f-8253-70146bcd1719",
+          "sequence_number": 4
+        },
+        "created_at": "2026-08-12T16:49:41.926Z"
+      },
+      {
+        "id": "948ff4ef-9a43-4d28-bd81-ff81acbe0e17",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Build compiled successfully!",
+        "message_type": "success",
+        "metadata": {
+          "event_id": "cf0d8982-aecb-4873-b4bd-ce3976c9a4b8",
+          "sequence_number": 6
+        },
+        "created_at": "2026-08-12T16:49:41.928Z"
+      },
+      {
+        "id": "22d23c26-6e71-456a-a62d-830462e88c06",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Project application successfully built and preview ready!",
+        "message_type": "final",
+        "metadata": {
+          "event_id": "cbf5e37c-7ddc-4e78-ac4b-df7b32b10571",
+          "sequence_number": 8
+        },
+        "created_at": "2026-08-12T16:49:41.929Z"
+      },
+      {
+        "id": "b11ec9e9-4775-40d4-b4ad-27e3ec71d3cb",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Analyzing task: \"Slow refactor task...\"",
+        "message_type": "thinking",
+        "metadata": {
+          "event_id": "d61a6e60-7757-49da-890c-5569b379c8f0",
+          "sequence_number": 9
+        },
+        "created_at": "2026-08-12T16:49:42.203Z"
+      },
+      {
+        "id": "7c993b8e-81d1-47fd-b56f-2ff35ffe4104",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Planning implementation for react application.",
+        "message_type": "planning",
+        "metadata": {
+          "event_id": "8284ec2c-5def-4e26-90a2-2afca3c8d99e",
+          "sequence_number": 10
+        },
+        "created_at": "2026-08-12T16:49:42.204Z"
+      },
+      {
+        "id": "b4c10870-8b5c-4e90-9e2a-17e1821315d0",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Updated file /src/App.tsx",
+        "message_type": "file_created",
+        "metadata": {
+          "event_id": "f19ad9a3-d142-402a-a6db-d86c62add65b",
+          "sequence_number": 11
+        },
+        "created_at": "2026-08-12T16:49:42.205Z"
+      },
+      {
+        "id": "428dc749-77fc-4283-9e96-00afccf81d50",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Generated App.tsx component code",
+        "message_type": "code_generation",
+        "metadata": {
+          "event_id": "312a52f7-ca6a-40bb-bb4a-b50c1f77d937",
+          "sequence_number": 12
+        },
+        "created_at": "2026-08-12T16:49:42.206Z"
+      },
+      {
+        "id": "f814c5c1-e252-4e52-a0cf-62bb24229453",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Build compiled successfully!",
+        "message_type": "success",
+        "metadata": {
+          "event_id": "149f1496-d958-46f9-86a0-11c62cd2999c",
+          "sequence_number": 14
+        },
+        "created_at": "2026-08-12T16:49:42.208Z"
+      },
+      {
+        "id": "18ad4491-6268-4082-b22a-28f6cb3045eb",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "user_id": "usr_phase6_alice",
+        "role": "assistant",
+        "content": "Project application successfully built and preview ready!",
+        "message_type": "final",
+        "metadata": {
+          "event_id": "81b5677d-fd95-4819-9fc4-68e05ac2ce86",
+          "sequence_number": 16
+        },
+        "created_at": "2026-08-12T16:49:42.210Z"
+      }
+    ],
+    "c0b25ebb-ff4a-40c5-9554-6681c0b521c7": [
+      {
+        "id": "a7125d06-0924-4dc2-bfd1-003698027802",
+        "project_id": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+        "user_id": "usr_nexo_master_owner",
+        "role": "assistant",
+        "content": "Analyzing task: \"Generate multi-tenant analytics charts and navigation sideba...\"",
+        "message_type": "thinking",
+        "metadata": {
+          "event_id": "573379f3-2a10-4ff4-a4de-af829e615727",
+          "sequence_number": 1
+        },
+        "created_at": "2026-08-12T16:50:34.125Z"
+      },
+      {
+        "id": "bbdd2538-d5e5-4a92-a02b-37b6c77c39e7",
+        "project_id": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+        "user_id": "usr_nexo_master_owner",
+        "role": "assistant",
+        "content": "Planning implementation for react application.",
+        "message_type": "planning",
+        "metadata": {
+          "event_id": "c6d3838a-db63-40aa-b370-ea382fa7b036",
+          "sequence_number": 2
+        },
+        "created_at": "2026-08-12T16:50:34.126Z"
+      },
+      {
+        "id": "28a9fc71-ed6c-4690-a756-5b0a10fb07d5",
+        "project_id": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+        "user_id": "usr_nexo_master_owner",
+        "role": "assistant",
+        "content": "Updated file /src/App.tsx",
+        "message_type": "file_created",
+        "metadata": {
+          "event_id": "08e130ac-eb5e-425a-82d1-95d77da69ec2",
+          "sequence_number": 3
+        },
+        "created_at": "2026-08-12T16:50:34.128Z"
+      },
+      {
+        "id": "824beb30-c183-48b7-848d-0021ad774583",
+        "project_id": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+        "user_id": "usr_nexo_master_owner",
+        "role": "assistant",
+        "content": "Generated App.tsx component code",
+        "message_type": "code_generation",
+        "metadata": {
+          "event_id": "74e4d34b-db6f-4f14-9b49-62adff47c3f7",
+          "sequence_number": 4
+        },
+        "created_at": "2026-08-12T16:50:34.129Z"
+      },
+      {
+        "id": "8d5c312d-c274-4069-890b-8b66c4a6bf9d",
+        "project_id": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+        "user_id": "usr_nexo_master_owner",
+        "role": "assistant",
+        "content": "Build compiled successfully!",
+        "message_type": "success",
+        "metadata": {
+          "event_id": "9afb03e0-2eda-41e1-8e31-cd48285ddb75",
+          "sequence_number": 6
+        },
+        "created_at": "2026-08-12T16:50:34.132Z"
+      },
+      {
+        "id": "ff66dd95-3b7c-4262-b6f5-d2b60a9eb900",
+        "project_id": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+        "user_id": "usr_nexo_master_owner",
+        "role": "assistant",
+        "content": "Project application successfully built and preview ready!",
+        "message_type": "final",
+        "metadata": {
+          "event_id": "e5b96109-91b4-4d13-829d-e3f2790cedb8",
+          "sequence_number": 8
+        },
+        "created_at": "2026-08-12T16:50:34.133Z"
+      }
     ]
   },
   "project_events": {
@@ -115,6 +1064,615 @@
         "sequence_number": 2,
         "created_at": "2026-08-12T16:16:42.810Z"
       }
+    ],
+    "8164cc5c-337b-4552-bf98-c88fa5b95ab0": [
+      {
+        "id": "6aa98125-3fa8-4803-b0ee-d2399736a508",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "event_type": "thinking",
+        "payload": {
+          "message": "Analyzing billing requirements..."
+        },
+        "sequence_number": 1,
+        "created_at": "2026-08-12T16:45:30.068Z"
+      },
+      {
+        "id": "ee60f049-7f77-4637-954d-79099e388ec6",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "event_type": "planning",
+        "payload": {
+          "summary": "Plan: Add BillingTable.tsx"
+        },
+        "sequence_number": 2,
+        "created_at": "2026-08-12T16:45:30.069Z"
+      },
+      {
+        "id": "1b80a92d-33a6-4337-9efb-ea928a000562",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "event_type": "thinking",
+        "payload": {
+          "message": "Analyzing task: \"Build modern analytics dashboard...\""
+        },
+        "sequence_number": 3,
+        "created_at": "2026-08-12T16:45:30.070Z"
+      },
+      {
+        "id": "28ae4378-f34f-4cd6-903c-3966c5fce93f",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "event_type": "planning",
+        "payload": {
+          "summary": "Planning implementation for react application."
+        },
+        "sequence_number": 4,
+        "created_at": "2026-08-12T16:45:30.071Z"
+      },
+      {
+        "id": "7c1d21c2-3c16-4c86-a3ad-6949e16d173f",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "event_type": "creating_file",
+        "payload": {
+          "path": "/src/App.tsx",
+          "size": 631
+        },
+        "sequence_number": 5,
+        "created_at": "2026-08-12T16:45:30.072Z"
+      },
+      {
+        "id": "9e562c43-43dd-43d3-9004-ca793f302a31",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "event_type": "writing_code",
+        "payload": {
+          "path": "/src/App.tsx",
+          "message": "Generated App.tsx component code"
+        },
+        "sequence_number": 6,
+        "created_at": "2026-08-12T16:45:30.073Z"
+      },
+      {
+        "id": "39e6bed1-c48b-4663-a94f-d0a54f545f88",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "event_type": "build_start",
+        "payload": {
+          "build_id": "b5669e3f-4ca1-4cce-a2f5-8aa88d2c4030"
+        },
+        "sequence_number": 7,
+        "created_at": "2026-08-12T16:45:30.074Z"
+      },
+      {
+        "id": "120cdd22-2682-4060-9fc8-d733a190e430",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "event_type": "build_success",
+        "payload": {
+          "build_id": "b5669e3f-4ca1-4cce-a2f5-8aa88d2c4030",
+          "preview_url": "/preview/8164cc5c-337b-4552-bf98-c88fa5b95ab0"
+        },
+        "sequence_number": 8,
+        "created_at": "2026-08-12T16:45:30.075Z"
+      },
+      {
+        "id": "2edb5ffa-1b0f-4fe4-9693-0282bab01adc",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "event_type": "preview_ready",
+        "payload": {
+          "preview_url": "/preview/8164cc5c-337b-4552-bf98-c88fa5b95ab0"
+        },
+        "sequence_number": 9,
+        "created_at": "2026-08-12T16:45:30.076Z"
+      },
+      {
+        "id": "027f62aa-0a55-43ac-a6a9-5bc633cc77d5",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "event_type": "completed",
+        "payload": {
+          "message": "Project application successfully built and preview ready!"
+        },
+        "sequence_number": 10,
+        "created_at": "2026-08-12T16:45:30.077Z"
+      },
+      {
+        "id": "9ca84395-1a81-4cd4-8d8b-8a78d3ea754e",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "event_type": "thinking",
+        "payload": {
+          "message": "Analyzing task: \"Add chart widget...\""
+        },
+        "sequence_number": 11,
+        "created_at": "2026-08-12T16:45:30.122Z"
+      },
+      {
+        "id": "e50745ec-95f5-4e89-a1ad-79b177876283",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "event_type": "planning",
+        "payload": {
+          "summary": "Planning implementation for react application."
+        },
+        "sequence_number": 12,
+        "created_at": "2026-08-12T16:45:30.123Z"
+      },
+      {
+        "id": "8c62385f-32b8-4d6a-88db-316872f98ba6",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "event_type": "creating_file",
+        "payload": {
+          "path": "/src/App.tsx",
+          "size": 615
+        },
+        "sequence_number": 13,
+        "created_at": "2026-08-12T16:45:30.124Z"
+      },
+      {
+        "id": "8abad995-eeb4-44f7-a44c-244c64dd574f",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "event_type": "writing_code",
+        "payload": {
+          "path": "/src/App.tsx",
+          "message": "Generated App.tsx component code"
+        },
+        "sequence_number": 14,
+        "created_at": "2026-08-12T16:45:30.125Z"
+      },
+      {
+        "id": "b5bee982-5c8f-4a33-8f9f-80a50b0d108f",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "event_type": "build_start",
+        "payload": {
+          "build_id": "889aea21-62d4-41fa-a779-d8fc9616f481"
+        },
+        "sequence_number": 15,
+        "created_at": "2026-08-12T16:45:30.126Z"
+      },
+      {
+        "id": "af5140b5-d8c5-41b6-8eaf-2727bcbae0de",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "event_type": "build_success",
+        "payload": {
+          "build_id": "889aea21-62d4-41fa-a779-d8fc9616f481",
+          "preview_url": "/preview/8164cc5c-337b-4552-bf98-c88fa5b95ab0"
+        },
+        "sequence_number": 16,
+        "created_at": "2026-08-12T16:45:30.127Z"
+      },
+      {
+        "id": "02a334d0-c643-4fd8-a07d-70b7749a39ba",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "event_type": "preview_ready",
+        "payload": {
+          "preview_url": "/preview/8164cc5c-337b-4552-bf98-c88fa5b95ab0"
+        },
+        "sequence_number": 17,
+        "created_at": "2026-08-12T16:45:30.127Z"
+      },
+      {
+        "id": "55866784-50ef-4a54-b641-b81e627b1289",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "event_type": "completed",
+        "payload": {
+          "message": "Project application successfully built and preview ready!"
+        },
+        "sequence_number": 18,
+        "created_at": "2026-08-12T16:45:30.128Z"
+      }
+    ],
+    "a2c30100-2f6d-4a93-8107-3f399708d197": [
+      {
+        "id": "026006ea-dcd9-43b7-9d0e-8014689ae0c8",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "event_type": "thinking",
+        "payload": {
+          "message": "Analyzing task: \"Build real-time notification system...\""
+        },
+        "sequence_number": 1,
+        "created_at": "2026-08-12T16:49:15.706Z"
+      },
+      {
+        "id": "c87c9adc-c924-493b-aec1-9cd220e02347",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "event_type": "planning",
+        "payload": {
+          "summary": "Planning implementation for react application."
+        },
+        "sequence_number": 2,
+        "created_at": "2026-08-12T16:49:15.707Z"
+      },
+      {
+        "id": "a7d870c0-5843-4bde-96dc-d55d43a23d50",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "event_type": "creating_file",
+        "payload": {
+          "path": "/src/App.tsx",
+          "size": 641
+        },
+        "sequence_number": 3,
+        "created_at": "2026-08-12T16:49:15.708Z"
+      },
+      {
+        "id": "a42c77f9-5633-4e61-b394-e9e7c575e53b",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "event_type": "writing_code",
+        "payload": {
+          "path": "/src/App.tsx",
+          "message": "Generated App.tsx component code"
+        },
+        "sequence_number": 4,
+        "created_at": "2026-08-12T16:49:15.709Z"
+      },
+      {
+        "id": "2c2c2d2e-dfb1-4afa-8a90-2ae4407cef98",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "event_type": "build_start",
+        "payload": {
+          "build_id": "724516b1-2a9c-4b3b-8c99-4bd46b71b380"
+        },
+        "sequence_number": 5,
+        "created_at": "2026-08-12T16:49:15.710Z"
+      },
+      {
+        "id": "a07cb9d4-5b94-4ec3-8497-a5dddef93926",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "event_type": "build_success",
+        "payload": {
+          "build_id": "724516b1-2a9c-4b3b-8c99-4bd46b71b380",
+          "preview_url": "/preview/a2c30100-2f6d-4a93-8107-3f399708d197"
+        },
+        "sequence_number": 6,
+        "created_at": "2026-08-12T16:49:15.711Z"
+      },
+      {
+        "id": "e3b9cde0-2cab-4e38-99bf-df61006ed01a",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "event_type": "preview_ready",
+        "payload": {
+          "preview_url": "/preview/a2c30100-2f6d-4a93-8107-3f399708d197"
+        },
+        "sequence_number": 7,
+        "created_at": "2026-08-12T16:49:15.712Z"
+      },
+      {
+        "id": "d294a709-1850-4238-9d50-31ed444f8970",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "event_type": "completed",
+        "payload": {
+          "message": "Project application successfully built and preview ready!"
+        },
+        "sequence_number": 8,
+        "created_at": "2026-08-12T16:49:15.712Z"
+      },
+      {
+        "id": "97b40c17-d02d-439b-8368-4f8a2dad1570",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "event_type": "thinking",
+        "payload": {
+          "message": "Analyzing task: \"Slow refactor task...\""
+        },
+        "sequence_number": 9,
+        "created_at": "2026-08-12T16:49:15.986Z"
+      },
+      {
+        "id": "3d949cf1-6ec0-4099-86ee-926b4279f532",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "event_type": "planning",
+        "payload": {
+          "summary": "Planning implementation for react application."
+        },
+        "sequence_number": 10,
+        "created_at": "2026-08-12T16:49:15.987Z"
+      },
+      {
+        "id": "29c121a4-0a1b-4d32-93eb-23973a1512b6",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "event_type": "creating_file",
+        "payload": {
+          "path": "/src/App.tsx",
+          "size": 624
+        },
+        "sequence_number": 11,
+        "created_at": "2026-08-12T16:49:15.988Z"
+      },
+      {
+        "id": "aa1befb7-062f-4893-bf22-d0aeeac57f23",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "event_type": "writing_code",
+        "payload": {
+          "path": "/src/App.tsx",
+          "message": "Generated App.tsx component code"
+        },
+        "sequence_number": 12,
+        "created_at": "2026-08-12T16:49:15.989Z"
+      },
+      {
+        "id": "cbc064b5-8c7f-4cb3-aa86-56a4fdccfbe8",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "event_type": "build_start",
+        "payload": {
+          "build_id": "cb025d9c-ac1e-4267-b3e4-8c9e55f279e4"
+        },
+        "sequence_number": 13,
+        "created_at": "2026-08-12T16:49:15.991Z"
+      },
+      {
+        "id": "a6f40108-6c84-4861-9cb4-69733fc0b0f2",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "event_type": "build_success",
+        "payload": {
+          "build_id": "cb025d9c-ac1e-4267-b3e4-8c9e55f279e4",
+          "preview_url": "/preview/a2c30100-2f6d-4a93-8107-3f399708d197"
+        },
+        "sequence_number": 14,
+        "created_at": "2026-08-12T16:49:15.992Z"
+      },
+      {
+        "id": "8f624702-8909-4ac4-930f-596efa0e470a",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "event_type": "preview_ready",
+        "payload": {
+          "preview_url": "/preview/a2c30100-2f6d-4a93-8107-3f399708d197"
+        },
+        "sequence_number": 15,
+        "created_at": "2026-08-12T16:49:15.993Z"
+      },
+      {
+        "id": "03f3902c-6c44-4919-aa3a-4acf095887db",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "event_type": "completed",
+        "payload": {
+          "message": "Project application successfully built and preview ready!"
+        },
+        "sequence_number": 16,
+        "created_at": "2026-08-12T16:49:15.993Z"
+      }
+    ],
+    "1d435b33-efe5-4520-962d-99165b20bf9f": [
+      {
+        "id": "18c1055c-bdb0-4c6e-a303-30e39532e899",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "event_type": "thinking",
+        "payload": {
+          "message": "Analyzing task: \"Build real-time notification system...\""
+        },
+        "sequence_number": 1,
+        "created_at": "2026-08-12T16:49:41.922Z"
+      },
+      {
+        "id": "e35f2c80-1193-4df2-bd81-5dddfc7c743a",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "event_type": "planning",
+        "payload": {
+          "summary": "Planning implementation for react application."
+        },
+        "sequence_number": 2,
+        "created_at": "2026-08-12T16:49:41.923Z"
+      },
+      {
+        "id": "c7748132-c4b3-4875-91a1-355158591f4e",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "event_type": "creating_file",
+        "payload": {
+          "path": "/src/App.tsx",
+          "size": 641
+        },
+        "sequence_number": 3,
+        "created_at": "2026-08-12T16:49:41.924Z"
+      },
+      {
+        "id": "e0b50b7f-5232-420f-8253-70146bcd1719",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "event_type": "writing_code",
+        "payload": {
+          "path": "/src/App.tsx",
+          "message": "Generated App.tsx component code"
+        },
+        "sequence_number": 4,
+        "created_at": "2026-08-12T16:49:41.925Z"
+      },
+      {
+        "id": "26047a5c-01e9-43e8-ac68-4d6cfb7d0a44",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "event_type": "build_start",
+        "payload": {
+          "build_id": "08c4da58-719d-4a93-b0a3-c354fe9417cc"
+        },
+        "sequence_number": 5,
+        "created_at": "2026-08-12T16:49:41.927Z"
+      },
+      {
+        "id": "cf0d8982-aecb-4873-b4bd-ce3976c9a4b8",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "event_type": "build_success",
+        "payload": {
+          "build_id": "08c4da58-719d-4a93-b0a3-c354fe9417cc",
+          "preview_url": "/preview/1d435b33-efe5-4520-962d-99165b20bf9f"
+        },
+        "sequence_number": 6,
+        "created_at": "2026-08-12T16:49:41.927Z"
+      },
+      {
+        "id": "5b4cba04-ec0f-4438-873a-53afcad2a8db",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "event_type": "preview_ready",
+        "payload": {
+          "preview_url": "/preview/1d435b33-efe5-4520-962d-99165b20bf9f"
+        },
+        "sequence_number": 7,
+        "created_at": "2026-08-12T16:49:41.928Z"
+      },
+      {
+        "id": "cbf5e37c-7ddc-4e78-ac4b-df7b32b10571",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "event_type": "completed",
+        "payload": {
+          "message": "Project application successfully built and preview ready!"
+        },
+        "sequence_number": 8,
+        "created_at": "2026-08-12T16:49:41.929Z"
+      },
+      {
+        "id": "d61a6e60-7757-49da-890c-5569b379c8f0",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "event_type": "thinking",
+        "payload": {
+          "message": "Analyzing task: \"Slow refactor task...\""
+        },
+        "sequence_number": 9,
+        "created_at": "2026-08-12T16:49:42.202Z"
+      },
+      {
+        "id": "8284ec2c-5def-4e26-90a2-2afca3c8d99e",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "event_type": "planning",
+        "payload": {
+          "summary": "Planning implementation for react application."
+        },
+        "sequence_number": 10,
+        "created_at": "2026-08-12T16:49:42.203Z"
+      },
+      {
+        "id": "f19ad9a3-d142-402a-a6db-d86c62add65b",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "event_type": "creating_file",
+        "payload": {
+          "path": "/src/App.tsx",
+          "size": 624
+        },
+        "sequence_number": 11,
+        "created_at": "2026-08-12T16:49:42.205Z"
+      },
+      {
+        "id": "312a52f7-ca6a-40bb-bb4a-b50c1f77d937",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "event_type": "writing_code",
+        "payload": {
+          "path": "/src/App.tsx",
+          "message": "Generated App.tsx component code"
+        },
+        "sequence_number": 12,
+        "created_at": "2026-08-12T16:49:42.206Z"
+      },
+      {
+        "id": "20903d44-7008-44a6-b334-2ca72aaec7b8",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "event_type": "build_start",
+        "payload": {
+          "build_id": "4263fe9b-7b01-42f7-bbf4-9dc770d6bc2d"
+        },
+        "sequence_number": 13,
+        "created_at": "2026-08-12T16:49:42.207Z"
+      },
+      {
+        "id": "149f1496-d958-46f9-86a0-11c62cd2999c",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "event_type": "build_success",
+        "payload": {
+          "build_id": "4263fe9b-7b01-42f7-bbf4-9dc770d6bc2d",
+          "preview_url": "/preview/1d435b33-efe5-4520-962d-99165b20bf9f"
+        },
+        "sequence_number": 14,
+        "created_at": "2026-08-12T16:49:42.208Z"
+      },
+      {
+        "id": "2db45807-eef1-40f7-b8f8-0d596a7205a9",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "event_type": "preview_ready",
+        "payload": {
+          "preview_url": "/preview/1d435b33-efe5-4520-962d-99165b20bf9f"
+        },
+        "sequence_number": 15,
+        "created_at": "2026-08-12T16:49:42.209Z"
+      },
+      {
+        "id": "81b5677d-fd95-4819-9fc4-68e05ac2ce86",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "event_type": "completed",
+        "payload": {
+          "message": "Project application successfully built and preview ready!"
+        },
+        "sequence_number": 16,
+        "created_at": "2026-08-12T16:49:42.209Z"
+      }
+    ],
+    "c0b25ebb-ff4a-40c5-9554-6681c0b521c7": [
+      {
+        "id": "573379f3-2a10-4ff4-a4de-af829e615727",
+        "project_id": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+        "event_type": "thinking",
+        "payload": {
+          "message": "Analyzing task: \"Generate multi-tenant analytics charts and navigation sideba...\""
+        },
+        "sequence_number": 1,
+        "created_at": "2026-08-12T16:50:34.125Z"
+      },
+      {
+        "id": "c6d3838a-db63-40aa-b370-ea382fa7b036",
+        "project_id": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+        "event_type": "planning",
+        "payload": {
+          "summary": "Planning implementation for react application."
+        },
+        "sequence_number": 2,
+        "created_at": "2026-08-12T16:50:34.126Z"
+      },
+      {
+        "id": "08e130ac-eb5e-425a-82d1-95d77da69ec2",
+        "project_id": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+        "event_type": "creating_file",
+        "payload": {
+          "path": "/src/App.tsx",
+          "size": 656
+        },
+        "sequence_number": 3,
+        "created_at": "2026-08-12T16:50:34.127Z"
+      },
+      {
+        "id": "74e4d34b-db6f-4f14-9b49-62adff47c3f7",
+        "project_id": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+        "event_type": "writing_code",
+        "payload": {
+          "path": "/src/App.tsx",
+          "message": "Generated App.tsx component code"
+        },
+        "sequence_number": 4,
+        "created_at": "2026-08-12T16:50:34.128Z"
+      },
+      {
+        "id": "3d21162f-3ddc-4ca0-9ab4-8a5d472ba0a4",
+        "project_id": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+        "event_type": "build_start",
+        "payload": {
+          "build_id": "358f2ee7-dbd5-4042-a738-cecf6784f5cb"
+        },
+        "sequence_number": 5,
+        "created_at": "2026-08-12T16:50:34.130Z"
+      },
+      {
+        "id": "9afb03e0-2eda-41e1-8e31-cd48285ddb75",
+        "project_id": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+        "event_type": "build_success",
+        "payload": {
+          "build_id": "358f2ee7-dbd5-4042-a738-cecf6784f5cb",
+          "preview_url": "/preview/c0b25ebb-ff4a-40c5-9554-6681c0b521c7"
+        },
+        "sequence_number": 6,
+        "created_at": "2026-08-12T16:50:34.131Z"
+      },
+      {
+        "id": "ed180555-1476-4eb2-9613-2d5d9f7970f8",
+        "project_id": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+        "event_type": "preview_ready",
+        "payload": {
+          "preview_url": "/preview/c0b25ebb-ff4a-40c5-9554-6681c0b521c7"
+        },
+        "sequence_number": 7,
+        "created_at": "2026-08-12T16:50:34.132Z"
+      },
+      {
+        "id": "e5b96109-91b4-4d13-829d-e3f2790cedb8",
+        "project_id": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+        "event_type": "completed",
+        "payload": {
+          "message": "Project application successfully built and preview ready!"
+        },
+        "sequence_number": 8,
+        "created_at": "2026-08-12T16:50:34.133Z"
+      }
     ]
   },
   "project_builds": {
@@ -127,6 +1685,824 @@
         "preview_url": "https://nexo.dev/preview/demo-123",
         "created_at": "2026-08-12T16:16:42.810Z",
         "completed_at": "2026-08-12T16:16:42.811Z"
+      }
+    },
+    "8164cc5c-337b-4552-bf98-c88fa5b95ab0": {
+      "b5669e3f-4ca1-4cce-a2f5-8aa88d2c4030": {
+        "id": "b5669e3f-4ca1-4cce-a2f5-8aa88d2c4030",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "status": "success",
+        "logs": "Bundle compiled cleanly in 0.8s",
+        "preview_url": "/preview/8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "created_at": "2026-08-12T16:45:30.074Z",
+        "completed_at": "2026-08-12T16:45:30.075Z"
+      },
+      "889aea21-62d4-41fa-a779-d8fc9616f481": {
+        "id": "889aea21-62d4-41fa-a779-d8fc9616f481",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "status": "success",
+        "logs": "Bundle compiled cleanly in 0.8s",
+        "preview_url": "/preview/8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "created_at": "2026-08-12T16:45:30.126Z",
+        "completed_at": "2026-08-12T16:45:30.126Z"
+      }
+    },
+    "a2c30100-2f6d-4a93-8107-3f399708d197": {
+      "724516b1-2a9c-4b3b-8c99-4bd46b71b380": {
+        "id": "724516b1-2a9c-4b3b-8c99-4bd46b71b380",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "status": "success",
+        "logs": "Bundle compiled cleanly in 0.8s",
+        "preview_url": "/preview/a2c30100-2f6d-4a93-8107-3f399708d197",
+        "created_at": "2026-08-12T16:49:15.710Z",
+        "completed_at": "2026-08-12T16:49:15.711Z"
+      },
+      "cb025d9c-ac1e-4267-b3e4-8c9e55f279e4": {
+        "id": "cb025d9c-ac1e-4267-b3e4-8c9e55f279e4",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "status": "success",
+        "logs": "Bundle compiled cleanly in 0.8s",
+        "preview_url": "/preview/a2c30100-2f6d-4a93-8107-3f399708d197",
+        "created_at": "2026-08-12T16:49:15.990Z",
+        "completed_at": "2026-08-12T16:49:15.991Z"
+      }
+    },
+    "1d435b33-efe5-4520-962d-99165b20bf9f": {
+      "08c4da58-719d-4a93-b0a3-c354fe9417cc": {
+        "id": "08c4da58-719d-4a93-b0a3-c354fe9417cc",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "status": "success",
+        "logs": "Bundle compiled cleanly in 0.8s",
+        "preview_url": "/preview/1d435b33-efe5-4520-962d-99165b20bf9f",
+        "created_at": "2026-08-12T16:49:41.926Z",
+        "completed_at": "2026-08-12T16:49:41.927Z"
+      },
+      "4263fe9b-7b01-42f7-bbf4-9dc770d6bc2d": {
+        "id": "4263fe9b-7b01-42f7-bbf4-9dc770d6bc2d",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "status": "success",
+        "logs": "Bundle compiled cleanly in 0.8s",
+        "preview_url": "/preview/1d435b33-efe5-4520-962d-99165b20bf9f",
+        "created_at": "2026-08-12T16:49:42.207Z",
+        "completed_at": "2026-08-12T16:49:42.208Z"
+      }
+    },
+    "c0b25ebb-ff4a-40c5-9554-6681c0b521c7": {
+      "358f2ee7-dbd5-4042-a738-cecf6784f5cb": {
+        "id": "358f2ee7-dbd5-4042-a738-cecf6784f5cb",
+        "project_id": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+        "status": "success",
+        "logs": "Bundle compiled cleanly in 0.8s",
+        "preview_url": "/preview/c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+        "created_at": "2026-08-12T16:50:34.130Z",
+        "completed_at": "2026-08-12T16:50:34.131Z"
+      }
+    }
+  },
+  "project_settings": {
+    "a65f946e-4b4c-4512-8721-3e07664b309e": {
+      "active_file": "/src/components/ChatBox.tsx",
+      "open_tabs": [
+        "/src/App.tsx",
+        "/src/components/ChatBox.tsx"
+      ],
+      "preview_device": "mobile",
+      "theme": "dark",
+      "updated_at": "2026-08-12T16:24:06.532Z"
+    }
+  },
+  "project_active_jobs": {
+    "a65f946e-4b4c-4512-8721-3e07664b309e": {
+      "id": "job_active_build_99",
+      "status": "generating",
+      "step": "Building frontend bundle...",
+      "updated_at": "2026-08-12T16:24:06.533Z"
+    }
+  },
+  "project_audit_logs": {
+    "2ed7e56b-ff6c-4638-921d-c4c01ab101ea": [
+      {
+        "id": "080511eb-80ee-4f87-8985-a56ae85da35a",
+        "project_id": "2ed7e56b-ff6c-4638-921d-c4c01ab101ea",
+        "user_id": "usr_attacker_bob_uuid",
+        "action": "GET_PROJECT",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "FAILED_404",
+        "details": {
+          "statusCode": 404,
+          "params": {
+            "projectId": "2ed7e56b-ff6c-4638-921d-c4c01ab101ea"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:33:29.620Z"
+      },
+      {
+        "id": "1881707b-2c2d-45d4-8704-85851d2cdfbb",
+        "project_id": "2ed7e56b-ff6c-4638-921d-c4c01ab101ea",
+        "user_id": "usr_attacker_bob_uuid",
+        "action": "GET_PROJECT_CHAT",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "FAILED_404",
+        "details": {
+          "statusCode": 404,
+          "params": {
+            "projectId": "2ed7e56b-ff6c-4638-921d-c4c01ab101ea"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:33:29.632Z"
+      },
+      {
+        "id": "ec5cf275-341f-4e97-a558-8791c4519ce3",
+        "project_id": "2ed7e56b-ff6c-4638-921d-c4c01ab101ea",
+        "user_id": "usr_attacker_bob_uuid",
+        "action": "SAVE_PROJECT_FILE",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "FAILED_404",
+        "details": {
+          "statusCode": 404,
+          "params": {
+            "projectId": "2ed7e56b-ff6c-4638-921d-c4c01ab101ea"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:33:29.660Z"
+      }
+    ],
+    "6ff34f10-fb40-4ee4-bc63-e4c2a7a6bca0": [
+      {
+        "id": "a6ef33ce-50d8-42cf-96ca-5b823735aee0",
+        "project_id": "6ff34f10-fb40-4ee4-bc63-e4c2a7a6bca0",
+        "user_id": "usr_attacker_bob_uuid",
+        "action": "GET_PROJECT",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "FAILED_404",
+        "details": {
+          "statusCode": 404,
+          "params": {
+            "projectId": "6ff34f10-fb40-4ee4-bc63-e4c2a7a6bca0"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:34:54.744Z"
+      },
+      {
+        "id": "d34f04a4-45da-4a54-9251-513b1e03d9ee",
+        "project_id": "6ff34f10-fb40-4ee4-bc63-e4c2a7a6bca0",
+        "user_id": "usr_attacker_bob_uuid",
+        "action": "GET_PROJECT_CHAT",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "FAILED_404",
+        "details": {
+          "statusCode": 404,
+          "params": {
+            "projectId": "6ff34f10-fb40-4ee4-bc63-e4c2a7a6bca0"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:34:54.757Z"
+      },
+      {
+        "id": "5a9ea20c-036d-4d63-b69a-968a16e82483",
+        "project_id": "6ff34f10-fb40-4ee4-bc63-e4c2a7a6bca0",
+        "user_id": "usr_attacker_bob_uuid",
+        "action": "SAVE_PROJECT_FILE",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "FAILED_404",
+        "details": {
+          "statusCode": 404,
+          "params": {
+            "projectId": "6ff34f10-fb40-4ee4-bc63-e4c2a7a6bca0"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:34:54.775Z"
+      }
+    ],
+    "2d3ab37b-c741-458e-b63d-fddb4e003f4c": [
+      {
+        "id": "69eddf24-f31b-4e91-867c-ce8c74f87029",
+        "project_id": "2d3ab37b-c741-458e-b63d-fddb4e003f4c",
+        "user_id": "usr_attacker_bob_uuid",
+        "action": "GET_PROJECT",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "FAILED_404",
+        "details": {
+          "statusCode": 404,
+          "params": {
+            "projectId": "2d3ab37b-c741-458e-b63d-fddb4e003f4c"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:36:56.400Z"
+      },
+      {
+        "id": "04e67646-9fe2-4559-9fe2-19794bd7d526",
+        "project_id": "2d3ab37b-c741-458e-b63d-fddb4e003f4c",
+        "user_id": "usr_attacker_bob_uuid",
+        "action": "GET_PROJECT_CHAT",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "FAILED_404",
+        "details": {
+          "statusCode": 404,
+          "params": {
+            "projectId": "2d3ab37b-c741-458e-b63d-fddb4e003f4c"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:36:56.412Z"
+      },
+      {
+        "id": "ee8e62a8-d4f0-4311-9a14-803a2d961a6b",
+        "project_id": "2d3ab37b-c741-458e-b63d-fddb4e003f4c",
+        "user_id": "usr_attacker_bob_uuid",
+        "action": "SAVE_PROJECT_FILE",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "FAILED_404",
+        "details": {
+          "statusCode": 404,
+          "params": {
+            "projectId": "2d3ab37b-c741-458e-b63d-fddb4e003f4c"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:36:56.426Z"
+      }
+    ],
+    "8164cc5c-337b-4552-bf98-c88fa5b95ab0": [
+      {
+        "id": "b818ffb5-92a0-4a4d-9bed-5538040b1551",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "user_id": "usr_phase5_alice",
+        "action": "EXECUTE_PROJECT_AI",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "SUCCESS",
+        "details": {
+          "statusCode": 200,
+          "params": {
+            "projectId": "8164cc5c-337b-4552-bf98-c88fa5b95ab0"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:45:30.129Z"
+      },
+      {
+        "id": "0c345566-2fd6-43cf-a51c-49f0afa4bea5",
+        "project_id": "8164cc5c-337b-4552-bf98-c88fa5b95ab0",
+        "user_id": "usr_phase5_attacker_bob",
+        "action": "EXECUTE_PROJECT_AI",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "FAILED_404",
+        "details": {
+          "statusCode": 404,
+          "params": {
+            "projectId": "8164cc5c-337b-4552-bf98-c88fa5b95ab0"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:45:30.138Z"
+      }
+    ],
+    "a2c30100-2f6d-4a93-8107-3f399708d197": [
+      {
+        "id": "fecb0b3a-ccd0-43c0-975c-d99ddaef8f3c",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "user_id": "usr_phase6_alice",
+        "action": "ENQUEUE_BACKGROUND_JOB",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "SUCCESS",
+        "details": {
+          "statusCode": 202,
+          "params": {
+            "projectId": "a2c30100-2f6d-4a93-8107-3f399708d197"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:49:15.702Z"
+      },
+      {
+        "id": "fb89e82d-3d69-46ba-b260-3edac17aed11",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "user_id": "usr_phase6_alice",
+        "action": "GET_ACTIVE_JOBS",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "SUCCESS",
+        "details": {
+          "statusCode": 200,
+          "params": {
+            "projectId": "a2c30100-2f6d-4a93-8107-3f399708d197"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:49:15.721Z"
+      },
+      {
+        "id": "91993c07-2aea-4591-a5d3-f4e66da97117",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "user_id": "usr_phase6_alice",
+        "action": "GET_JOB_STATUS",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "SUCCESS",
+        "details": {
+          "statusCode": 200,
+          "params": {
+            "projectId": "a2c30100-2f6d-4a93-8107-3f399708d197",
+            "jobId": "cd7b712e-a1ae-419f-b874-4dc21e0cd6a0"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:49:15.951Z"
+      },
+      {
+        "id": "b47a676e-d224-4802-bc0e-4e591f289ebb",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "user_id": "usr_phase6_alice",
+        "action": "GET_PROJECT_EVENTS",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "SUCCESS",
+        "details": {
+          "statusCode": 200,
+          "params": {
+            "projectId": "a2c30100-2f6d-4a93-8107-3f399708d197"
+          },
+          "query": {
+            "since_sequence": "1"
+          }
+        },
+        "timestamp": "2026-08-12T16:49:15.967Z"
+      },
+      {
+        "id": "6d5ff0b4-a202-45f1-bf91-e70b8d09985a",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "user_id": "usr_phase6_alice",
+        "action": "ENQUEUE_BACKGROUND_JOB",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "SUCCESS",
+        "details": {
+          "statusCode": 202,
+          "params": {
+            "projectId": "a2c30100-2f6d-4a93-8107-3f399708d197"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:49:15.983Z"
+      },
+      {
+        "id": "6f47a07b-8b39-4d3c-870c-f490de5ced62",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "user_id": "usr_phase6_alice",
+        "action": "CANCEL_JOB",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "SUCCESS",
+        "details": {
+          "statusCode": 200,
+          "params": {
+            "projectId": "a2c30100-2f6d-4a93-8107-3f399708d197",
+            "jobId": "76dae40e-344a-4775-8927-6d13b5551c32"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:49:16.013Z"
+      },
+      {
+        "id": "eec43906-ed46-41fc-9bd0-18d087fd18ff",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "user_id": "usr_phase6_bob",
+        "action": "GET_JOB_STATUS",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "FAILED_404",
+        "details": {
+          "statusCode": 404,
+          "params": {
+            "projectId": "a2c30100-2f6d-4a93-8107-3f399708d197",
+            "jobId": "cd7b712e-a1ae-419f-b874-4dc21e0cd6a0"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:49:16.032Z"
+      }
+    ],
+    "1d435b33-efe5-4520-962d-99165b20bf9f": [
+      {
+        "id": "5f0216a4-c770-4fd9-a0c6-84228dfe6480",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "user_id": "usr_phase6_alice",
+        "action": "ENQUEUE_BACKGROUND_JOB",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "SUCCESS",
+        "details": {
+          "statusCode": 202,
+          "params": {
+            "projectId": "1d435b33-efe5-4520-962d-99165b20bf9f"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:49:41.918Z"
+      },
+      {
+        "id": "5eb8bc80-fd9c-4d20-be48-934fd8854e83",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "user_id": "usr_phase6_alice",
+        "action": "GET_JOB_STATUS",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "SUCCESS",
+        "details": {
+          "statusCode": 200,
+          "params": {
+            "projectId": "1d435b33-efe5-4520-962d-99165b20bf9f",
+            "jobId": "6727824d-d451-4c49-8de9-e7b80454b0bc"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:49:41.937Z"
+      },
+      {
+        "id": "8b12f4b2-d902-402b-b87a-10fc86952a20",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "user_id": "usr_phase6_alice",
+        "action": "GET_JOB_STATUS",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "SUCCESS",
+        "details": {
+          "statusCode": 200,
+          "params": {
+            "projectId": "1d435b33-efe5-4520-962d-99165b20bf9f",
+            "jobId": "6727824d-d451-4c49-8de9-e7b80454b0bc"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:49:42.165Z"
+      },
+      {
+        "id": "0fbda607-92a6-47dc-8c3e-8220f6f24059",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "user_id": "usr_phase6_alice",
+        "action": "GET_PROJECT_EVENTS",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "SUCCESS",
+        "details": {
+          "statusCode": 200,
+          "params": {
+            "projectId": "1d435b33-efe5-4520-962d-99165b20bf9f"
+          },
+          "query": {
+            "since_sequence": "1"
+          }
+        },
+        "timestamp": "2026-08-12T16:49:42.181Z"
+      },
+      {
+        "id": "40727d52-9e6a-4c00-a29c-c01d68a1f4a6",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "user_id": "usr_phase6_alice",
+        "action": "ENQUEUE_BACKGROUND_JOB",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "SUCCESS",
+        "details": {
+          "statusCode": 202,
+          "params": {
+            "projectId": "1d435b33-efe5-4520-962d-99165b20bf9f"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:49:42.200Z"
+      },
+      {
+        "id": "99aaa01c-f4f0-4461-8a6e-9b9344ed8248",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "user_id": "usr_phase6_alice",
+        "action": "CANCEL_JOB",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "SUCCESS",
+        "details": {
+          "statusCode": 200,
+          "params": {
+            "projectId": "1d435b33-efe5-4520-962d-99165b20bf9f",
+            "jobId": "9b674a55-2ff7-4c61-a2bc-fe6f9f003e51"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:49:42.217Z"
+      },
+      {
+        "id": "b1b4cba3-6a87-43ff-a02d-21df207d8bf6",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "user_id": "usr_phase6_bob",
+        "action": "GET_JOB_STATUS",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "FAILED_404",
+        "details": {
+          "statusCode": 404,
+          "params": {
+            "projectId": "1d435b33-efe5-4520-962d-99165b20bf9f",
+            "jobId": "6727824d-d451-4c49-8de9-e7b80454b0bc"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:49:42.231Z"
+      }
+    ],
+    "c0b25ebb-ff4a-40c5-9554-6681c0b521c7": [
+      {
+        "id": "fd508223-8c6f-460f-bcc0-465450d7b214",
+        "project_id": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+        "user_id": "usr_nexo_master_owner",
+        "action": "ENQUEUE_BACKGROUND_JOB",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "SUCCESS",
+        "details": {
+          "statusCode": 202,
+          "params": {
+            "projectId": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:50:34.121Z"
+      },
+      {
+        "id": "9d8403a4-3e90-4fe7-9a21-4b34c9ee2cbd",
+        "project_id": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+        "user_id": "usr_nexo_master_owner",
+        "action": "GET_JOB_STATUS",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "SUCCESS",
+        "details": {
+          "statusCode": 200,
+          "params": {
+            "projectId": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+            "jobId": "e52419f4-3de6-4e44-ab0c-163c9dabc7a1"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:50:34.363Z"
+      },
+      {
+        "id": "1c6d55e9-6198-4ff4-9b9b-da705119bce4",
+        "project_id": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+        "user_id": "usr_nexo_master_owner",
+        "action": "GET_WORKSPACE_STATE",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "SUCCESS",
+        "details": {
+          "statusCode": 200,
+          "params": {
+            "projectId": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:50:34.369Z"
+      },
+      {
+        "id": "f1101ff7-1019-443b-88f2-3bb3e39a8d53",
+        "project_id": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+        "user_id": "usr_nexo_master_hacker",
+        "action": "GET_WORKSPACE_STATE",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "node",
+        "status": "FAILED_404",
+        "details": {
+          "statusCode": 404,
+          "params": {
+            "projectId": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7"
+          },
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:50:34.379Z"
+      }
+    ],
+    "system": [
+      {
+        "id": "26762da9-4b96-4f86-a270-7add66a03092",
+        "project_id": "system",
+        "user_id": "guest_oz73xypax_1786553871811",
+        "action": "CREATE_PROJECT",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 Edg/151.0.0.0",
+        "status": "SUCCESS",
+        "details": {
+          "statusCode": 201,
+          "params": {},
+          "query": {}
+        },
+        "timestamp": "2026-08-12T16:57:51.863Z"
+      }
+    ],
+    "ffcee42f-703d-4358-adcb-d709fb35b869": [
+      {
+        "id": "d1a04b01-d477-40cc-b0a9-656e4518b134",
+        "project_id": "ffcee42f-703d-4358-adcb-d709fb35b869",
+        "user_id": "guest_oz73xypax_1786553871811",
+        "action": "GET_WORKSPACE_STATE",
+        "ip_address": "::ffff:127.0.0.1",
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 Edg/151.0.0.0",
+        "status": "SUCCESS",
+        "details": {
+          "statusCode": 200,
+          "params": {
+            "projectId": "ffcee42f-703d-4358-adcb-d709fb35b869"
+          },
+          "query": {
+            "limit": "50"
+          }
+        },
+        "timestamp": "2026-08-12T16:57:52.244Z"
+      }
+    ]
+  },
+  "project_jobs": {
+    "a2c30100-2f6d-4a93-8107-3f399708d197": {
+      "cd7b712e-a1ae-419f-b874-4dc21e0cd6a0": {
+        "id": "cd7b712e-a1ae-419f-b874-4dc21e0cd6a0",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "user_id": "usr_phase6_alice",
+        "type": "code_generation",
+        "status": "completed",
+        "payload": {
+          "prompt": "Build real-time notification system"
+        },
+        "attempts": 1,
+        "created_at": "2026-08-12T16:49:15.701Z",
+        "started_at": "2026-08-12T16:49:15.704Z",
+        "completed_at": "2026-08-12T16:49:15.714Z",
+        "error": null,
+        "final_state": {
+          "final_status": "completed",
+          "summary": "Successfully generated application in 10ms.",
+          "changed_files": [
+            "/src/App.tsx"
+          ],
+          "build_result": {
+            "success": true
+          },
+          "preview_url": "/preview/a2c30100-2f6d-4a93-8107-3f399708d197",
+          "token_usage": {
+            "prompt_tokens": 450,
+            "completion_tokens": 850,
+            "total_tokens": 1300
+          },
+          "execution_time": 10
+        }
+      },
+      "76dae40e-344a-4775-8927-6d13b5551c32": {
+        "id": "76dae40e-344a-4775-8927-6d13b5551c32",
+        "project_id": "a2c30100-2f6d-4a93-8107-3f399708d197",
+        "user_id": "usr_phase6_alice",
+        "type": "refactor",
+        "status": "completed",
+        "payload": {
+          "prompt": "Slow refactor task"
+        },
+        "attempts": 1,
+        "created_at": "2026-08-12T16:49:15.981Z",
+        "started_at": "2026-08-12T16:49:15.984Z",
+        "completed_at": "2026-08-12T16:49:15.994Z",
+        "error": null,
+        "final_state": {
+          "final_status": "completed",
+          "summary": "Successfully generated application in 10ms.",
+          "changed_files": [
+            "/src/App.tsx"
+          ],
+          "build_result": {
+            "success": true
+          },
+          "preview_url": "/preview/a2c30100-2f6d-4a93-8107-3f399708d197",
+          "token_usage": {
+            "prompt_tokens": 450,
+            "completion_tokens": 850,
+            "total_tokens": 1300
+          },
+          "execution_time": 10
+        }
+      }
+    },
+    "1d435b33-efe5-4520-962d-99165b20bf9f": {
+      "6727824d-d451-4c49-8de9-e7b80454b0bc": {
+        "id": "6727824d-d451-4c49-8de9-e7b80454b0bc",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "user_id": "usr_phase6_alice",
+        "type": "code_generation",
+        "status": "completed",
+        "payload": {
+          "prompt": "Build real-time notification system"
+        },
+        "attempts": 1,
+        "created_at": "2026-08-12T16:49:41.916Z",
+        "started_at": "2026-08-12T16:49:41.920Z",
+        "completed_at": "2026-08-12T16:49:41.930Z",
+        "error": null,
+        "final_state": {
+          "final_status": "completed",
+          "summary": "Successfully generated application in 10ms.",
+          "changed_files": [
+            "/src/App.tsx"
+          ],
+          "build_result": {
+            "success": true
+          },
+          "preview_url": "/preview/1d435b33-efe5-4520-962d-99165b20bf9f",
+          "token_usage": {
+            "prompt_tokens": 450,
+            "completion_tokens": 850,
+            "total_tokens": 1300
+          },
+          "execution_time": 10
+        }
+      },
+      "9b674a55-2ff7-4c61-a2bc-fe6f9f003e51": {
+        "id": "9b674a55-2ff7-4c61-a2bc-fe6f9f003e51",
+        "project_id": "1d435b33-efe5-4520-962d-99165b20bf9f",
+        "user_id": "usr_phase6_alice",
+        "type": "refactor",
+        "status": "cancelled",
+        "payload": {
+          "prompt": "Slow refactor task"
+        },
+        "attempts": 1,
+        "created_at": "2026-08-12T16:49:42.199Z",
+        "started_at": "2026-08-12T16:49:42.201Z",
+        "completed_at": "2026-08-12T16:49:42.211Z",
+        "error": "Cancelled by user",
+        "final_state": {
+          "final_status": "completed",
+          "summary": "Successfully generated application in 10ms.",
+          "changed_files": [
+            "/src/App.tsx"
+          ],
+          "build_result": {
+            "success": true
+          },
+          "preview_url": "/preview/1d435b33-efe5-4520-962d-99165b20bf9f",
+          "token_usage": {
+            "prompt_tokens": 450,
+            "completion_tokens": 850,
+            "total_tokens": 1300
+          },
+          "execution_time": 10
+        }
+      }
+    },
+    "c0b25ebb-ff4a-40c5-9554-6681c0b521c7": {
+      "e52419f4-3de6-4e44-ab0c-163c9dabc7a1": {
+        "id": "e52419f4-3de6-4e44-ab0c-163c9dabc7a1",
+        "project_id": "c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+        "user_id": "usr_nexo_master_owner",
+        "type": "code_generation",
+        "status": "completed",
+        "payload": {
+          "prompt": "Generate multi-tenant analytics charts and navigation sidebar"
+        },
+        "attempts": 1,
+        "created_at": "2026-08-12T16:50:34.119Z",
+        "started_at": "2026-08-12T16:50:34.123Z",
+        "completed_at": "2026-08-12T16:50:34.134Z",
+        "error": null,
+        "final_state": {
+          "final_status": "completed",
+          "summary": "Successfully generated application in 11ms.",
+          "changed_files": [
+            "/src/App.tsx"
+          ],
+          "build_result": {
+            "success": true
+          },
+          "preview_url": "/preview/c0b25ebb-ff4a-40c5-9554-6681c0b521c7",
+          "token_usage": {
+            "prompt_tokens": 450,
+            "completion_tokens": 850,
+            "total_tokens": 1300
+          },
+          "execution_time": 11
+        }
       }
     }
   }

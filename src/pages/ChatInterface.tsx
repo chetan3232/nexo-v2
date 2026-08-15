@@ -50,6 +50,7 @@ import { DesignSelectionPanel } from "../components/design/DesignSelectionPanel"
 import { ImplementationPlanPanel } from "../components/planning/ImplementationPlanPanel";
 import { FeatureTimelinePanel } from "../components/planning/FeatureTimelinePanel";
 import { saveCurrentProject } from "../services/saveService";
+import { getProjectApi, getWorkspaceStateApi } from "../services/projectApi";
 import { Orchestrator } from "../agents/Orchestrator";
 import { Message } from "../types";
 
@@ -267,22 +268,67 @@ const ChatInterface: React.FC = () => {
       if (projectId) {
         setLoadingChat(true);
         try {
-          const res = await getProjectApi(projectId);
-          if (res.success && res.project) {
-            useProjectStore.getState().setCurrentProject(res.project);
-            if (res.project.name) setProjectTitle(res.project.name);
+          const res = await getWorkspaceStateApi(projectId);
+          if (res.success && res.workspace) {
+            const { project, files, chat, latest_build, settings, active_job } = res.workspace;
+
+            useProjectStore.getState().setCurrentProject(project);
+            if (project.name) setProjectTitle(project.name);
+
+            // 1. Hydrate files into currentContent
+            if (files && files.length > 0) {
+              const filesMap: Record<string, string> = {};
+              files.forEach((f: any) => {
+                filesMap[f.path] = f.content;
+              });
+              projectStore.setCurrentContent({
+                files: filesMap,
+                patches: {},
+                mainFile: settings?.active_file ? settings.active_file.slice(1) : "App.tsx",
+                template: "web"
+              });
+            }
+
+            // 2. Hydrate chat history
+            if (chat && chat.messages) {
+              const formattedMsgs = chat.messages.map((m: any) => ({
+                role: m.role,
+                text: m.content,
+                timestamp: new Date(m.created_at).getTime(),
+                messageType: m.message_type
+              }));
+              chatStore.setMessages(formattedMsgs);
+              if (formattedMsgs.length > 0) chatStore.setHasStarted(true);
+            }
+
+            // 3. Restore active file selection
+            if (settings?.active_file) {
+              setSelectedFileName(settings.active_file);
+            }
+
+            // 4. Restore latest build & preview URL
+            if (latest_build) {
+              if (latest_build.preview_url) {
+                projectStore.setDeployUrl(latest_build.preview_url);
+              }
+            }
+
             setShowLanding(false);
 
-            // If new project workspace without messages yet, trigger initial prompt build
-            if (chatStore.messages.length === 0 && res.project.initial_prompt) {
-              handleSend(res.project.initial_prompt);
+            // 5. Detect unfinished AI job and reconnect to active build stream
+            if (active_job && active_job.id) {
+              toast.loading("Reconnecting to active build...", { id: "job-reconnect" });
+              Orchestrator.getInstance().connectToJobStream(active_job.id, projectId);
+              setTimeout(() => toast.dismiss("job-reconnect"), 3000);
+            } else if (chatStore.messages.length === 0 && project.initial_prompt) {
+              handleSend(project.initial_prompt);
             }
           } else {
             toast.error("Project not found or unauthorized");
             navigate("/");
           }
         } catch (err: any) {
-          console.error("Error loading project workspace:", err);
+          console.error("Error loading project workspace state:", err);
           toast.error(err.message || "Failed to load project workspace");
           navigate("/");
         } finally {

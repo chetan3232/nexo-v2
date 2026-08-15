@@ -23,7 +23,11 @@ let dbData = {
   project_files: {},         // map of project_id -> map of path -> file object
   project_chat_messages: {}, // map of project_id -> array of message objects
   project_events: {},        // map of project_id -> array of event objects
-  project_builds: {}         // map of project_id -> map of build_id -> build object
+  project_builds: {},        // map of project_id -> map of build_id -> build object
+  project_settings: {},      // map of project_id -> settings object
+  project_active_jobs: {},   // map of project_id -> active job object
+  project_audit_logs: {},    // map of project_id -> array of audit log objects
+  project_jobs: {}           // map of project_id -> map of job_id -> job object
 };
 
 const initDb = () => {
@@ -37,6 +41,10 @@ const initDb = () => {
         dbData.project_chat_messages = parsed.project_chat_messages || {};
         dbData.project_events = parsed.project_events || {};
         dbData.project_builds = parsed.project_builds || {};
+        dbData.project_settings = parsed.project_settings || {};
+        dbData.project_active_jobs = parsed.project_active_jobs || {};
+        dbData.project_audit_logs = parsed.project_audit_logs || {};
+        dbData.project_jobs = parsed.project_jobs || {};
       }
     } else {
       saveDb();
@@ -259,11 +267,34 @@ const createChatMessage = ({ projectId, userId, role = 'user', content = '', mes
   return messageRecord;
 };
 
-const getProjectChat = ({ projectId, userId }) => {
+const getProjectChat = ({ projectId, userId, limit = 50, before = null }) => {
   const project = getProjectByIdAndUserId(projectId, userId);
   if (!project) throw new Error('Unauthorized or project not found');
 
-  return dbData.project_chat_messages[projectId] || [];
+  const allMessages = dbData.project_chat_messages[projectId] || [];
+  const parsedLimit = Math.max(1, Math.min(parseInt(limit, 10) || 50, 200));
+
+  let filteredMessages = allMessages;
+
+  if (before) {
+    const beforeIndex = allMessages.findIndex((m) => m.id === before);
+    if (beforeIndex !== -1) {
+      filteredMessages = allMessages.slice(0, beforeIndex);
+    }
+  }
+
+  const totalCount = allMessages.length;
+  const startIndex = Math.max(0, filteredMessages.length - parsedLimit);
+  const pageMessages = filteredMessages.slice(startIndex);
+  const hasMore = startIndex > 0;
+  const nextCursor = hasMore && pageMessages.length > 0 ? pageMessages[0].id : null;
+
+  return {
+    messages: pageMessages,
+    total_count: totalCount,
+    has_more: hasMore,
+    next_cursor: nextCursor
+  };
 };
 
 // ─── Project Events Logic ────────────────────────────────────────────────────
@@ -292,11 +323,120 @@ const createProjectEvent = ({ projectId, userId, eventType, payload = {} }) => {
   return eventRecord;
 };
 
-const getProjectEvents = ({ projectId, userId }) => {
+const getProjectEvents = ({ projectId, userId, sinceSequence = null }) => {
   const project = getProjectByIdAndUserId(projectId, userId);
   if (!project) throw new Error('Unauthorized or project not found');
 
-  return dbData.project_events[projectId] || [];
+  const allEvents = dbData.project_events[projectId] || [];
+
+  if (sinceSequence !== null && sinceSequence !== undefined) {
+    const seqNum = parseInt(sinceSequence, 10);
+    if (!isNaN(seqNum)) {
+      return allEvents.filter((e) => e.sequence_number > seqNum);
+    }
+  }
+
+  return allEvents;
+};
+
+// ─── Project Jobs Storage Logic ───────────────────────────────────────────────
+
+const VALID_JOB_STATUSES = ['queued', 'running', 'paused', 'completed', 'failed', 'cancelled'];
+
+const createJob = ({ projectId, userId, type = 'code_generation', payload = {} }) => {
+  const project = getProjectByIdAndUserId(projectId, userId);
+  if (!project) throw new Error('Unauthorized or project not found');
+
+  const jobId = uuidv4();
+  const now = new Date().toISOString();
+
+  const jobRecord = {
+    id: jobId,
+    project_id: projectId,
+    user_id: userId,
+    type: type || 'code_generation',
+    status: 'queued',
+    payload: payload || {},
+    attempts: 0,
+    created_at: now,
+    started_at: null,
+    completed_at: null,
+    error: null,
+    final_state: null
+  };
+
+  if (!dbData.project_jobs[projectId]) {
+    dbData.project_jobs[projectId] = {};
+  }
+
+  dbData.project_jobs[projectId][jobId] = jobRecord;
+  saveDb();
+
+  return jobRecord;
+};
+
+const updateJob = ({
+  jobId,
+  projectId,
+  userId,
+  status,
+  payload,
+  attempts,
+  error,
+  startedAt,
+  completedAt,
+  finalState
+}) => {
+  const project = getProjectByIdAndUserId(projectId, userId);
+  if (!project) throw new Error('Unauthorized or project not found');
+
+  if (!dbData.project_jobs[projectId] || !dbData.project_jobs[projectId][jobId]) {
+    throw new Error('Job record not found');
+  }
+
+  const jobRecord = dbData.project_jobs[projectId][jobId];
+
+  if (status && VALID_JOB_STATUSES.includes(status)) {
+    jobRecord.status = status;
+    if (status === 'running' && !jobRecord.started_at) {
+      jobRecord.started_at = startedAt || new Date().toISOString();
+    }
+    if ((status === 'completed' || status === 'failed' || status === 'cancelled') && !jobRecord.completed_at) {
+      jobRecord.completed_at = completedAt || new Date().toISOString();
+    }
+  }
+
+  if (payload !== undefined) jobRecord.payload = payload;
+  if (attempts !== undefined) jobRecord.attempts = attempts;
+  if (error !== undefined) jobRecord.error = error;
+  if (finalState !== undefined) jobRecord.final_state = finalState;
+
+  saveDb();
+  return jobRecord;
+};
+
+const getJobByIdAndUserId = (jobId, projectId, userId) => {
+  const project = getProjectByIdAndUserId(projectId, userId);
+  if (!project) throw new Error('Unauthorized or project not found');
+
+  if (!dbData.project_jobs[projectId]) return null;
+  return dbData.project_jobs[projectId][jobId] || null;
+};
+
+const getActiveJobsForProject = ({ projectId, userId }) => {
+  const project = getProjectByIdAndUserId(projectId, userId);
+  if (!project) throw new Error('Unauthorized or project not found');
+
+  const jobsMap = dbData.project_jobs[projectId] || {};
+  return Object.values(jobsMap).filter((j) => j.status === 'queued' || j.status === 'running');
+};
+
+const getProjectJobs = ({ projectId, userId }) => {
+  const project = getProjectByIdAndUserId(projectId, userId);
+  if (!project) throw new Error('Unauthorized or project not found');
+
+  const jobsMap = dbData.project_jobs[projectId] || {};
+  return Object.values(jobsMap).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 };
 
 // ─── Project Builds Logic ─────────────────────────────────────────────────────
@@ -360,6 +500,127 @@ const getProjectBuilds = ({ projectId, userId }) => {
   return Object.values(buildsMap).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 };
 
+// ─── Project Settings & Workspace State Logic ─────────────────────────
+
+const getProjectSettings = ({ projectId, userId }) => {
+  const project = getProjectByIdAndUserId(projectId, userId);
+  if (!project) throw new Error('Unauthorized or project not found');
+
+  const defaultSettings = {
+    active_file: '/src/App.tsx',
+    open_tabs: ['/src/App.tsx'],
+    preview_device: 'desktop',
+    theme: 'dark',
+    updated_at: new Date().toISOString()
+  };
+
+  return dbData.project_settings[projectId] || defaultSettings;
+};
+
+const updateProjectSettings = ({ projectId, userId, settings = {} }) => {
+  const project = getProjectByIdAndUserId(projectId, userId);
+  if (!project) throw new Error('Unauthorized or project not found');
+
+  const current = getProjectSettings({ projectId, userId });
+  const updated = {
+    ...current,
+    ...settings,
+    updated_at: new Date().toISOString()
+  };
+
+  dbData.project_settings[projectId] = updated;
+  saveDb();
+
+  return updated;
+};
+
+const getActiveProjectJob = ({ projectId, userId }) => {
+  const project = getProjectByIdAndUserId(projectId, userId);
+  if (!project) throw new Error('Unauthorized or project not found');
+
+  return dbData.project_active_jobs[projectId] || null;
+};
+
+const setActiveProjectJob = ({ projectId, userId, jobData }) => {
+  const project = getProjectByIdAndUserId(projectId, userId);
+  if (!project) throw new Error('Unauthorized or project not found');
+
+  if (jobData === null) {
+    delete dbData.project_active_jobs[projectId];
+  } else {
+    dbData.project_active_jobs[projectId] = {
+      ...jobData,
+      updated_at: new Date().toISOString()
+    };
+  }
+
+  saveDb();
+  return dbData.project_active_jobs[projectId] || null;
+};
+
+/**
+ * Composite single-pass workspace state restoration
+ */
+const getWorkspaceState = ({ projectId, userId, chatLimit = 50, chatBefore = null }) => {
+  const project = getProjectByIdAndUserId(projectId, userId);
+  if (!project) throw new Error('Unauthorized or project not found');
+
+  const files = getProjectFiles({ projectId, userId });
+  const chat = getProjectChat({ projectId, userId, limit: chatLimit, before: chatBefore });
+  const events = getProjectEvents({ projectId, userId });
+  const builds = getProjectBuilds({ projectId, userId });
+  const settings = getProjectSettings({ projectId, userId });
+  const activeJob = getActiveProjectJob({ projectId, userId });
+
+  const latestBuild = builds.length > 0 ? builds[0] : null;
+
+  return {
+    project,
+    files,
+    chat,
+    events,
+    latest_build: latestBuild,
+    settings,
+    active_job: activeJob
+  };
+};
+
+// ─── Audit Logging Logic ──────────────────────────────────────────────
+
+const createAuditLog = ({ projectId, userId, action, ipAddress = '', userAgent = '', status = 'success', details = {} }) => {
+  const auditId = uuidv4();
+  const now = new Date().toISOString();
+
+  const auditRecord = {
+    id: auditId,
+    project_id: projectId || 'system',
+    user_id: userId || 'anonymous',
+    action: action || 'GENERIC_ACTION',
+    ip_address: ipAddress || '',
+    user_agent: userAgent || '',
+    status: status || 'success',
+    details: details || {},
+    timestamp: now
+  };
+
+  const key = projectId || 'system';
+  if (!dbData.project_audit_logs[key]) {
+    dbData.project_audit_logs[key] = [];
+  }
+
+  dbData.project_audit_logs[key].push(auditRecord);
+  saveDb();
+
+  return auditRecord;
+};
+
+const getProjectAuditLogs = ({ projectId, userId }) => {
+  const project = getProjectByIdAndUserId(projectId, userId);
+  if (!project) throw new Error('Unauthorized or project not found');
+
+  return dbData.project_audit_logs[projectId] || [];
+};
+
 // Initialize DB on module load
 initDb();
 
@@ -380,7 +641,20 @@ module.exports = {
   createBuild,
   updateBuild,
   getProjectBuilds,
+  getProjectSettings,
+  updateProjectSettings,
+  getActiveProjectJob,
+  setActiveProjectJob,
+  getWorkspaceState,
+  createJob,
+  updateJob,
+  getJobByIdAndUserId,
+  getActiveJobsForProject,
+  getProjectJobs,
+  createAuditLog,
+  getProjectAuditLogs,
   VALID_STATUSES,
   VALID_ROLES,
-  VALID_MESSAGE_TYPES
+  VALID_MESSAGE_TYPES,
+  VALID_JOB_STATUSES
 };

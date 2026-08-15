@@ -3,6 +3,7 @@ const router = express.Router({ mergeParams: true });
 const path = require('path');
 const fs = require('fs');
 const { authenticateSession } = require('../middleware/auth');
+const { auditLogMiddleware } = require('../middleware/auditLog');
 const db = require('../data/db');
 
 router.use(authenticateSession);
@@ -13,7 +14,7 @@ const STORAGE_ROOT = path.join(__dirname, '../storage');
  * Access-controlled static asset download endpoint
  * GET /api/projects/:projectId/assets/*
  */
-router.get('/{*assetPath}', (req, res) => {
+router.get('/{*assetPath}', auditLogMiddleware('GET_PROJECT_ASSET'), (req, res) => {
   try {
     const { projectId } = req.params;
     const authenticatedUserId = req.user.id;
@@ -52,7 +53,7 @@ router.get('/{*assetPath}', (req, res) => {
  * Access-controlled asset upload endpoint
  * POST /api/projects/:projectId/assets/*
  */
-router.post('/{*assetPath}', (req, res) => {
+router.post('/{*assetPath}', auditLogMiddleware('UPLOAD_PROJECT_ASSET'), (req, res) => {
   try {
     const { projectId } = req.params;
     const authenticatedUserId = req.user.id;
